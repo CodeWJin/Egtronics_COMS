@@ -191,7 +191,7 @@ function TopNav() {
     <header className="topnav">
       <div className="topnav__brand">
         <div className="topnav__logo">P</div>
-        <span>EgtronicsCharger Management Web</span>
+        <span>E-COMS</span>
         <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500, marginLeft: 4, padding: '2px 6px', border: '1px solid var(--border-1)', borderRadius: 4, letterSpacing: '0.04em' }}>v2.5</span>
       </div>
       <nav className="topnav__tabs">
