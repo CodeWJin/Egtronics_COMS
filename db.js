@@ -374,23 +374,38 @@
     async init() {
       if (this.backend) return this;
       try {
-        // sql.js 로드 대기 (최대 5초)
+        // sql.js 로드 대기 (최대 10초)
         let attempts = 0;
-        while (typeof initSqlJs !== 'function' && attempts < 50) {
+        while (typeof initSqlJs !== 'function' && attempts < 100) {
           await new Promise(r => setTimeout(r, 100));
           attempts++;
         }
         
         if (typeof initSqlJs !== 'function') {
-          throw new Error('sql.js 로드 실패 - 인터넷 연결을 확인하고 새로고침하세요');
+          console.error('[DB] sql.js 로드 실패 — CDN 연결 확인 필요');
+          throw new Error('sql.js 로드 실패');
         }
 
-        const SQL = await initSqlJs({
-          locateFile: (f) => 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/' + f,
-        }).catch(err => {
-          console.error('sql.js 초기화 오류:', err);
-          throw new Error('sql.js 초기화 실패: ' + err.message);
-        });
+        console.log('[DB] sql.js 로드 완료 - 초기화 시작');
+
+        let SQL;
+        try {
+          const sqlInitPromise = initSqlJs({
+            locateFile: (f) => {
+              const url = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/' + f;
+              console.log('[DB] sql.js 파일 로드:', url);
+              return url;
+            },
+          });
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('sql.js WASM 로드 타임아웃 (15초) — 인메모리 모드로 전환')), 15000)
+          );
+          SQL = await Promise.race([sqlInitPromise, timeoutPromise]);
+          console.log('[DB] SQL.js 초기화 완료');
+        } catch (err) {
+          console.error('[DB] sql.js 초기화 오류:', err);
+          throw new Error('sql.js 초기화 실패: ' + (err.message || err));
+        }
 
         let db;
         try {
@@ -399,11 +414,20 @@
           // 2순위: localStorage
           if (!initBytes) {
             const b64 = localStorage.getItem(DB_KEY);
-            if (b64) initBytes = b64ToBytes(b64);
+            if (b64) {
+              console.log('[DB] localStorage에서 DB 로드');
+              initBytes = b64ToBytes(b64);
+            }
           }
-          db = initBytes ? new SQL.Database(initBytes) : new SQL.Database();
+          if (initBytes) {
+            console.log('[DB] 기존 DB 로드:', initBytes.length, 'bytes');
+            db = new SQL.Database(initBytes);
+          } else {
+            console.log('[DB] 새로운 DB 생성');
+            db = new SQL.Database();
+          }
         } catch (dbErr) {
-          console.error('데이터베이스 로드 오류:', dbErr);
+          console.error('[DB] 데이터베이스 로드 오류:', dbErr);
           db = new SQL.Database(); // 새로운 빈 DB로 시작
         }
 
@@ -563,5 +587,8 @@
     reset() { localStorage.removeItem(DB_KEY); localStorage.removeItem(MEM_KEY); localStorage.removeItem('pm_session'); },
   };
 
+  console.log('[DB] PMDB module initialized');
   window.PMDB = PMDB;
+  console.log('[DB] window.PMDB assigned');
 })();
+console.log('[DB] db.js execution complete');

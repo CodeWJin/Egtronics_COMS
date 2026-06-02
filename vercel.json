@@ -2,14 +2,26 @@
   "version": 2,
   "builds": [
     { "src": "server.js", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" },
     { "src": "Egtronics_COMS.html", "use": "@vercel/static" },
     { "src": "styles.css", "use": "@vercel/static" },
-    { "src": "*.jsx", "use": "@vercel/static" }
+    { "src": "*.jsx", "use": "@vercel/static" },
+    { "src": "*.js", "use": "@vercel/static" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    }
   ],
   "routes": [
     { "src": "/styles.css", "dest": "/styles.css" },
     { "src": "/(.*).jsx", "dest": "/$1.jsx" },
+    { "src": "/(.*).js", "dest": "/$1.js" },
     { "src": "/api/(.*)", "dest": "server.js" },
-    { "src": "/(.*)", "dest": "Egtronics_COMS.html" }
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
