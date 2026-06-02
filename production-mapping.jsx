@@ -277,13 +277,18 @@ function MappingForm({ order }) {
             <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/7 항목 입력
           </span>
           <button className="btn btn--ghost btn--sm" onClick={() => {
-            if (confirm(`오더 #${order.order_id}을(를) 생산대기로 되돌릴까요?`)) {
+            if (confirm(`오더 #${order.order_id}을(를) 생산대기로 되돌릴까요?\n입력 중인 내용은 저장되지 않습니다.`)) {
               window.actions.revertOrder(order.order_id);
             }
           }}>
             <Icon name="refresh" size={12}/> 대기로
           </button>
-          <button className="btn btn--secondary" onClick={() => window.actions.setView('waiting')}>
+          <button className="btn btn--secondary" onClick={() => {
+            window.PMDB.saveProduction(order.order_id, form);
+            window.actions.refreshOrders();
+            window.actions.flashToast('입력 내용이 임시 저장되었습니다', 'success');
+            window.actions.setView('waiting');
+          }}>
             <Icon name="arrow-left" size={13}/> 목록
           </button>
           <button className="btn btn--success btn--lg" onClick={submit}>

@@ -46,52 +46,33 @@
   <div class="boot">
     <div class="boot__logo">P</div>
     <div class="boot__spin"></div>
-    <div class="boot__txt">SQLite 데이터베이스 초기화 중…</div>
+    <div class="boot__txt">Supabase 연결 중…</div>
   </div>
 </div>
 
+<!-- React -->
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/plugin-transform-react-jsx-production@7.29.0/lib/index.min.js" crossorigin="anonymous"></script>
 
 <script>
-// Babel 플러그인 설정 (프로덕션 경고 억제)
 if (window.Babel) {
   window.Babel.registerPlugin('transform-react-jsx-production', window.BabelPluginTransformReactJsxProduction.default);
 }
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js" crossorigin="anonymous"></script>
-<script>
-// 부트 스플래시 상태 메시지 업데이트 함수
 window.updateBootStatus = function(msg) {
   const txt = document.querySelector('.boot__txt');
   if (txt) txt.textContent = msg;
 };
-
-// SQL.js 초기화 플래그
-window.__sqlReady = false;
-window.__sqlError = false;
-
-// SQL.js 로드 완료 확인
-if (typeof initSqlJs === 'function') {
-  window.__sqlReady = true;
-} else {
-  // 동적 로드 대기
-  setTimeout(() => {
-    if (typeof initSqlJs === 'function') {
-      window.__sqlReady = true;
-    } else {
-      console.error('sql.js failed to load');
-      window.__sqlError = true;
-      window.updateBootStatus('sql.js 로드 실패. 새로고침하세요.');
-    }
-  }, 3000);
-}
 </script>
 
-<!-- 일반 JS 파일 (JSX 아님) -->
+<!-- Supabase JS v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+
+<!-- Supabase 접속 정보 (이 파일에 URL과 키 입력) -->
+<script src="supabase-config.js"></script>
+
+<!-- 데이터/DB 레이어 -->
 <script src="data.js"></script>
 <script src="db.js"></script>
 
