@@ -25,9 +25,5 @@
       "src": "/(.*)",
       "dest": "Egtronics_COMS.html"
     }
-  ],
-  "env": {
-    "RESEND_API_KEY": "@resend_api_key",
-    "MAIL_FROM": "@mail_from"
-  }
+  ]
 }
