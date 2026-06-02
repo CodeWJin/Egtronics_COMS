@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "name": "egtronics-coms",
+  "regions": ["icn1"],
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "Egtronics_COMS.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "Egtronics_COMS.html"
+    }
+  ],
+  "env": {
+    "RESEND_API_KEY": "@resend_api_key",
+    "MAIL_FROM": "@mail_from"
+  }
+}
