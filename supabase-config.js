@@ -4,4 +4,4 @@
 // ============================================================
 
 window.SUPABASE_URL      = 'https://zefpwmjmsbegqkpvydfq.supabase.co';
-window.SUPABASE_ANON_KEY = 'sb_publishable__2vi4g9fgjwLLduwsfJrEg_VtoHfisy';
+window.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplZnB3bWptc2JlZ3FrcHZ5ZGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODA3NTUsImV4cCI6MjA5NTk1Njc1NX0.VNHBfHC1Y3yAJ7YZSzZr6bFis6m778rOrxs-bRqBxeI';
