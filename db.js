@@ -7,6 +7,47 @@
 (function () {
   const TODAY = new Date().toISOString().slice(0, 10);
 
+  // ============================================================
+  // DB 로거 — 브라우저 콘솔 + window.PMDB_LOGS 배열에 저장
+  // 조회: window.pmdbLogs() 또는 window.pmdbLogs('ERROR')
+  // ============================================================
+  const PMDB_LOGS = [];
+  const LOG_STYLES = {
+    INFO:    'color:#2563eb;font-weight:600',
+    SUCCESS: 'color:#16a34a;font-weight:600',
+    WARN:    'color:#d97706;font-weight:600',
+    ERROR:   'color:#dc2626;font-weight:600',
+  };
+
+  function dbLog(level, category, message, detail) {
+    const ts = new Date().toISOString();
+    const entry = { ts, level, category, message, detail: detail ?? null };
+    PMDB_LOGS.push(entry);
+    const style = LOG_STYLES[level] || LOG_STYLES.INFO;
+    const prefix = `%c[DB][${level}]%c ${ts} | ${category} |`;
+    if (level === 'ERROR') {
+      console.error(prefix + ' ' + message, style, 'color:inherit', detail ?? '');
+    } else if (level === 'WARN') {
+      console.warn(prefix + ' ' + message, style, 'color:inherit', detail ?? '');
+    } else {
+      console.log(prefix + ' ' + message, style, 'color:inherit', ...(detail !== undefined ? [detail] : []));
+    }
+  }
+
+  window.PMDB_LOGS = PMDB_LOGS;
+  window.pmdbLogs = function (levelFilter) {
+    const list = levelFilter
+      ? PMDB_LOGS.filter(e => e.level === levelFilter.toUpperCase())
+      : PMDB_LOGS;
+    console.table(list.map(e => ({
+      시각: e.ts.replace('T', ' ').slice(0, 23),
+      레벨: e.level,
+      분류: e.category,
+      메시지: e.message,
+    })));
+    return list;
+  };
+
   const SEED_USERS = [
     { user_id: 'admin', password: '1234', name: '박우진', role: 'admin',      dept: '충전기개발실', phone: '010-2567-8418', email: 'wjpark@egtronics.com' },
     { user_id: 'sales', password: '1234', name: '신정륜', role: 'sales',      dept: '영업부',       phone: '010-3000-4000', email: 'sales@egtrinocs.com' },
@@ -29,10 +70,14 @@
     let histSeq = 0;
 
     // 비동기 쓰기 — 로컬 캐시 업데이트 후 백그라운드에서 Supabase에 동기화
-    function dbWrite(fn) {
+    function dbWrite(table, op, fn) {
       fn().then(({ error }) => {
-        if (error) console.error('[DB] Supabase 쓰기 오류:', error.message);
-      }).catch(err => console.error('[DB] 네트워크 오류:', err));
+        if (error) {
+          dbLog('ERROR', `write:${table}`, `${op} 실패 — ${error.message}`, { table, op, error });
+        } else {
+          dbLog('SUCCESS', `write:${table}`, `${op} 완료`);
+        }
+      }).catch(err => dbLog('ERROR', `write:${table}`, `네트워크 오류 — ${err.message}`, err));
     }
 
     return {
@@ -40,6 +85,8 @@
       cache,
 
       async loadAll() {
+        dbLog('INFO', 'loadAll', '전체 테이블 조회 시작');
+        const t0 = Date.now();
         const deadline = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('연결 시간 초과 (15초)\n→ Supabase URL과 API 키를 supabase-config.js에서 확인하세요')), 15000)
         );
@@ -60,6 +107,7 @@
             : firstErr.message?.toLowerCase().includes('relation') || firstErr.message?.toLowerCase().includes('does not exist')
             ? '\n→ 테이블이 없습니다. supabase-schema.sql을 Supabase SQL 에디터에서 실행하세요'
             : '';
+          dbLog('ERROR', 'loadAll', 'Supabase 데이터 로드 실패 — ' + firstErr.message, firstErr);
           throw new Error('Supabase 데이터 로드 실패: ' + firstErr.message + hint);
         }
         cache.orders     = o.data || [];
@@ -69,6 +117,14 @@
         cache.history    = h.data || [];
         mgrSeq  = cache.managers.reduce((mx, x) => Math.max(mx, x.manager_id || 0), 0);
         histSeq = cache.history.reduce((mx, x) => Math.max(mx, x.history_id || 0), 0);
+        const elapsed = Date.now() - t0;
+        dbLog('SUCCESS', 'loadAll', `전체 조회 완료 (${elapsed}ms)`, {
+          tb_sales_order:      cache.orders.length,
+          tb_production_info:  cache.production.length,
+          tb_customer_manager: cache.managers.length,
+          users:               cache.users.length,
+          tb_order_history:    cache.history.length,
+        });
       },
 
       loadOrders() {
@@ -83,23 +139,29 @@
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
         const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, status: 'PENDING', created: TODAY };
         cache.orders.push(row);
-        dbWrite(() => client.from('tb_sales_order').insert(row));
+        dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
+        dbWrite('tb_sales_order', 'insert', () => client.from('tb_sales_order').insert(row));
         return id;
       },
 
       updateOrder(order_id, form) {
         const o = cache.orders.find(x => x.order_id === order_id);
-        if (!o || o.status !== 'PENDING') return false;
+        if (!o || o.status !== 'PENDING') {
+          dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
         const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address };
         Object.assign(o, upd);
-        dbWrite(() => client.from('tb_sales_order').update(upd).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'update', () => client.from('tb_sales_order').update(upd).eq('order_id', order_id));
         return true;
       },
 
       saveProduction(order_id, p) {
         cache.production = cache.production.filter(x => x.order_id !== order_id);
         cache.production.push({ order_id, ...p });
-        dbWrite(() => client.from('tb_production_info').upsert({ order_id, ...p }, { onConflict: 'order_id' }));
+        dbLog('INFO', 'write:tb_production_info', `생산 정보 저장 — order_id=${order_id}`);
+        dbWrite('tb_production_info', 'upsert', () => client.from('tb_production_info').upsert({ order_id, ...p }, { onConflict: 'order_id' }));
       },
 
       completeOrder(order_id, p) {
@@ -107,7 +169,8 @@
         cache.production.push({ order_id, ...p });
         const o = cache.orders.find(x => x.order_id === order_id);
         if (o) o.status = 'COMPLETED';
-        dbWrite(async () => {
+        dbLog('INFO', 'write:tb_sales_order', `주문 완료 처리 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'complete', async () => {
           await client.from('tb_production_info').upsert({ order_id, ...p }, { onConflict: 'order_id' });
           return client.from('tb_sales_order').update({ status: 'COMPLETED' }).eq('order_id', order_id);
         });
@@ -116,14 +179,19 @@
       revertOrder(order_id) {
         const o = cache.orders.find(x => x.order_id === order_id);
         if (o) o.status = 'PENDING';
-        dbWrite(() => client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_sales_order', `주문 되돌리기 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'revert', () => client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id));
       },
 
       startProduction(order_id) {
         const o = cache.orders.find(x => x.order_id === order_id);
-        if (!o || o.status !== 'PENDING') return false;
+        if (!o || o.status !== 'PENDING') {
+          dbLog('WARN', 'write:tb_sales_order', `생산 시작 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
         o.status = 'IN_PROGRESS';
-        dbWrite(() => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_sales_order', `생산 시작 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'start', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
         return true;
       },
 
@@ -141,7 +209,8 @@
         const id = ++mgrSeq;
         const row = { manager_id: id, customer_name: m.customer_name, name: m.name, phone: m.phone || '', email: m.email || '', is_primary: m.is_primary ? 1 : 0 };
         cache.managers.push(row);
-        dbWrite(async () => {
+        dbLog('INFO', 'write:tb_customer_manager', `담당자 추가 — manager_id=${id}, 고객=${m.customer_name}, 이름=${m.name}`);
+        dbWrite('tb_customer_manager', 'insert', async () => {
           if (m.is_primary) await client.from('tb_customer_manager').update({ is_primary: 0 }).eq('customer_name', m.customer_name);
           return client.from('tb_customer_manager').insert(row);
         });
@@ -154,7 +223,8 @@
         if (m.is_primary) cache.managers.forEach(x => { if (x.customer_name === row.customer_name) x.is_primary = 0; });
         const upd = { name: m.name, phone: m.phone || '', email: m.email || '', is_primary: m.is_primary ? 1 : 0 };
         Object.assign(row, upd);
-        dbWrite(async () => {
+        dbLog('INFO', 'write:tb_customer_manager', `담당자 수정 — manager_id=${id}`);
+        dbWrite('tb_customer_manager', 'update', async () => {
           if (m.is_primary) await client.from('tb_customer_manager').update({ is_primary: 0 }).eq('customer_name', row.customer_name);
           return client.from('tb_customer_manager').update(upd).eq('manager_id', id);
         });
@@ -162,11 +232,17 @@
 
       deleteManager(id) {
         cache.managers = cache.managers.filter(x => x.manager_id !== id);
-        dbWrite(() => client.from('tb_customer_manager').delete().eq('manager_id', id));
+        dbLog('INFO', 'write:tb_customer_manager', `담당자 삭제 — manager_id=${id}`);
+        dbWrite('tb_customer_manager', 'delete', () => client.from('tb_customer_manager').delete().eq('manager_id', id));
       },
 
       authenticate(userId, password) {
         const u = cache.users.find(x => x.user_id === userId && x.password === password);
+        if (u) {
+          dbLog('SUCCESS', 'auth', `로그인 성공 — user_id=${userId}, role=${u.role}`);
+        } else {
+          dbLog('WARN', 'auth', `로그인 실패 — user_id=${userId}`);
+        }
         return u ? { user_id: u.user_id, name: u.name, role: u.role, dept: u.dept, phone: u.phone, email: u.email || '' } : null;
       },
 
@@ -192,7 +268,8 @@
         const u = cache.users.find(x => x.user_id === userId);
         if (!u) return false;
         u.password = newPw;
-        dbWrite(() => client.from('users').update({ password: newPw }).eq('user_id', userId));
+        dbLog('INFO', 'write:users', `비밀번호 변경 — user_id=${userId}`);
+        dbWrite('users', 'update', () => client.from('users').update({ password: newPw }).eq('user_id', userId));
         return true;
       },
 
@@ -202,7 +279,8 @@
         const id = ++histSeq;
         const row = { history_id: id, order_id, changed_at: changedAt, changed_by: changedBy, action: action || 'update', changed_fields: JSON.stringify(fields) };
         cache.history.push(row);
-        dbWrite(() => client.from('tb_order_history').insert(row));
+        dbLog('INFO', 'write:tb_order_history', `이력 추가 — order_id=${order_id}, action=${action || 'update'}, by=${changedBy}`);
+        dbWrite('tb_order_history', 'insert', () => client.from('tb_order_history').insert(row));
       },
 
       getHistory(order_id) {
@@ -223,25 +301,34 @@
     async init() {
       if (this.backend) return this;
 
+      dbLog('INFO', 'init', 'PMDB 초기화 시작');
+      const t0 = Date.now();
+
       // Supabase 클라이언트 로드 대기 (최대 10초)
       let attempts = 0;
       while (!window.supabase && attempts < 100) {
         await new Promise(r => setTimeout(r, 100));
         attempts++;
       }
-      if (!window.supabase) throw new Error('Supabase 라이브러리 로드 실패 — 네트워크를 확인하세요');
+      if (!window.supabase) {
+        dbLog('ERROR', 'init', 'Supabase 라이브러리 로드 실패');
+        throw new Error('Supabase 라이브러리 로드 실패 — 네트워크를 확인하세요');
+      }
 
       const url = window.SUPABASE_URL;
       const key = window.SUPABASE_ANON_KEY;
       if (!url || url.includes('YOUR_PROJECT_ID')) {
+        dbLog('ERROR', 'init', 'SUPABASE_URL 미설정');
         throw new Error('supabase-config.js에 프로젝트 URL을 입력하세요');
       }
       if (!key || key.includes('YOUR_ANON_KEY') || key === '') {
+        dbLog('ERROR', 'init', 'SUPABASE_ANON_KEY 미설정');
         throw new Error('supabase-config.js에 API 키를 입력하세요');
       }
       // 키 형식 검사: JWT(eyJ...) 또는 새 publishable 키(sb_publishable_...) 여야 함
       const keyOk = key.startsWith('eyJ') || /^sb_publishable_[A-Za-z0-9_-]{10,}/.test(key);
       if (!keyOk) {
+        dbLog('ERROR', 'init', 'SUPABASE_ANON_KEY 형식 오류 — ' + key.slice(0, 30) + '…');
         throw new Error(
           'SUPABASE_ANON_KEY 형식이 올바르지 않습니다.\n' +
           '현재 값: ' + key.slice(0, 30) + '…\n' +
@@ -249,6 +336,7 @@
         );
       }
 
+      dbLog('INFO', 'init', `Supabase 연결 중 — ${url}`);
       window.updateBootStatus('Supabase 연결 중…');
       const client = window.supabase.createClient(url, key);
       const backend = makeSupabaseBackend(client);
@@ -258,33 +346,40 @@
 
       // 테이블이 비어 있으면 초기 데이터 삽입
       if (backend.cache.users.length === 0) {
+        dbLog('INFO', 'init', '초기 사용자 데이터 삽입');
         const { error } = await client.from('users').insert(SEED_USERS.map(u => ({ ...u })));
-        if (!error) backend.cache.users = SEED_USERS.map(u => ({ ...u }));
+        if (error) dbLog('ERROR', 'init', '초기 사용자 삽입 실패 — ' + error.message, error);
+        else backend.cache.users = SEED_USERS.map(u => ({ ...u }));
       }
 
       const SEED_MANAGERS = window.SEED_MANAGERS || [];
       if (backend.cache.managers.length === 0 && SEED_MANAGERS.length > 0) {
+        dbLog('INFO', 'init', `초기 담당자 데이터 삽입 — ${SEED_MANAGERS.length}건`);
         const rows = SEED_MANAGERS.map((m, i) => ({ manager_id: i + 1, customer_name: m.customer_name, name: m.name, phone: m.phone || '', email: m.email || '', is_primary: m.is_primary ? 1 : 0 }));
         const { error } = await client.from('tb_customer_manager').insert(rows);
-        if (!error) backend.cache.managers = rows;
+        if (error) dbLog('ERROR', 'init', '초기 담당자 삽입 실패 — ' + error.message, error);
+        else backend.cache.managers = rows;
       }
 
       const SEED_ORDERS = window.SEED_ORDERS || [];
       if (backend.cache.orders.length === 0 && SEED_ORDERS.length > 0) {
+        dbLog('INFO', 'init', `초기 주문 데이터 삽입 — ${SEED_ORDERS.length}건`);
         const orderRows = SEED_ORDERS.map(o => ({ order_id: o.order_id, customer_name: o.customer_name, customer_manager: o.customer_manager || primaryManagerFor(o.customer_name), model_name: o.model_name, delivery_date: o.delivery_date, station_id: o.station_id, router_no: o.router_no, usim_no: o.usim_no, install_address: o.install_address, status: o.status, created: o.created }));
         const { error: oe } = await client.from('tb_sales_order').insert(orderRows);
-        if (!oe) backend.cache.orders = orderRows;
+        if (oe) dbLog('ERROR', 'init', '초기 주문 삽입 실패 — ' + oe.message, oe);
+        else backend.cache.orders = orderRows;
 
         const prodRows = SEED_ORDERS.filter(o => o.production).map(o => ({ order_id: o.order_id, ...o.production }));
         if (prodRows.length) {
           const { error: pe } = await client.from('tb_production_info').insert(prodRows);
-          if (!pe) backend.cache.production = prodRows;
+          if (pe) dbLog('ERROR', 'init', '초기 생산 정보 삽입 실패 — ' + pe.message, pe);
+          else backend.cache.production = prodRows;
         }
       }
 
       this.backend = backend;
       this.engine = 'supabase';
-      console.log('[PMDB] Supabase 준비 완료');
+      dbLog('SUCCESS', 'init', `PMDB 준비 완료 (총 ${Date.now() - t0}ms)`);
       window.updateBootStatus('준비 완료 중…');
       return this;
     },
@@ -309,9 +404,9 @@
     query()                  { return []; },
     addHistory(id, by, at, f, a) { return this.backend.addHistory(id, by, at, f, a); },
     getHistory(id)           { return this.backend.getHistory(id); },
-    reset()                  { console.warn('[PMDB] Supabase 모드에서는 reset()을 지원하지 않습니다'); },
+    reset()                  { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };
 
   window.PMDB = PMDB;
-  console.log('[DB] PMDB (Supabase) 모듈 로드됨');
+  dbLog('INFO', 'module', 'PMDB (Supabase) 모듈 로드됨');
 })();
