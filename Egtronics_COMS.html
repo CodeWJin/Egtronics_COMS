@@ -32,6 +32,9 @@
     border: 2.5px solid #CBD5E1; border-top-color: #2563EB;
     animation: bootspin 0.7s linear infinite;
   }
+  .boot.hide {
+    display: none !important;
+  }
   @keyframes bootspin { to { transform: rotate(360deg); } }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 </style>
@@ -49,7 +52,24 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js" onerror="window.__sqlError=true"></script>
+<script>
+// 부트 스플래시 상태 메시지 업데이트 함수
+window.updateBootStatus = function(msg) {
+  const txt = document.querySelector('.boot__txt');
+  if (txt) txt.textContent = msg;
+};
+
+// sql.js 로드 실패 대응
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (window.__sqlError || typeof initSqlJs !== 'function') {
+      console.error('sql.js failed to load');
+      window.updateBootStatus('sql.js 로드 실패. 새로고침하세요.');
+    }
+  }, 5000);
+});
+</script>
 <script src="data.js"></script>
 <script src="db.js"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>

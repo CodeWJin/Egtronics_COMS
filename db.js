@@ -374,19 +374,38 @@
     async init() {
       if (this.backend) return this;
       try {
-        if (typeof initSqlJs !== 'function') throw new Error('sql.js not loaded');
+        // sql.js 로드 대기 (최대 5초)
+        let attempts = 0;
+        while (typeof initSqlJs !== 'function' && attempts < 50) {
+          await new Promise(r => setTimeout(r, 100));
+          attempts++;
+        }
+        
+        if (typeof initSqlJs !== 'function') {
+          throw new Error('sql.js 로드 실패 - 인터넷 연결을 확인하고 새로고침하세요');
+        }
+
         const SQL = await initSqlJs({
           locateFile: (f) => 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/' + f,
+        }).catch(err => {
+          console.error('sql.js 초기화 오류:', err);
+          throw new Error('sql.js 초기화 실패: ' + err.message);
         });
+
         let db;
-        // 1순위: FSA 파일 핸들 (이전에 연결된 .db 파일)
-        let initBytes = await _fsaTryLoadOnInit();
-        // 2순위: localStorage
-        if (!initBytes) {
-          const b64 = localStorage.getItem(DB_KEY);
-          if (b64) initBytes = b64ToBytes(b64);
+        try {
+          // 1순위: FSA 파일 핸들 (이전에 연결된 .db 파일)
+          let initBytes = await _fsaTryLoadOnInit();
+          // 2순위: localStorage
+          if (!initBytes) {
+            const b64 = localStorage.getItem(DB_KEY);
+            if (b64) initBytes = b64ToBytes(b64);
+          }
+          db = initBytes ? new SQL.Database(initBytes) : new SQL.Database();
+        } catch (dbErr) {
+          console.error('데이터베이스 로드 오류:', dbErr);
+          db = new SQL.Database(); // 새로운 빈 DB로 시작
         }
-        db = initBytes ? new SQL.Database(initBytes) : new SQL.Database();
 
         const persist = () => {
           const bytes = db.export();
@@ -473,10 +492,13 @@
         this.backend = makeSqlBackend(db, persist);
         this.engine = 'sqlite';
         console.log('[PMDB] SQLite (sql.js) ready');
+        window.updateBootStatus('준비 완료 중…');
       } catch (e) {
         console.warn('[PMDB] sql.js unavailable, using in-memory fallback:', e && e.message);
+        window.updateBootStatus('데이터베이스 로드 중…(인메모리 모드)');
         this.backend = makeMemBackend();
         this.engine = 'memory';
+        setTimeout(() => window.updateBootStatus('준비 완료 중…'), 500);
       }
       return this;
     },

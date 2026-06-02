@@ -140,6 +140,13 @@ function boot() {
       const sess = localStorage.getItem('pm_session');
       if (sess) { const u = window.PMDB.getUser(sess); if (u) store.currentUser = u; }
     } catch (e) {}
+    // 부트 스플래시 숨기고 앱 렌더링
+    const bootEl = document.querySelector('.boot');
+    if (bootEl) {
+      bootEl.classList.add('hide');
+      // 다른 메서드도 함께 사용 (cross-browser 호환성)
+      bootEl.style.display = 'none';
+    }
     root.render(<App/>);
   });
 }
