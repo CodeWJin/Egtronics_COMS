@@ -12,7 +12,7 @@ window[STORE_KEY] = window[STORE_KEY] || {
   currentUser: null,
   dbReady: false,
   view: 'sales', // 'sales' | 'waiting' | 'mapping' | 'completed' | 'lookup'
-  waitingView: 'table', // 'table' | 'card' | 'kanban' | 'timeline'
+  waitingView: 'kanban', // 'table' | 'card' | 'kanban' | 'timeline'
   toast: null,
   completingOrderId: null,
 };
