@@ -1,10 +1,15 @@
 {
-  "name": "charger-management-web",
+  "name": "egtronics-coms",
   "version": "1.0.0",
+  "description": "Egtronics COMS - Charger Operation Management System for managing charger orders, production, and sales",
   "private": true,
+  "keywords": ["charger", "management", "egtronics", "web", "react"],
+  "author": "Egtronics",
+  "license": "PRIVATE",
   "scripts": {
-    "dev": "live-server --port=3000 --open=\"EgtronicsCharger Management Web.html\"",
-    "server": "node server.js"
+    "dev": "live-server --port=3000 --open=\"Egtronics_COMS.html\"",
+    "server": "node server.js",
+    "start": "npm run server"
   },
   "devDependencies": {
     "live-server": "^1.2.2"
