@@ -132,22 +132,57 @@ function App() {
 
 function boot() {
   const root = ReactDOM.createRoot(document.getElementById('root'));
-  window.PMDB.init().then(() => {
-    const store = window['__pm_store__'];
-    store.dbReady = true;
-    store.orders = window.PMDB.loadOrders();
-    try {
-      const sess = localStorage.getItem('pm_session');
-      if (sess) { const u = window.PMDB.getUser(sess); if (u) store.currentUser = u; }
-    } catch (e) {}
-    // 부트 스플래시 숨기고 앱 렌더링
-    const bootEl = document.querySelector('.boot');
-    if (bootEl) {
-      bootEl.classList.add('hide');
-      // 다른 메서드도 함께 사용 (cross-browser 호환성)
-      bootEl.style.display = 'none';
+  
+  // db.js와 PMDB 로드 대기
+  const waitForPMDB = () => {
+    return new Promise((resolve) => {
+      if (window.PMDB) {
+        resolve();
+        return;
+      }
+      // 최대 10초까지 대기
+      let attempts = 0;
+      const check = setInterval(() => {
+        attempts++;
+        if (window.PMDB) {
+          clearInterval(check);
+          resolve();
+        } else if (attempts > 100) {
+          clearInterval(check);
+          console.error('[BOOT] PMDB failed to load after 10s');
+          resolve(); // 강제 진행
+        }
+      }, 100);
+    });
+  };
+
+  waitForPMDB().then(() => {
+    // PMDB 초기화
+    if (!window.PMDB) {
+      console.error('[BOOT] PMDB not available');
+      window.updateBootStatus('데이터 시스템 로드 실패');
+      return;
     }
-    root.render(<App/>);
+
+    window.PMDB.init().then(() => {
+      const store = window['__pm_store__'];
+      store.dbReady = true;
+      store.orders = window.PMDB.loadOrders();
+      try {
+        const sess = localStorage.getItem('pm_session');
+        if (sess) { const u = window.PMDB.getUser(sess); if (u) store.currentUser = u; }
+      } catch (e) {}
+      // 부트 스플래시 숨기고 앱 렌더링
+      const bootEl = document.querySelector('.boot');
+      if (bootEl) {
+        bootEl.classList.add('hide');
+        bootEl.style.display = 'none';
+      }
+      root.render(<App/>);
+    }).catch((err) => {
+      console.error('[BOOT] PMDB.init() failed:', err);
+      window.updateBootStatus('데이터 초기화 실패');
+    });
   });
 }
 boot();
