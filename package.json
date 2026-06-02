@@ -1,0 +1,18 @@
+{
+  "name": "charger-management-web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "live-server --port=3000 --open=\"EgtronicsCharger Management Web.html\"",
+    "server": "node server.js"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "resend": "^6.12.4"
+  }
+}
