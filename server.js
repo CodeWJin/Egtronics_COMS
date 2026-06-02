@@ -30,7 +30,7 @@ const log = (level, msg, extra) => {
 
 // 개발(localhost:3000)과 프로덕션(egtronics.com) 모두 허용
 const ALLOWED_ORIGINS = [
-  'http://localhost:3000',
+  'http://localhost:3000/Egtronics_COMS.html',
   process.env.BASE_URL,
 ].filter(Boolean);
 

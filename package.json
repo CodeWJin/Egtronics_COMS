@@ -7,7 +7,7 @@
   "author": "Egtronics",
   "license": "PRIVATE",
   "scripts": {
-    "dev": "live-server --port=3000 --open=\"Egtronics_COMS.html\"",
+    "dev": "live-server --port=3000",
     "server": "node server.js",
     "start": "npm run server"
   },
