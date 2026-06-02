@@ -58,19 +58,21 @@ vercel
 
 ---
 
-## 4단계: 환경 변수 설정
+## 4단계: 환경 변수 설정 (중요)
 
 ### Vercel 대시보드에서:
 
 1. 프로젝트 선택
-2. **Settings** → **Environment Variables**
-3. 다음 변수 추가:
+2. **Settings** → **Environment Variables** 클릭
+3. **Add New** 클릭하고 다음 변수 추가:
 
-| 변수명 | 값 | 주석 |
+| 변수명 | 값 | 환경 |
 |--------|-------|--------|
-| `RESEND_API_KEY` | `re_xxxxx...` | Resend API 키 |
-| `MAIL_FROM` | `이지트로닉스 <evcharger@egtronics.com>` | 이메일 발신자 |
-| `NODE_ENV` | `production` | 환경 설정 |
+| `RESEND_API_KEY` | `re_xxxxx...` (Resend 대시보드에서 복사) | Production |
+| `MAIL_FROM` | `이지트로닉스 <evcharger@egtronics.com>` | Production |
+| `NODE_ENV` | `production` | Production |
+
+**⚠️ 각 변수를 추가할 때 반드시 "Production" 환경만 선택하세요**
 
 ---
 
