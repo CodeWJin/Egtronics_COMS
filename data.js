@@ -1,4 +1,4 @@
-// EgtronicsCharger Management Web — Mock data
+// Egtronics COMS — Mock data
 // EV 충전기 영업/생산 도메인
 
 window.MASTER = {

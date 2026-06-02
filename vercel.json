@@ -1,29 +1,15 @@
 {
   "version": 2,
-  "name": "egtronics-coms",
-  "regions": ["icn1"],
   "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "Egtronics_COMS.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
+    { "src": "server.js", "use": "@vercel/node" },
+    { "src": "Egtronics_COMS.html", "use": "@vercel/static" },
+    { "src": "styles.css", "use": "@vercel/static" },
+    { "src": "*.jsx", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "Egtronics_COMS.html"
-    }
+    { "src": "/styles.css", "dest": "/styles.css" },
+    { "src": "/(.*).jsx", "dest": "/$1.jsx" },
+    { "src": "/api/(.*)", "dest": "server.js" },
+    { "src": "/(.*)", "dest": "Egtronics_COMS.html" }
   ]
 }
