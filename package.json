@@ -3,7 +3,13 @@
   "version": "1.0.0",
   "description": "Egtronics COMS - Charger Operation Management System for managing charger orders, production, and sales",
   "private": true,
-  "keywords": ["charger", "management", "egtronics", "web", "react"],
+  "keywords": [
+    "charger",
+    "management",
+    "egtronics",
+    "web",
+    "react"
+  ],
   "author": "Egtronics",
   "license": "PRIVATE",
   "scripts": {
@@ -15,6 +21,7 @@
     "live-server": "^1.2.2"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
