@@ -337,11 +337,11 @@
       }
 
       dbLog('INFO', 'init', `Supabase 연결 중 — ${url}`);
-      window.updateBootStatus('Supabase 연결 중…');
+      window.updateBootStatus?.('Supabase 연결 중…');
       const client = window.supabase.createClient(url, key);
       const backend = makeSupabaseBackend(client);
 
-      window.updateBootStatus('데이터 로드 중…');
+      window.updateBootStatus?.('데이터 로드 중…');
       await backend.loadAll();
 
       // 테이블이 비어 있으면 초기 데이터 삽입
@@ -380,7 +380,7 @@
       this.backend = backend;
       this.engine = 'supabase';
       dbLog('SUCCESS', 'init', `PMDB 준비 완료 (총 ${Date.now() - t0}ms)`);
-      window.updateBootStatus('준비 완료 중…');
+      window.updateBootStatus?.('준비 완료 중…');
       return this;
     },
 
