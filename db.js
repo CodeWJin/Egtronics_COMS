@@ -40,18 +40,28 @@
       cache,
 
       async loadAll() {
-        const [o, p, m, u, h] = await Promise.all([
-          client.from('tb_sales_order').select('*'),
-          client.from('tb_production_info').select('*'),
-          client.from('tb_customer_manager').select('*'),
-          client.from('users').select('*'),
-          client.from('tb_order_history').select('*'),
+        const deadline = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('연결 시간 초과 (15초)\n→ Supabase URL과 API 키를 supabase-config.js에서 확인하세요')), 15000)
+        );
+        const [o, p, m, u, h] = await Promise.race([
+          Promise.all([
+            client.from('tb_sales_order').select('*'),
+            client.from('tb_production_info').select('*'),
+            client.from('tb_customer_manager').select('*'),
+            client.from('users').select('*'),
+            client.from('tb_order_history').select('*'),
+          ]),
+          deadline,
         ]);
-        if (o.error) throw new Error('주문 데이터 로드 실패: ' + o.error.message);
-        if (p.error) throw new Error('생산 데이터 로드 실패: ' + p.error.message);
-        if (m.error) throw new Error('담당자 데이터 로드 실패: ' + m.error.message);
-        if (u.error) throw new Error('사용자 데이터 로드 실패: ' + u.error.message);
-        if (h.error) throw new Error('이력 데이터 로드 실패: ' + h.error.message);
+        const firstErr = o.error || p.error || m.error || u.error || h.error;
+        if (firstErr) {
+          const hint = firstErr.message?.toLowerCase().includes('apikey') || firstErr.message?.toLowerCase().includes('invalid')
+            ? '\n→ API 키가 잘못되었습니다. supabase-config.js의 SUPABASE_ANON_KEY를 확인하세요'
+            : firstErr.message?.toLowerCase().includes('relation') || firstErr.message?.toLowerCase().includes('does not exist')
+            ? '\n→ 테이블이 없습니다. supabase-schema.sql을 Supabase SQL 에디터에서 실행하세요'
+            : '';
+          throw new Error('Supabase 데이터 로드 실패: ' + firstErr.message + hint);
+        }
         cache.orders     = o.data || [];
         cache.production = p.data || [];
         cache.managers   = m.data || [];
@@ -224,7 +234,19 @@
       const url = window.SUPABASE_URL;
       const key = window.SUPABASE_ANON_KEY;
       if (!url || url.includes('YOUR_PROJECT_ID')) {
-        throw new Error('supabase-config.js에 프로젝트 URL과 키를 입력하세요');
+        throw new Error('supabase-config.js에 프로젝트 URL을 입력하세요');
+      }
+      if (!key || key.includes('YOUR_ANON_KEY') || key === '') {
+        throw new Error('supabase-config.js에 API 키를 입력하세요');
+      }
+      // 키 형식 검사: JWT(eyJ...) 또는 새 publishable 키(sb_publishable_...) 여야 함
+      const keyOk = key.startsWith('eyJ') || /^sb_publishable_[A-Za-z0-9_-]{10,}/.test(key);
+      if (!keyOk) {
+        throw new Error(
+          'SUPABASE_ANON_KEY 형식이 올바르지 않습니다.\n' +
+          '현재 값: ' + key.slice(0, 30) + '…\n' +
+          '→ Supabase 대시보드 → Settings → API → anon public 키를 복사하세요'
+        );
       }
 
       window.updateBootStatus('Supabase 연결 중…');

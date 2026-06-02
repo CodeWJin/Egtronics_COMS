@@ -189,7 +189,16 @@ function boot() {
       root.render(<App/>);
     }).catch((err) => {
       console.error('[BOOT] PMDB.init() failed:', err);
-      window.updateBootStatus('초기화 실패: ' + (err.message || '알 수 없는 오류'));
+      const msg = err.message || '알 수 없는 오류';
+      const bootEl = document.querySelector('.boot');
+      if (bootEl) {
+        bootEl.innerHTML =
+          '<div style="max-width:480px;padding:24px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.12);font-family:system-ui,sans-serif">' +
+          '<div style="color:#DC2626;font-weight:700;font-size:16px;margin-bottom:12px">⚠ Supabase 연결 실패</div>' +
+          '<pre style="white-space:pre-wrap;font-size:12px;color:#374151;background:#F9FAFB;padding:12px;border-radius:8px;margin-bottom:16px">' + msg + '</pre>' +
+          '<div style="font-size:13px;color:#6B7280">브라우저 콘솔(F12)에서 자세한 오류를 확인할 수 있습니다.</div>' +
+          '</div>';
+      }
     });
   });
 }
