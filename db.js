@@ -37,6 +37,7 @@
 
     return {
       engine: 'supabase',
+      cache,
 
       async loadAll() {
         const [o, p, m, u, h] = await Promise.all([
@@ -47,6 +48,10 @@
           client.from('tb_order_history').select('*'),
         ]);
         if (o.error) throw new Error('주문 데이터 로드 실패: ' + o.error.message);
+        if (p.error) throw new Error('생산 데이터 로드 실패: ' + p.error.message);
+        if (m.error) throw new Error('담당자 데이터 로드 실패: ' + m.error.message);
+        if (u.error) throw new Error('사용자 데이터 로드 실패: ' + u.error.message);
+        if (h.error) throw new Error('이력 데이터 로드 실패: ' + h.error.message);
         cache.orders     = o.data || [];
         cache.production = p.data || [];
         cache.managers   = m.data || [];
