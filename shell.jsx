@@ -185,6 +185,7 @@ function TopNav() {
     mapping:   { label: '생산 매핑' },
     completed: { label: '생산 완료', count: completedCount },
     lookup:    { label: '조회' },
+    admin:     { label: '사용자 관리' },
   };
 
   return (

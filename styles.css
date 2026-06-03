@@ -972,11 +972,160 @@ input, select, textarea { font-family: inherit; }
 .modal__body { padding: 14px 22px 18px; }
 .modal__foot { padding: 14px 22px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border-1); background: var(--surface-2); }
 
-/* Tablet responsive */
+/* ============================================================
+   Responsive — Tablet (≤900px) & Mobile (≤600px)
+   ============================================================ */
+
+/* ---------- Tablet (≤900px) ---------- */
 @media (max-width: 900px) {
-  .readonly-strip__grid { grid-template-columns: repeat(2, 1fr); }
-  .kanban { grid-template-columns: 1fr; }
+  /* TopNav: 탭을 가로 스크롤 가능하게 */
+  .topnav {
+    padding: 0 14px;
+    gap: 12px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .topnav__brand span:not(.topnav__logo) { display: none; }
+  .topnav__tabs {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .topnav__tabs::-webkit-scrollbar { display: none; }
+  .topnav__tab { padding: 6px 10px; font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+
+  /* Screen 패딩 축소 */
+  .screen { padding: 18px 16px 48px; }
+  .screen__head { flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .screen__title { font-size: 18px; }
+
+  /* 통계 타일: 2열 */
+  .statrow { grid-template-columns: repeat(2, 1fr); }
+
+  /* 폼 그리드: 단열 */
   .form-grid { grid-template-columns: 1fr !important; }
+  .form-grid--3 { grid-template-columns: 1fr !important; }
+  .col-span-2 { grid-column: span 1; }
+
+  /* readonly-strip */
+  .readonly-strip__grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* 칸반: 단열 */
+  .kanban { grid-template-columns: 1fr; }
+
+  /* 타임라인: 날짜 위로 */
+  .timeline__day { grid-template-columns: 1fr; gap: 12px; padding: 14px 16px; }
+  .timeline__item { grid-template-columns: 1fr auto; gap: 10px; }
+  .timeline__item > :nth-child(3),
+  .timeline__item > :nth-child(4) { display: none; }
+
+  /* 모달 */
+  .modal { width: 94vw; max-width: 94vw; }
+
+  /* 드로어 */
+  .drawer { width: 100%; max-width: 100%; }
+
+  /* 툴바 */
+  .toolbar { flex-wrap: wrap; padding: 10px 14px; gap: 6px; }
+  .toolbar__search { max-width: 100%; width: 100%; }
+
+  /* 드로어 그리드 */
+  .dgrid { grid-template-columns: 1fr; }
+
+  /* 카드 그리드 */
+  .gridcards { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- Mobile (≤600px) ---------- */
+@media (max-width: 600px) {
+  /* TopNav: 브랜드 숨기고 탭만 */
+  .topnav { padding: 0 8px; gap: 4px; height: 54px; }
+  .topnav__brand { display: none; }
+  .topnav__tabs { flex: 1; justify-content: flex-start; }
+  .topnav__tab { padding: 5px 8px; font-size: 12px; }
+  .topnav__count { display: none; }
+
+  /* UserMenu 축소 */
+  .usermenu__name { display: none; }
+  .usermenu__role { font-size: 10.5px; padding: 2px 6px !important; }
+
+  /* Screen */
+  .screen { padding: 12px 12px 40px; }
+  .screen__head { margin-bottom: 12px; }
+  .screen__title { font-size: 16px; }
+  .screen__sub { font-size: 12px; }
+
+  /* 통계 타일: 2열 (유지) */
+  .statrow { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat { padding: 12px 14px; }
+  .stat__value { font-size: 22px; }
+
+  /* 테이블: 가로 스크롤 */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table { min-width: 560px; }
+
+  /* 카드 그리드: 단열 */
+  .gridcards { grid-template-columns: 1fr; }
+
+  /* 모달: 하단 시트처럼 */
+  .modal-backdrop { align-items: flex-end; }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    max-height: 92vh;
+    overflow-y: auto;
+    animation: sheetin 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes sheetin {
+    from { transform: translateY(40px); opacity: 0.5; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* 드로어: 하단에서 올라오는 전체 화면 */
+  .drawer {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 94vh;
+    border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+    animation: drawerbottom 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes drawerbottom {
+    from { transform: translateY(40px); opacity: 0.6; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* 툴바 */
+  .toolbar { padding: 8px 12px; }
+  .toolbar__filter span { display: none; }
+
+  /* readonly-strip */
+  .readonly-strip__grid { grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .readonly-strip { padding: 14px 16px; }
+
+  /* 칸반 카드 */
+  .kanban__col { min-height: 0; padding: 10px; }
+
+  /* 생산 매핑 폼 패딩 */
+  .card__body { padding: 14px 14px; }
+  .card__head { padding: 12px 14px 10px; }
+
+  /* 타임라인 */
+  .timeline__day { padding: 12px 12px; }
+
+  /* 토스트 */
+  .toast { bottom: 16px; max-width: 90vw; font-size: 12.5px; padding: 9px 14px; }
+
+  /* 버튼 텍스트 - 작은 화면에서 아이콘만 */
+  .btn--lg { height: 40px; padding: 0 14px; font-size: 13px; }
 }
 
 /* Form grid */

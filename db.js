@@ -273,6 +273,42 @@
         return true;
       },
 
+      getAllUsers() {
+        return cache.users.map(u => ({
+          user_id: u.user_id, name: u.name, role: u.role,
+          dept: u.dept || '', phone: u.phone || '', email: u.email || '',
+        }));
+      },
+
+      addUser(data) {
+        if (cache.users.find(x => x.user_id === data.user_id)) return { ok: false, msg: '이미 존재하는 아이디입니다' };
+        const row = { user_id: data.user_id, password: data.password || '1234', name: data.name, role: data.role, dept: data.dept || '', phone: data.phone || '', email: data.email || '' };
+        cache.users.push(row);
+        dbLog('INFO', 'write:users', `사용자 추가 — user_id=${data.user_id}, role=${data.role}`);
+        dbWrite('users', 'insert', () => client.from('users').insert(row));
+        return { ok: true };
+      },
+
+      updateUser(userId, data) {
+        const u = cache.users.find(x => x.user_id === userId);
+        if (!u) return { ok: false, msg: '사용자를 찾을 수 없습니다' };
+        const upd = { name: data.name, role: data.role, dept: data.dept || '', phone: data.phone || '', email: data.email || '' };
+        if (data.password) upd.password = data.password;
+        Object.assign(u, upd);
+        dbLog('INFO', 'write:users', `사용자 수정 — user_id=${userId}`);
+        dbWrite('users', 'update', () => client.from('users').update(upd).eq('user_id', userId));
+        return { ok: true };
+      },
+
+      deleteUser(userId) {
+        const idx = cache.users.findIndex(x => x.user_id === userId);
+        if (idx === -1) return { ok: false, msg: '사용자를 찾을 수 없습니다' };
+        cache.users.splice(idx, 1);
+        dbLog('INFO', 'write:users', `사용자 삭제 — user_id=${userId}`);
+        dbWrite('users', 'delete', () => client.from('users').delete().eq('user_id', userId));
+        return { ok: true };
+      },
+
       query() { return []; },
 
       addHistory(order_id, changedBy, changedAt, fields, action) {
@@ -401,6 +437,10 @@
     verifyUserPhone(id, ph)  { return this.backend.verifyUserPhone(id, ph); },
     verifyUserEmail(id, em)  { return this.backend.verifyUserEmail(id, em); },
     changePassword(id, pw)   { return this.backend.changePassword(id, pw); },
+    getAllUsers()             { return this.backend.getAllUsers(); },
+    addUser(data)            { return this.backend.addUser(data); },
+    updateUser(id, data)     { return this.backend.updateUser(id, data); },
+    deleteUser(id)           { return this.backend.deleteUser(id); },
     query()                  { return []; },
     addHistory(id, by, at, f, a) { return this.backend.addHistory(id, by, at, f, a); },
     getHistory(id)           { return this.backend.getHistory(id); },

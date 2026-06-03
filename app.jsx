@@ -89,6 +89,7 @@ function App() {
         {s.view === 'mapping' && <ProductionMappingScreen/>}
         {s.view === 'completed' && <ProductionCompleteScreen/>}
         {s.view === 'lookup'  && <OrderLookupScreen/>}
+        {s.view === 'admin'   && <AdminUsersScreen/>}
       </main>
       <Toast/>
 

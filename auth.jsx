@@ -2,7 +2,7 @@
 
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
-  admin:      ['sales', 'waiting', 'mapping', 'completed', 'lookup'],
+  admin:      ['sales', 'waiting', 'mapping', 'completed', 'lookup', 'admin'],
   sales:      ['sales', 'waiting', 'lookup'],
   production: ['waiting', 'mapping', 'completed', 'lookup'],
 };

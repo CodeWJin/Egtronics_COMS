@@ -58,6 +58,9 @@ const Icon = ({ name, size = 16, stroke = 1.6, ...rest }) => {
     case 'hash':        return <svg {...common}><path d="M5 9h14M5 15h14M9 4l-1.5 16M16.5 4L15 20"/></svg>;
     case 'external':    return <svg {...common}><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"/></svg>;
     case 'copy':        return <svg {...common}><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h8"/></svg>;
+    case 'trash':       return <svg {...common}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>;
+    case 'edit':        return <svg {...common}><path d="M11 4H6a2 2 0 00-2 2v13a2 2 0 002 2h13a2 2 0 002-2v-5"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+    case 'users':       return <svg {...common}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
     default: return <svg {...common}/>;
   }
 };
