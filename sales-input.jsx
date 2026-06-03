@@ -281,7 +281,7 @@ function SalesInputScreen() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 20, alignItems: 'start' }}>
+      <div className="sales-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 320px', gap: 20, alignItems: 'start' }}>
         <div className="card-grid">
           {/* Section 1 — 발주 정보 */}
           <div className="card">
@@ -429,7 +429,7 @@ function SalesInputScreen() {
         </div>
 
         {/* Side preview */}
-        <aside style={{ position: 'sticky', top: 0 }}>
+        <aside className="sales-preview" style={{ position: 'sticky', top: 0 }}>
           <div className="card">
             <div className="card__head">
               <h3 className="card__title"><Icon name="eye" size={14}/> 입력 미리보기</h3>

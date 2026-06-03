@@ -983,9 +983,10 @@ input, select, textarea { font-family: inherit; }
     padding: 0 14px;
     gap: 12px;
     flex-wrap: nowrap;
-    overflow: hidden;
+    overflow: visible;
   }
   .topnav__brand span:not(.topnav__logo) { display: none; }
+  .topnav__spacer { display: none; }
   .topnav__tabs {
     overflow-x: auto;
     overflow-y: hidden;
@@ -1037,6 +1038,10 @@ input, select, textarea { font-family: inherit; }
 
   /* 카드 그리드 */
   .gridcards { grid-template-columns: 1fr 1fr; }
+
+  /* 영업 입력: 미리보기 사이드바 숨김 */
+  .sales-layout { grid-template-columns: 1fr !important; }
+  .sales-preview { display: none !important; }
 }
 
 /* ---------- Mobile (≤600px) ---------- */
