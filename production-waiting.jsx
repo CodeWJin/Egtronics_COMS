@@ -133,13 +133,13 @@ function ViewTable({ orders, onPick, completingId }) {
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
         <thead>
           <tr>
-            <th style={{ width: 86 }}>오더 #</th>
-            <th style={{ width: 150 }}>고객사</th>
-            <th style={{ width: 150 }}>모델</th>
-            <th style={{ width: 130 }}>충전소 ID</th>
-            <th style={{ width: 'auto' }}>설치주소</th>
-            <th style={{ width: 130 }}>납품일</th>
-            <th style={{ width: 130 }}>상태</th>
+            <th style={{ textAlign: 'left', width: 86 }}>오더 #</th>
+            <th style={{ textAlign: 'left',width: 150 }}>고객사</th>
+            <th style={{ textAlign: 'left', width: 150 }}>모델</th>
+            <th style={{ textAlign: 'left', width: 130 }}>충전소 ID</th>
+            <th style={{ textAlign: 'left', width: 'auto' }}>설치주소</th>
+            <th style={{ textAlign: 'left', width: 130 }}>납품일</th>
+            <th style={{ textAlign: 'left', width: 130 }}>상태</th>
             <th style={{ width: 40 }}></th>
           </tr>
         </thead>
