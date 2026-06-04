@@ -467,6 +467,7 @@ input, select, textarea { font-family: inherit; }
   justify-content: center;
   gap: 6px;
   padding: 0 14px;
+  width: 71.34px; /* 36px (icon) + 8px (gap) + 14px*2 (padding) */
   height: 36px;
   font-size: 13px;
   font-weight: 500;
