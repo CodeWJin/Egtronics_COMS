@@ -129,8 +129,8 @@ function ProductionWaitingScreen() {
 /* ────────── Table view ────────── */
 function ViewTable({ orders, onPick, completingId }) {
   return (
-    <div className="table-wrap">
-      <table className="table">
+    <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table className="table" style={{ minWidth: 700 }}>
         <thead>
           <tr>
             <th style={{ width: 80 }}>오더 #</th>

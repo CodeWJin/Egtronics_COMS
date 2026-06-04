@@ -177,7 +177,7 @@ function OrderLookupScreen() {
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('customer_name')}>고객사{sortArrow('customer_name')}</th>
                 <th>모델</th>
                 <th>충전소 ID</th>
-                <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
                 <th>생산일</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>상태{sortArrow('status')}</th>
                 <th></th>
@@ -195,7 +195,7 @@ function OrderLookupScreen() {
                   </td>
                   <td><span className="badge badge--neutral">{o.model_name}</span></td>
                   <td className="cell-mono">{o.station_id}</td>
-                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
+                  <td style={{ textAlign: 'center', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
                   <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
                     {o.production ? o.production.prod_date : <span style={{ color: 'var(--ink-5)' }}>—</span>}
                   </td>
