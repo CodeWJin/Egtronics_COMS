@@ -20,6 +20,10 @@ function OrderLookupScreen() {
   const [selId, setSelId] = useStateOL(null);
   const [sortKey, setSortKey] = useStateOL('order_id');
   const [sortDir, setSortDir] = useStateOL('desc');
+  const [fAsOnly, setFAsOnly] = useStateOL(false);
+  const [asVer, setAsVer] = useStateOL(0);
+
+  const refreshAsStats = () => setAsVer(v => v + 1);
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
 
@@ -31,9 +35,9 @@ function OrderLookupScreen() {
       if (hist.length > 0) { ordersWithAs++; totalRecords += hist.length; }
     });
     return { totalRecords, ordersWithAs };
-  }, [s.orders]);
+  }, [s.orders, asVer]);
 
-  const activeFilters = (fStatus !== 'all') + (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0);
+  const activeFilters = (fStatus !== 'all') + (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
 
   const filtered = useMemoOL(() => {
     let list = s.orders.filter(o => {
@@ -43,6 +47,7 @@ function OrderLookupScreen() {
       const dv = dateField === 'prod' ? (o.production && o.production.prod_date) : o.delivery_date;
       if (dateFrom && (!dv || dv < dateFrom)) return false;
       if (dateTo && (!dv || dv > dateTo)) return false;
+      if (fAsOnly && (window.PMDB.getAsHistory(o.order_id) || []).length === 0) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = [o.customer_name, o.model_name, o.station_id, o.router_no, o.usim_no, o.install_address, String(o.order_id),
@@ -62,11 +67,11 @@ function OrderLookupScreen() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [s.orders, search, fStatus, fModel, fCustomer, dateField, dateFrom, dateTo, sortKey, sortDir]);
+  }, [s.orders, search, fStatus, fModel, fCustomer, dateField, dateFrom, dateTo, sortKey, sortDir, fAsOnly, asVer]);
 
   const reset = () => {
     setSearch(''); setFStatus('all'); setFModel('all'); setFCustomer('all');
-    setDateFrom(''); setDateTo(''); setDateField('delivery');
+    setDateFrom(''); setDateTo(''); setDateField('delivery'); setFAsOnly(false);
   };
 
   const toggleSort = (k) => {
@@ -151,6 +156,17 @@ function OrderLookupScreen() {
               <label className="field__label">종료일</label>
               <input type="date" className="input" value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
             </div>
+            <div className="field" style={{ justifyContent: 'flex-end' }}>
+              <label className="field__label">A/S 필터</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, cursor: 'pointer',
+                              padding: '0 12px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)',
+                              background: fAsOnly ? 'var(--warning-50)' : 'var(--surface)',
+                              color: fAsOnly ? 'var(--warning-700)' : 'var(--ink-2)', fontSize: 13.5 }}>
+                <input type="checkbox" checked={fAsOnly} onChange={e => setFAsOnly(e.target.checked)}
+                       style={{ accentColor: 'var(--warning-700)', width: 15, height: 15 }}/>
+                A/S 이력 있는 오더만
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -173,7 +189,7 @@ function OrderLookupScreen() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table" style={{ tableLayout: 'fixed', width: '100%' }}>
+          <table className="table" style={{ tableLayout: 'fixed', width: '100%', textAlign: 'left', borderCollapse: 'collapse', }}>
             <colgroup>
               <col style={{ width: 76 }}/>
               <col style={{ width: 190 }}/>
@@ -212,7 +228,16 @@ function OrderLookupScreen() {
                   <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
                     {o.production ? o.production.prod_date : <span style={{ color: 'var(--ink-5)' }}>—</span>}
                   </td>
-                  <td>{statusBadge(o)}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {statusBadge(o)}
+                      {(window.PMDB.getAsHistory(o.order_id) || []).length > 0 && (
+                        <span className="badge badge--pending" style={{ background: 'var(--warning-50)', color: 'var(--warning-700)', fontSize: 10.5 }}>
+                          A/S {(window.PMDB.getAsHistory(o.order_id) || []).length}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
                 </tr>
               ))}
@@ -221,12 +246,12 @@ function OrderLookupScreen() {
         </div>
       )}
 
-      {selected && <OrderDrawer order={selected} onClose={() => setSelId(null)}/>}
+      {selected && <OrderDrawer order={selected} onClose={() => setSelId(null)} onAsChange={refreshAsStats}/>}
     </div>
   );
 }
 
-function AsHistorySection({ orderId, canEdit }) {
+function AsHistorySection({ orderId, canEdit, onAsChange }) {
   const [list, setList] = useStateOL([]);
   const [showForm, setShowForm] = useStateOL(false);
   const [draft, setDraft] = useStateOL(null);
@@ -243,11 +268,12 @@ function AsHistorySection({ orderId, canEdit }) {
     const today = new Date().toISOString().slice(0, 10);
     window.PMDB.addAsRecord({ order_id: orderId, ...draft, created_at: today });
     reload();
+    onAsChange?.();
     setShowForm(false);
     setDraft(null);
   };
 
-  const remove = (id) => { window.PMDB.deleteAsRecord(id); reload(); };
+  const remove = (id) => { window.PMDB.deleteAsRecord(id); reload(); onAsChange?.(); };
 
   return (
     <section>
@@ -322,7 +348,7 @@ function AsHistorySection({ orderId, canEdit }) {
 }
 
 /* ────────── Right detail drawer ────────── */
-function OrderDrawer({ order, onClose }) {
+function OrderDrawer({ order, onClose, onAsChange }) {
   React.useEffect(() => {
     const fn = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', fn);
@@ -403,7 +429,7 @@ function OrderDrawer({ order, onClose }) {
             )}
           </section>
 
-          <AsHistorySection orderId={order.order_id} canEdit={isAs}/>
+          <AsHistorySection orderId={order.order_id} canEdit={isAs} onAsChange={onAsChange}/>
         </div>
 
         <div className="drawer__foot">

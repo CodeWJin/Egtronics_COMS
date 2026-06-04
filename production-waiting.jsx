@@ -131,16 +131,26 @@ function ViewTable({ orders, onPick, completingId }) {
   return (
     <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
+        <colgroup>
+              <col style={{ width: 86 }}/>
+              <col style={{ width: 150 }}/>
+              <col style={{ width: 150 }}/>
+              <col style={{ width: 130 }}/>
+              <col style={{ width: 'auto' }}/>
+              <col style={{ width: 130 }}/>
+              <col style={{ width: 130 }}/>
+              <col style={{ width: 40 }}/>
+          </colgroup>
         <thead>
           <tr>
-            <th style={{ textAlign: 'left', width: 86 }}>오더 #</th>
-            <th style={{ textAlign: 'left',width: 150 }}>고객사</th>
-            <th style={{ textAlign: 'left', width: 150 }}>모델</th>
-            <th style={{ textAlign: 'left', width: 130 }}>충전소 ID</th>
-            <th style={{ textAlign: 'left', width: 'auto' }}>설치주소</th>
-            <th style={{ textAlign: 'left', width: 130 }}>납품일</th>
-            <th style={{ textAlign: 'left', width: 130 }}>상태</th>
-            <th style={{ width: 40 }}></th>
+            <th>오더 #</th>
+            <th>고객사</th>
+            <th>모델</th>
+            <th>충전소 ID</th>
+            <th>설치주소</th>
+            <th>납품일</th>
+            <th>상태</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
