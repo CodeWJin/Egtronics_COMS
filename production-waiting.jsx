@@ -133,13 +133,13 @@ function ViewTable({ orders, onPick, completingId }) {
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
         <thead>
           <tr>
-            <th>오더 #</th>
-            <th>고객사</th>
-            <th>모델</th>
-            <th>충전소 ID</th>
-            <th>설치주소</th>
-            <th>납품일</th>
-            <th>상태</th>
+            <th style={{ width: 86 }}>오더 #</th>
+            <th style={{ width: 150 }}>고객사</th>
+            <th style={{ width: 150 }}>모델</th>
+            <th style={{ width: 130 }}>충전소 ID</th>
+            <th style={{ width: 'auto' }}>설치주소</th>
+            <th style={{ width: 130 }}>납품일</th>
+            <th style={{ width: 130 }}>상태</th>
             <th style={{ width: 40 }}></th>
           </tr>
         </thead>
@@ -159,11 +159,11 @@ function ViewTable({ orders, onPick, completingId }) {
                 <td><span className="badge badge--neutral">{o.model_name}</span></td>
                 <td className="cell-mono">{o.station_id}</td>
                 <td style={{ color: 'var(--ink-2)' }}>{o.install_address}</td>
-                <td>
+                <td style={{ width: 130 }}>
                   <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</div>
                   <span style={{ display: 'inline-block', marginTop: 2, fontSize: 11, padding: '1px 7px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600 }}>{d.text}</span>
                 </td>
-                <td>
+                <td style={{ width: 130 }}>
                   {o.status === 'PENDING' ? (
                     <span className={`badge badge--pending ${completing ? 'badge--statusswap' : ''}`}><span className="badge__dot"/>생산대기</span>
                   ) : o.status === 'IN_PROGRESS' ? (
