@@ -95,8 +95,8 @@ function OrderLookupScreen() {
               <Icon name="refresh" size={12}/> 조건 초기화
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
-            <div className="field" style={{ gridColumn: 'span 2' }}>
+          <div className="filter-grid">
+            <div className="field col-span-2">
               <label className="field__label"><Icon name="search" size={11}/>통합 검색</label>
               <input className="input" placeholder="고객사 · 충전소ID · 시리얼 · 문서번호 · 주소 …"
                      value={search} onChange={(e) => setSearch(e.target.value)}/>

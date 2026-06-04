@@ -52,6 +52,7 @@
     { user_id: 'admin', password: '1234', name: '박우진', role: 'admin',      dept: '충전기개발실', phone: '010-2567-8418', email: 'wjpark@egtronics.com' },
     { user_id: 'sales', password: '1234', name: '신정륜', role: 'sales',      dept: '영업부',       phone: '010-3000-4000', email: 'sales@egtrinocs.com' },
     { user_id: 'prod',  password: '1234', name: '김태윤', role: 'production', dept: '생산부',       phone: '010-5000-6000', email: 'prod@egtrinocs.com' },
+    { user_id: 'as',    password: '1234', name: '민경선', role: 'as', dept: '품질관리본부',       phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
   window.SEED_USERS = SEED_USERS;
 
@@ -153,7 +154,7 @@
 
       addOrder(form) {
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, status: 'PENDING', created: TODAY };
+        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
         cache.orders.push(row);
         dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
         dbWrite('tb_sales_order', 'insert', () => client.from('tb_sales_order').insert(row));
@@ -166,7 +167,7 @@
           dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address };
+        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
         Object.assign(o, upd);
         dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'update', () => client.from('tb_sales_order').update(upd).eq('order_id', order_id));

@@ -1024,6 +1024,9 @@ input, select, textarea { font-family: inherit; }
   .form-grid--3 { grid-template-columns: 1fr !important; }
   .col-span-2 { grid-column: span 1; }
 
+  /* 필터 그리드: 2열 */
+  .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
   /* readonly-strip */
   .readonly-strip__grid { grid-template-columns: repeat(2, 1fr); }
 
@@ -1088,6 +1091,9 @@ input, select, textarea { font-family: inherit; }
 
   /* 카드 그리드: 단열 */
   .gridcards { grid-template-columns: 1fr; }
+
+  /* 필터 그리드: 단열 */
+  .filter-grid { grid-template-columns: 1fr !important; }
 
   /* 모달: 하단 시트처럼 */
   .modal-backdrop { align-items: flex-end; }
@@ -1161,6 +1167,14 @@ input, select, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 22px;
+}
+.col-span-2 { grid-column: span 2; }
+
+/* 필터 패널 그리드 (order-lookup) */
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
 .form-grid--full > * { grid-column: 1 / -1; }
 .col-span-2 { grid-column: span 2; }

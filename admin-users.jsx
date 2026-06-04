@@ -43,7 +43,7 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!isEdit && (
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="form-grid">
               <div className="field">
                 <label className="field__label">아이디 <span className="field__req">*</span></label>
                 <input className={`input ${errors.user_id ? 'input--error' : ''}`} value={form.user_id}
@@ -76,7 +76,7 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
               </div>
             </div>
           )}
-          <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="form-grid">
             <div className="field">
               <label className="field__label">이름 <span className="field__req">*</span></label>
               <input className={`input ${errors.name ? 'input--error' : ''}`} value={form.name}
@@ -96,7 +96,7 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
             <label className="field__label">부서</label>
             <input className="input" value={form.dept} onChange={e => set('dept', e.target.value)} placeholder="예) 영업부"/>
           </div>
-          <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="form-grid">
             <div className="field">
               <label className="field__label">전화번호</label>
               <input className="input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="010-0000-0000"/>
