@@ -1159,6 +1159,9 @@ input, select, textarea { font-family: inherit; }
 
   /* 버튼 텍스트 - 작은 화면에서 아이콘만 */
   .btn--lg { height: 40px; padding: 0 14px; font-size: 13px; }
+
+  /* 버튼 너비 고정 */
+  .btn { width: 71.34px; }
 }
 
 /* Form grid */
