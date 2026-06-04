@@ -1149,7 +1149,7 @@ input, select, textarea { font-family: inherit; }
 
   /* 담당자/고객사 버튼 행 줄바꿈 */
   .mgr-field { flex-wrap: wrap; }
-  .mgr-field__manage { flex: 1; min-width: 72px; }
+  .mgr-field__manage { flex: none; width: 71.34px; }
 
   /* 타임라인 */
   .timeline__day { padding: 12px 12px; }
@@ -1628,7 +1628,7 @@ input, select, textarea { font-family: inherit; }
 /* 고객사 담당자 필드 (combo + 관리 버튼) */
 .mgr-field { display: flex; align-items: stretch; gap: 8px; }
 .mgr-field > .combo { flex: 1; min-width: 0; }
-.mgr-field__manage { flex-shrink: 0; white-space: nowrap; width: 71.34px; }
+.mgr-field__manage { width: 71.34px; }
 
 /* 담당자 관리 모달 — 목록 */
 .mgr-list {
