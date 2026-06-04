@@ -165,11 +165,11 @@ function ProductionCompleteScreen() {
                 <th style={{ width: 70 }}>오더 #</th>
                 <th>고객사 / 모델</th>
                 <th>시리얼 / 로트</th>
-                <th style={{ textAlign: 'right' }}>생산일</th>
-                <th style={{ textAlign: 'right' }}>검정일</th>
-                <th style={{ width: 110 }}>S/W</th>
-                <th style={{ textAlign: 'right', width: 80 }}>리드타임</th>
-                <th style={{ width: 150 }}>성적서</th>
+                <th>생산일</th>
+                <th>검정일</th>
+                <th>S/W</th>
+                <th>리드타임</th>
+                <th>성적서</th>
               </tr>
             </thead>
             <tbody>

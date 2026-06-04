@@ -138,8 +138,8 @@ function ViewTable({ orders, onPick, completingId }) {
             <th>모델</th>
             <th>충전소 ID</th>
             <th>설치주소</th>
-            <th style={{ textAlign: 'right' }}>납품일</th>
-            <th style={{ width: 110 }}>상태</th>
+            <th>납품일</th>
+            <th>상태</th>
             <th style={{ width: 40 }}></th>
           </tr>
         </thead>
