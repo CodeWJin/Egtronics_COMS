@@ -283,13 +283,11 @@ function SalesInputScreen() {
                                 metaKey="last"/>
                     <button type="button" className="btn btn--secondary mgr-field__manage"
                             onClick={() => setShowAddCustomer(true)}
-                            style={{ width: '71.34px' }}
                             title="신규 고객사 등록">
                       <Icon name="plus" size={13}/> 추가
                     </button>
                     <button type="button" className="btn btn--secondary mgr-field__manage"
                             onClick={() => setShowCustomerMgr(true)}
-                            style={{ width: '71.34px' }}
                             title="고객사 목록 관리">
                       <Icon name="settings" size={13}/> 관리
                     </button>
@@ -311,7 +309,6 @@ function SalesInputScreen() {
                               if (!form.customer_name) { window.actions.flashToast('고객사를 먼저 선택해 주세요', 'error'); return; }
                               setShowMgr(true);
                             }}
-                            style={{ width: '71.34px' }}
                             title="고객사 담당자 관리">
                       <Icon name="user" size={13}/> 관리
                     </button>
