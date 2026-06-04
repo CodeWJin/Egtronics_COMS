@@ -23,6 +23,16 @@ function OrderLookupScreen() {
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
 
+  const asStats = useMemoOL(() => {
+    let totalRecords = 0;
+    let ordersWithAs = 0;
+    s.orders.forEach(o => {
+      const hist = window.PMDB.getAsHistory(o.order_id) || [];
+      if (hist.length > 0) { ordersWithAs++; totalRecords += hist.length; }
+    });
+    return { totalRecords, ordersWithAs };
+  }, [s.orders]);
+
   const activeFilters = (fStatus !== 'all') + (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0);
 
   const filtered = useMemoOL(() => {
@@ -79,7 +89,10 @@ function OrderLookupScreen() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12.5, color: 'var(--ink-3)' }}>
           전체 <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{s.orders.length}</strong>건 ·
           대기 <strong style={{ color: 'var(--warning-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'PENDING').length}</strong> ·
-          완료 <strong style={{ color: 'var(--success-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong>
+          완료 <strong style={{ color: 'var(--success-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong> ·
+          A/S <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.ordersWithAs}</strong>오더
+          <span style={{ color: 'var(--ink-5)' }}>|</span>
+          이력 <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.totalRecords}</strong>건
         </div>
       </div>
 
