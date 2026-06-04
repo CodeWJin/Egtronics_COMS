@@ -51,7 +51,7 @@ function PendingView({ order }) {
           </h1>
           <p className="screen__sub">영업 정보를 확인하고 <strong>생산 시작</strong>을 눌러주세요. 시작 후 생산 실적 7개 항목을 입력합니다.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button className="btn btn--secondary" onClick={() => window.actions.setView('waiting')}>
             <Icon name="arrow-left" size={13}/> 목록
           </button>
@@ -76,7 +76,7 @@ function CompletedView({ order }) {
           </h1>
           <p className="screen__sub">이미 생산이 완료된 오더입니다. 출하 검사 성적서가 발급되었습니다.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button className="btn btn--secondary" onClick={() => {
             if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 되돌릴까요?\n생산 실적은 보존되며 다시 수정할 수 있습니다.`)) {
               window.actions.revertOrder(order.order_id);
@@ -270,7 +270,7 @@ function MappingForm({ order }) {
           </h1>
           <p className="screen__sub">상단의 영업 정보를 확인 후 하단 6개 항목을 채워주세요. 완료 시 자동으로 <strong>생산완료</strong> 상태로 전환됩니다.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
             <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/6 항목 입력
           </span>
@@ -425,7 +425,7 @@ function MappingForm({ order }) {
             </div>
           </div>
 
-          <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--ink-3)' }}>
               <Icon name="lock" size={13}/>
               저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산

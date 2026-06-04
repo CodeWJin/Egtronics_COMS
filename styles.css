@@ -124,7 +124,15 @@ input, select, textarea { font-family: inherit; }
   font-weight: 800;
   font-size: 13px;
 }
-.topnav__tabs { display: flex; gap: 2px; align-items: center; }
+.topnav__tabs {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  overflow-x: auto;
+  min-width: 0;
+  scrollbar-width: none;
+}
+.topnav__tabs::-webkit-scrollbar { display: none; }
 .topnav__tab {
   padding: 8px 14px;
   border-radius: var(--r-md);
@@ -136,6 +144,8 @@ input, select, textarea { font-family: inherit; }
   cursor: pointer;
   letter-spacing: -0.01em;
   transition: all 120ms ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .topnav__tab:hover { color: var(--ink-1); background: var(--surface-3); }
 .topnav__tab--active { color: var(--primary-600); background: var(--primary-50); }
@@ -198,6 +208,8 @@ input, select, textarea { font-family: inherit; }
   margin-bottom: 6px;
   letter-spacing: -0.005em;
 }
+.screen__head > *:first-child { flex: 1; min-width: 0; }
+.screen__head > *:last-child  { flex-shrink: 0; }
 
 /* Card */
 .card {
@@ -1122,6 +1134,10 @@ input, select, textarea { font-family: inherit; }
   /* 생산 매핑 폼 패딩 */
   .card__body { padding: 14px 14px; }
   .card__head { padding: 12px 14px 10px; }
+
+  /* 담당자/고객사 버튼 행 줄바꿈 */
+  .mgr-field { flex-wrap: wrap; }
+  .mgr-field__manage { flex: 1; min-width: 72px; }
 
   /* 타임라인 */
   .timeline__day { padding: 12px 12px; }
