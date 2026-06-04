@@ -203,6 +203,123 @@ function OrderLookupScreen() {
   );
 }
 
+/* ────────── A/S 이력 헬퍼 (localStorage) ────────── */
+const AS_HISTORY_KEY = 'coms_as_history';
+function getAsHistory(orderId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(AS_HISTORY_KEY) || '[]');
+    return all.filter(r => r.order_id === orderId);
+  } catch { return []; }
+}
+function addAsRecord(record) {
+  try {
+    const all = JSON.parse(localStorage.getItem(AS_HISTORY_KEY) || '[]');
+    all.push({ ...record, id: Date.now() });
+    localStorage.setItem(AS_HISTORY_KEY, JSON.stringify(all));
+  } catch {}
+}
+function removeAsRecord(id) {
+  try {
+    const all = JSON.parse(localStorage.getItem(AS_HISTORY_KEY) || '[]');
+    localStorage.setItem(AS_HISTORY_KEY, JSON.stringify(all.filter(r => r.id !== id)));
+  } catch {}
+}
+
+function AsHistorySection({ orderId, canEdit }) {
+  const [list, setList] = useStateOL([]);
+  const [showForm, setShowForm] = useStateOL(false);
+  const [draft, setDraft] = useStateOL(null);
+
+  const reload = () => setList(getAsHistory(orderId));
+  React.useEffect(() => { reload(); }, [orderId]);
+
+  const startAdd = () => {
+    setDraft({ reception_date: '', dispatch_date: '', action: '', notes: '', field_manager: '' });
+    setShowForm(true);
+  };
+
+  const save = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    addAsRecord({ order_id: orderId, ...draft, created_at: today });
+    reload();
+    setShowForm(false);
+    setDraft(null);
+  };
+
+  const remove = (id) => { removeAsRecord(id); reload(); };
+
+  return (
+    <section>
+      <div className="dsec__title"><Icon name="clock" size={12}/> A/S 이력</div>
+      {list.length === 0 && !showForm && (
+        <div className="emptystate" style={{ padding: '14px 0' }}>
+          <div className="emptystate__title" style={{ fontSize: 13 }}>등록된 A/S 이력이 없습니다</div>
+        </div>
+      )}
+      {list.map((r, i) => (
+        <div key={r.id} style={{ padding: '12px 0', borderBottom: i < list.length - 1 ? '1px solid var(--border-1)' : 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.created_at}</span>
+            {canEdit && (
+              <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(r.id)}>
+                <Icon name="x" size={12}/>
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12.5 }}>
+            {r.reception_date && <div><span style={{ color: 'var(--ink-3)' }}>접수</span> <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.reception_date}</span></div>}
+            {r.dispatch_date && <div><span style={{ color: 'var(--ink-3)' }}>출동</span> <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.dispatch_date}</span></div>}
+            {r.field_manager && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>현장 담당자 </span><span>{r.field_manager}</span></div>}
+            {r.action && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>조치내용 </span><span>{r.action}</span></div>}
+            {r.notes && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>비고 </span><span>{r.notes}</span></div>}
+          </div>
+        </div>
+      ))}
+      {canEdit && !showForm && (
+        <button className="btn btn--secondary btn--sm" style={{ marginTop: 10 }} onClick={startAdd}>
+          <Icon name="plus" size={12}/> A/S 이력 추가
+        </button>
+      )}
+      {showForm && draft && (
+        <div className="mgr-edit" style={{ marginTop: 10 }}>
+          <div className="mgr-edit__title">A/S 이력 추가</div>
+          <div className="form-grid">
+            <div className="field">
+              <label className="field__label">접수일정</label>
+              <input type="date" className="input" value={draft.reception_date}
+                     onChange={e => setDraft(d => ({ ...d, reception_date: e.target.value }))}/>
+            </div>
+            <div className="field">
+              <label className="field__label">출동일정</label>
+              <input type="date" className="input" value={draft.dispatch_date}
+                     onChange={e => setDraft(d => ({ ...d, dispatch_date: e.target.value }))}/>
+            </div>
+            <div className="field">
+              <label className="field__label">현장 담당자</label>
+              <input className="input" placeholder="담당자명" value={draft.field_manager}
+                     onChange={e => setDraft(d => ({ ...d, field_manager: e.target.value }))}/>
+            </div>
+            <div className="field col-span-2">
+              <label className="field__label">조치내용</label>
+              <input className="input" placeholder="조치 내용을 입력하세요" value={draft.action}
+                     onChange={e => setDraft(d => ({ ...d, action: e.target.value }))}/>
+            </div>
+            <div className="field col-span-2">
+              <label className="field__label">비고</label>
+              <input className="input" placeholder="비고" value={draft.notes}
+                     onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))}/>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button className="btn btn--secondary btn--sm" onClick={() => { setShowForm(false); setDraft(null); }}>취소</button>
+            <button className="btn btn--primary btn--sm" onClick={save}><Icon name="check" size={12}/> 저장</button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ────────── Right detail drawer ────────── */
 function OrderDrawer({ order, onClose }) {
   React.useEffect(() => {
@@ -223,6 +340,7 @@ function OrderDrawer({ order, onClose }) {
     const mgr = mgrs.find(m => m.name === name);
     return mgr && mgr.phone ? `${mgr.name} (${mgr.phone})` : name;
   }, [order.customer_manager, order.customer_name]);
+  const isAs = role === 'as';
   const canMap = role === 'production' || role === 'admin';
   const canEditSales = (role === 'sales' || role === 'admin') && order.status === 'PENDING';
   const goMapping = () => { window.actions.selectOrder(order.order_id); window.actions.setView('mapping'); };
@@ -278,6 +396,8 @@ function OrderDrawer({ order, onClose }) {
               </div>
             )}
           </section>
+
+          <AsHistorySection orderId={order.order_id} canEdit={isAs}/>
         </div>
 
         <div className="drawer__foot">

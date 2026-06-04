@@ -105,7 +105,6 @@ function CompletedView({ order }) {
             <KvCell k="시리얼" v={order.production.serial_no} mono icon="cpu"/>
             <KvCell k="검정일자" v={order.production.inspection_date} icon="shield"/>
             <KvCell k="S/W 버전" v={order.production.sw_version} mono icon="bolt"/>
-            <KvCell k="케이블 길이" v={order.production.cable_length} icon="cable"/>
             <KvCell k="문서번호" v={order.production.doc_no} mono icon="doc"/>
           </div>
         </div>
@@ -138,6 +137,7 @@ function SalesReadOnly({ order }) {
       <div className="readonly-strip__grid">
         <Cell k="고객사" v={order.customer_name}/>
         <Cell k="모델" v={order.model_name}/>
+        <Cell k="케이블 길이" v={order.cable_length}/>
         <Cell k="납품일자" v={order.delivery_date} mono/>
         <Cell k="충전소 ID" v={order.station_id} mono/>
         <Cell k="라우터 S/N" v={order.router_no} mono/>
@@ -177,7 +177,6 @@ function MappingForm({ order }) {
       serial_no: ex.serial_no || '',
       inspection_date: ex.inspection_date || '',
       sw_version: ex.sw_version || '',
-      cable_length: ex.cable_length || '',
       doc_no: ex.doc_no || '',
     };
   });
@@ -237,7 +236,6 @@ function MappingForm({ order }) {
     serial_no: !form.serial_no ? '시리얼을 입력하세요' : (dupState === 'dup' ? '이미 사용된 시리얼입니다' : null),
     inspection_date: !form.inspection_date && '검정일자를 선택하세요',
     sw_version: !form.sw_version && 'S/W 버전을 선택하세요',
-    cable_length: !form.cable_length && '케이블 길이를 선택하세요',
     doc_no: !form.doc_no && '문서번호를 입력하세요',
   };
   const hasErr = Object.values(errors).some(Boolean);
@@ -245,7 +243,7 @@ function MappingForm({ order }) {
 
   const submit = () => {
     setShowAll(true);
-    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, inspection_date: 1, sw_version: 1, cable_length: 1, doc_no: 1 });
+    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, inspection_date: 1, sw_version: 1, doc_no: 1 });
     if (hasErr) return;
     if (dupState === null && form.serial_no) {
       // Force check if not yet done
@@ -270,11 +268,11 @@ function MappingForm({ order }) {
               <span className="badge__dot"/>생산진행중
             </span>
           </h1>
-          <p className="screen__sub">상단의 영업 정보를 확인 후 하단 7개 항목을 채워주세요. 완료 시 자동으로 <strong>생산완료</strong> 상태로 전환됩니다.</p>
+          <p className="screen__sub">상단의 영업 정보를 확인 후 하단 6개 항목을 채워주세요. 완료 시 자동으로 <strong>생산완료</strong> 상태로 전환됩니다.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/7 항목 입력
+            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/6 항목 입력
           </span>
           <button className="btn btn--ghost btn--sm" onClick={() => {
             if (confirm(`오더 #${order.order_id}을(를) 생산대기로 되돌릴까요?\n입력 중인 내용은 저장되지 않습니다.`)) {
@@ -304,7 +302,7 @@ function MappingForm({ order }) {
           <h3 className="card__title">
             <Icon name="factory" size={14}/> 생산 실적 입력
           </h3>
-          <span className="card__sub">tb_production_info · 7 columns</span>
+          <span className="card__sub">tb_production_info · 6 columns</span>
         </div>
         <div className="card__body">
           <div className="form-grid form-grid--3">
@@ -412,22 +410,6 @@ function MappingForm({ order }) {
               )}
               <div className="field__hint">목록에서 선택하거나 <strong>버전 추가</strong>로 직접 등록 (localStorage 저장)</div>
               {showErr('sw_version') && <div className="field__err"><Icon name="alert" size={12}/>{errors.sw_version}</div>}
-            </div>
-
-            {/* 케이블 길이 */}
-            <div className="field">
-              <label className="field__label"><Icon name="cable" size={11}/>케이블 길이 <span className="field__req">*</span></label>
-              <div className="chips">
-                {window.MASTER.CABLE_LENGTHS.map(c => (
-                  <button key={c}
-                          type="button"
-                          className={`chip ${form.cable_length === c ? 'chip--active' : ''}`}
-                          onClick={() => { update('cable_length', c); setTouched(t => ({ ...t, cable_length: 1 })); }}>
-                    {c}
-                  </button>
-                ))}
-              </div>
-              {showErr('cable_length') && <div className="field__err"><Icon name="alert" size={12}/>{errors.cable_length}</div>}
             </div>
 
             {/* 문서번호 */}

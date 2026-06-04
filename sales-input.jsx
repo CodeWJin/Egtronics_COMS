@@ -153,6 +153,7 @@ function SalesInputScreen() {
     customer_manager:'',
     model_name: '',
     delivery_date: '',
+    cable_length: '',
     station_id: '',
     router_no: '',
     usim_no: '',
@@ -177,6 +178,7 @@ function SalesInputScreen() {
         customer_manager: editing.customer_manager || '',
         model_name: editing.model_name || '',
         delivery_date: editing.delivery_date || '',
+        cable_length: editing.cable_length || '',
         station_id: editing.station_id || '',
         router_no: editing.router_no || '',
         usim_no: editing.usim_no || '',
@@ -214,6 +216,7 @@ function SalesInputScreen() {
     customer_manager: form.customer_name && !form.customer_manager && '고객사 담당자를 선택해 주세요',
     model_name:    !form.model_name && '모델을 선택해 주세요',
     delivery_date: !form.delivery_date && '납품일자를 선택해 주세요',
+    cable_length:  !form.cable_length && '케이블 길이를 선택해 주세요',
     station_id:    false,
     router_no:     false,
     usim_no:       form.usim_no && form.usim_no.length < 19 && 'ICCID는 19~20자리 숫자여야 합니다',
@@ -221,10 +224,10 @@ function SalesInputScreen() {
   };
   const hasErr = Object.values(errors).some(Boolean);
   const filled = Object.entries(form).filter(([k, v]) => v).length;
-  const completionPct = Math.round((filled / 8) * 100);
+  const completionPct = Math.round((filled / 9) * 100);
 
   const submit = () => {
-    setTouched({ customer_name: 1, customer_manager: 1, model_name: 1, delivery_date: 1, station_id: 1, router_no: 1, usim_no: 1, install_address: 1 });
+    setTouched({ customer_name: 1, customer_manager: 1, model_name: 1, delivery_date: 1, cable_length: 1, station_id: 1, router_no: 1, usim_no: 1, install_address: 1 });
     setShowAll(true);
     if (hasErr) return;
     if (isEdit) {
@@ -352,6 +355,20 @@ function SalesInputScreen() {
                   {showErr('model_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
                 </div>
                 <div className="field">
+                  <label className="field__label">케이블 길이 <span className="field__req">*</span></label>
+                  <div className="chips">
+                    {window.MASTER.CABLE_LENGTHS.map(c => (
+                      <button key={c}
+                              type="button"
+                              className={`chip ${form.cable_length === c ? 'chip--active' : ''}`}
+                              onClick={() => { update('cable_length', c); setTouched((t) => ({ ...t, cable_length: 1 })); }}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                  {showErr('cable_length') && <div className="field__err"><Icon name="alert" size={12}/> {errors.cable_length}</div>}
+                </div>
+                <div className="field">
                   <label className="field__label">납품일자 <span className="field__req">*</span></label>
                   <div className="input-group">
                     <input type="date"
@@ -444,6 +461,8 @@ function SalesInputScreen() {
                 <dd>{form.customer_manager || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>모델</dt>
                 <dd>{form.model_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
+                <dt>케이블 길이</dt>
+                <dd>{form.cable_length || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>납품일자</dt>
                 <dd style={{ fontVariantNumeric: 'tabular-nums' }}>{form.delivery_date || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>충전소 ID</dt>

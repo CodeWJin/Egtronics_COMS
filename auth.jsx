@@ -5,8 +5,9 @@ window.ROLE_TABS = {
   admin:      ['sales', 'waiting', 'mapping', 'completed', 'lookup', 'admin'],
   sales:      ['sales', 'waiting', 'lookup'],
   production: ['waiting', 'mapping', 'completed', 'lookup'],
+  as:         ['lookup'],
 };
-window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산' };
+window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', as: 'A/S' };
 
 const { useState: useStateAU } = React;
 
