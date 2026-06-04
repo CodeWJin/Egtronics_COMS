@@ -132,14 +132,14 @@ function ViewTable({ orders, onPick, completingId }) {
     <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
         <colgroup>
-              <col style={{ width: 86 }}/>
-              <col style={{ width: 150 }}/>
-              <col style={{ width: 150 }}/>
-              <col style={{ width: 130 }}/>
-              <col style={{ width: 'auto' }}/>
-              <col style={{ width: 130 }}/>
-              <col style={{ width: 130 }}/>
-              <col style={{ width: 40 }}/>
+              <col style={{ textAlign: 'left', width: 86 }}/>
+              <col style={{ textAlign: 'left', width: 150 }}/>
+              <col style={{ textAlign: 'left', width: 150 }}/>
+              <col style={{ textAlign: 'left', width: 130 }}/>
+              <col style={{ textAlign: 'left', width: 'auto' }}/>
+              <col style={{ textAlign: 'left', width: 130 }}/>
+              <col style={{ textAlign: 'left', width: 130 }}/>
+              <col style={{ textAlign: 'left', width: 40 }}/>
           </colgroup>
         <thead>
           <tr>

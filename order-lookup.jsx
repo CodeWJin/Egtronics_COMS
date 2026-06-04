@@ -191,14 +191,14 @@ function OrderLookupScreen() {
         <div className="table-wrap">
           <table className="table" style={{ tableLayout: 'fixed', width: '100%', textAlign: 'left', borderCollapse: 'collapse', }}>
             <colgroup>
-              <col style={{ width: 76 }}/>
-              <col style={{ width: 190 }}/>
-              <col style={{ width: 150 }}/>
-              <col style={{ width: 120 }}/>
-              <col style={{ width: 100 }}/>
-              <col style={{ width: 100 }}/>
-              <col style={{ width: 110 }}/>
-              <col style={{ width: 36 }}/>
+              <col style={{ textAlign: 'left', width: 76 }}/>
+              <col style={{ textAlign: 'left', width: 190 }}/>
+              <col style={{ textAlign: 'left', width: 150 }}/>
+              <col style={{ textAlign: 'left', width: 120 }}/>
+              <col style={{ textAlign: 'left', width: 140 }}/>
+              <col style={{ textAlign: 'left', width: 140 }}/>
+              <col style={{ textAlign: 'left', width: 110 }}/>
+              <col style={{ textAlign: 'left', width: 40 }}/>
             </colgroup>
             <thead>
               <tr>
