@@ -476,6 +476,7 @@ input, select, textarea { font-family: inherit; }
   transition: all 120ms ease;
   letter-spacing: -0.005em;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .btn--primary {
   background: var(--primary);
@@ -614,7 +615,7 @@ input, select, textarea { font-family: inherit; }
   font-size: 13px;
 }
 .table th {
-  text-align: left;
+  text-align: center;
   font-weight: 500;
   font-size: 11.5px;
   color: var(--ink-3);
@@ -624,6 +625,8 @@ input, select, textarea { font-family: inherit; }
   padding: 11px 16px;
   border-bottom: 1px solid var(--border-1);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .table td {
   padding: 14px 16px;
