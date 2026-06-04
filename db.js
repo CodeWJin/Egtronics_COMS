@@ -65,9 +65,10 @@
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [] };
     let mgrSeq = 0;
     let histSeq = 0;
+    let asHistSeq = 0;
 
     // 비동기 쓰기 — 로컬 캐시 업데이트 후 백그라운드에서 Supabase에 동기화
     function dbWrite(table, op, fn) {
@@ -117,6 +118,20 @@
         cache.history    = h.data || [];
         mgrSeq  = cache.managers.reduce((mx, x) => Math.max(mx, x.manager_id || 0), 0);
         histSeq = cache.history.reduce((mx, x) => Math.max(mx, x.history_id || 0), 0);
+
+        // A/S 이력 별도 로드 (테이블 미존재 시에도 앱 정상 동작)
+        try {
+          const { data: asData, error: asErr } = await client.from('tb_as_history').select('*');
+          if (!asErr) {
+            cache.as_history = asData || [];
+            asHistSeq = cache.as_history.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
+          } else {
+            dbLog('WARN', 'loadAll', 'tb_as_history 조회 실패 — ' + asErr.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', 'tb_as_history 로드 오류 — ' + e.message);
+        }
+
         const elapsed = Date.now() - t0;
         dbLog('SUCCESS', 'loadAll', `전체 조회 완료 (${elapsed}ms)`, {
           tb_sales_order:      cache.orders.length,
@@ -124,6 +139,7 @@
           tb_customer_manager: cache.managers.length,
           users:               cache.users.length,
           tb_order_history:    cache.history.length,
+          tb_as_history:       cache.as_history.length,
         });
       },
 
@@ -137,7 +153,7 @@
 
       addOrder(form) {
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, status: 'PENDING', created: TODAY };
+        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, status: 'PENDING', created: TODAY };
         cache.orders.push(row);
         dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
         dbWrite('tb_sales_order', 'insert', () => client.from('tb_sales_order').insert(row));
@@ -150,7 +166,7 @@
           dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address };
+        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address };
         Object.assign(o, upd);
         dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'update', () => client.from('tb_sales_order').update(upd).eq('order_id', order_id));
@@ -324,6 +340,35 @@
           .sort((a, b) => (b.changed_at || '').localeCompare(a.changed_at || ''))
           .map(r => ({ ...r, changed_fields: JSON.parse(r.changed_fields || '[]') }));
       },
+
+      getAsHistory(order_id) {
+        return [...cache.as_history.filter(r => r.order_id === order_id)]
+          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      },
+
+      addAsRecord(record) {
+        const id = ++asHistSeq;
+        const row = {
+          id,
+          order_id:       record.order_id,
+          reception_date: record.reception_date || '',
+          dispatch_date:  record.dispatch_date  || '',
+          action:         record.action         || '',
+          notes:          record.notes          || '',
+          field_manager:  record.field_manager  || '',
+          created_at:     record.created_at     || TODAY,
+        };
+        cache.as_history.push(row);
+        dbLog('INFO', 'write:tb_as_history', `A/S 이력 추가 — order_id=${record.order_id}`);
+        dbWrite('tb_as_history', 'insert', () => client.from('tb_as_history').insert(row));
+        return id;
+      },
+
+      deleteAsRecord(id) {
+        cache.as_history = cache.as_history.filter(r => r.id !== id);
+        dbLog('INFO', 'write:tb_as_history', `A/S 이력 삭제 — id=${id}`);
+        dbWrite('tb_as_history', 'delete', () => client.from('tb_as_history').delete().eq('id', id));
+      },
     };
   }
 
@@ -444,6 +489,9 @@
     query()                  { return []; },
     addHistory(id, by, at, f, a) { return this.backend.addHistory(id, by, at, f, a); },
     getHistory(id)           { return this.backend.getHistory(id); },
+    getAsHistory(orderId)    { return this.backend.getAsHistory(orderId); },
+    addAsRecord(record)      { return this.backend.addAsRecord(record); },
+    deleteAsRecord(id)       { return this.backend.deleteAsRecord(id); },
     reset()                  { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };
 

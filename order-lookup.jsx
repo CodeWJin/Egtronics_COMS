@@ -160,17 +160,27 @@ function OrderLookupScreen() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table" style={{ tableLayout: 'fixed', width: '100%' }}>
+            <colgroup>
+              <col style={{ width: 76 }}/>
+              <col style={{ width: 190 }}/>
+              <col style={{ width: 150 }}/>
+              <col style={{ width: 120 }}/>
+              <col style={{ width: 100 }}/>
+              <col style={{ width: 100 }}/>
+              <col style={{ width: 110 }}/>
+              <col style={{ width: 36 }}/>
+            </colgroup>
             <thead>
               <tr>
-                <th style={{ width: 80, cursor: 'pointer' }} onClick={() => toggleSort('order_id')}>오더 #{sortArrow('order_id')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('order_id')}>오더 #{sortArrow('order_id')}</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('customer_name')}>고객사{sortArrow('customer_name')}</th>
                 <th>모델</th>
                 <th>충전소 ID</th>
                 <th style={{ textAlign: 'right', cursor: 'pointer' }} onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
                 <th>생산일</th>
-                <th style={{ width: 110, cursor: 'pointer' }} onClick={() => toggleSort('status')}>상태{sortArrow('status')}</th>
-                <th style={{ width: 36 }}></th>
+                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>상태{sortArrow('status')}</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -203,34 +213,12 @@ function OrderLookupScreen() {
   );
 }
 
-/* ────────── A/S 이력 헬퍼 (localStorage) ────────── */
-const AS_HISTORY_KEY = 'coms_as_history';
-function getAsHistory(orderId) {
-  try {
-    const all = JSON.parse(localStorage.getItem(AS_HISTORY_KEY) || '[]');
-    return all.filter(r => r.order_id === orderId);
-  } catch { return []; }
-}
-function addAsRecord(record) {
-  try {
-    const all = JSON.parse(localStorage.getItem(AS_HISTORY_KEY) || '[]');
-    all.push({ ...record, id: Date.now() });
-    localStorage.setItem(AS_HISTORY_KEY, JSON.stringify(all));
-  } catch {}
-}
-function removeAsRecord(id) {
-  try {
-    const all = JSON.parse(localStorage.getItem(AS_HISTORY_KEY) || '[]');
-    localStorage.setItem(AS_HISTORY_KEY, JSON.stringify(all.filter(r => r.id !== id)));
-  } catch {}
-}
-
 function AsHistorySection({ orderId, canEdit }) {
   const [list, setList] = useStateOL([]);
   const [showForm, setShowForm] = useStateOL(false);
   const [draft, setDraft] = useStateOL(null);
 
-  const reload = () => setList(getAsHistory(orderId));
+  const reload = () => setList(window.PMDB.getAsHistory(orderId));
   React.useEffect(() => { reload(); }, [orderId]);
 
   const startAdd = () => {
@@ -240,13 +228,13 @@ function AsHistorySection({ orderId, canEdit }) {
 
   const save = () => {
     const today = new Date().toISOString().slice(0, 10);
-    addAsRecord({ order_id: orderId, ...draft, created_at: today });
+    window.PMDB.addAsRecord({ order_id: orderId, ...draft, created_at: today });
     reload();
     setShowForm(false);
     setDraft(null);
   };
 
-  const remove = (id) => { removeAsRecord(id); reload(); };
+  const remove = (id) => { window.PMDB.deleteAsRecord(id); reload(); };
 
   return (
     <section>
@@ -365,12 +353,18 @@ function OrderDrawer({ order, onClose }) {
             <div className="dsec__title"><Icon name="cart" size={12}/> 영업 입력 정보</div>
             <div className="dgrid">
               <Field k="모델" v={order.model_name}/>
+              <Field k="케이블 길이" v={order.cable_length}/>
               <Field k="담당자" v={managerDisplay}/>
               <Field k="납품일자" v={order.delivery_date} mono/>
               <Field k="충전소 ID" v={order.station_id} mono/>
               <Field k="라우터 S/N" v={order.router_no} mono/>
               <Field k="USIM (ICCID)" v={order.usim_no} mono full/>
               <Field k="설치주소" v={order.install_address} full/>
+              {(order.field_manager_name || order.field_manager_phone) && (
+                <Field k="현장담당자"
+                       v={[order.field_manager_name, order.field_manager_phone].filter(Boolean).join(' · ')}
+                       full/>
+              )}
             </div>
           </section>
 
@@ -384,7 +378,6 @@ function OrderDrawer({ order, onClose }) {
                 <Field k="로트번호" v={p.lot_no} mono/>
                 <Field k="시리얼" v={p.serial_no} mono/>
                 <Field k="S/W 버전" v={p.sw_version} mono/>
-                <Field k="케이블 길이" v={p.cable_length}/>
                 <Field k="문서번호 (성적서)" v={p.doc_no} mono full/>
               </div>
             ) : (

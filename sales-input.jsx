@@ -84,62 +84,33 @@ function ScannerInput({ value, onChange, placeholder, error, maxLength, format }
 }
 
 function AddressField({ value, onChange, error }) {
-  const [showSearch, setShowSearch] = useStateSI(false);
-  const [query, setQuery] = useStateSI('');
-  const mockResults = [
-    { zip: '06236', road: '서울특별시 강남구 테헤란로 152', name: '강남파이낸스센터' },
-    { zip: '04518', road: '서울특별시 중구 을지로 100', name: '시그니쳐타워' },
-    { zip: '13494', road: '경기도 성남시 분당구 판교역로 235', name: 'H스퀘어' },
-    { zip: '21984', road: '인천광역시 연수구 컨벤시아대로 165', name: '송도컨벤시아' },
-    { zip: '48058', road: '부산광역시 해운대구 센텀남대로 35', name: '센텀시티' },
-  ].filter(r => !query || r.road.includes(query) || r.name.includes(query));
+  const openPostcode = () => {
+    const open = () => new window.daum.Postcode({
+      oncomplete(data) {
+        const addr = data.roadAddress || data.jibunAddress;
+        onChange(`[${data.zonecode}] ${addr} `);
+      },
+    }).open();
+    if (window.daum && window.daum.Postcode) {
+      open();
+    } else {
+      const s = document.createElement('script');
+      s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+      s.onload = open;
+      document.head.appendChild(s);
+    }
+  };
 
   return (
-    <>
-      <div className="input-group">
-        <input className={`input ${error ? 'input--error' : ''}`}
-               placeholder="우편번호 검색 후 상세주소 입력"
-               value={value || ''}
-               onChange={(e) => onChange(e.target.value)}/>
-        <button type="button" className="input-group__btn" onClick={() => setShowSearch(true)}>
-          <Icon name="search" size={12} style={{ marginRight: 4 }}/> 우편번호
-        </button>
-      </div>
-      {showSearch && (
-        <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && setShowSearch(false)}>
-          <div className="modal">
-            <div className="modal__head">
-              <h3 className="modal__title">우편번호 / 주소 검색</h3>
-              <p className="modal__sub">도로명 주소 또는 건물명을 입력하세요</p>
-            </div>
-            <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="input-group">
-                <div className="input-group__icon"><Icon name="search" size={14}/></div>
-                <input className="input" style={{ paddingLeft: 32 }} autoFocus
-                       placeholder="예: 테헤란로 152"
-                       value={query}
-                       onChange={(e) => setQuery(e.target.value)}/>
-              </div>
-              <div style={{ maxHeight: 220, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {mockResults.length === 0 && <div className="emptystate"><div className="emptystate__title">결과가 없습니다</div></div>}
-                {mockResults.map(r => (
-                  <button key={r.zip} className="combo__item" style={{ textAlign: 'left', border: 0, background: 'transparent', cursor: 'pointer' }}
-                          onClick={() => { onChange(r.road + ', '); setShowSearch(false); }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontWeight: 500, color: 'var(--ink-1)' }}>{r.road}</span>
-                      <span className="combo__item__meta">({r.name}) · {r.zip}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="modal__foot">
-              <button className="btn btn--secondary" onClick={() => setShowSearch(false)}>닫기</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <div className="input-group">
+      <input className={`input ${error ? 'input--error' : ''}`}
+             placeholder="우편번호 검색 후 상세주소 입력"
+             value={value || ''}
+             onChange={(e) => onChange(e.target.value)}/>
+      <button type="button" className="input-group__btn" onClick={openPostcode}>
+        <Icon name="search" size={12} style={{ marginRight: 4 }}/> 우편번호
+      </button>
+    </div>
   );
 }
 
@@ -158,6 +129,8 @@ function SalesInputScreen() {
     router_no: '',
     usim_no: '',
     install_address: '',
+    field_manager_name: '',
+    field_manager_phone: '',
   };
   const [form, setForm] = useStateSI(empty);
   const [touched, setTouched] = useStateSI({});
@@ -183,6 +156,8 @@ function SalesInputScreen() {
         router_no: editing.router_no || '',
         usim_no: editing.usim_no || '',
         install_address: editing.install_address || '',
+        field_manager_name: editing.field_manager_name || '',
+        field_manager_phone: editing.field_manager_phone || '',
       });
       setTouched({}); setShowAll(false);
     } else {
@@ -433,13 +408,35 @@ function SalesInputScreen() {
               <span className="card__sub">현장 설치 주소</span>
             </div>
             <div className="card__body">
-              <div className="field">
-                <label className="field__label">설치주소</label>
-                <AddressField value={form.install_address}
-                              onChange={(v) => { update('install_address', v); setTouched((t) => ({ ...t, install_address: 1 })); }}
-                              error={showErr('install_address')}/>
-                <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 API 연동 — 표준화된 도로명 주소 사용</div>
-                {showErr('install_address') && <div className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
+              <div className="form-grid">
+                <div className="field" style={{ gridColumn: 'span 2' }}>
+                  <label className="field__label">설치주소</label>
+                  <AddressField value={form.install_address}
+                                onChange={(v) => { update('install_address', v); setTouched((t) => ({ ...t, install_address: 1 })); }}
+                                error={showErr('install_address')}/>
+                  <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 검색하세요</div>
+                  {showErr('install_address') && <div className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
+                </div>
+                <div className="field">
+                  <label className="field__label">현장담당자 이름</label>
+                  <input className="input"
+                         placeholder="담당자 이름"
+                         value={form.field_manager_name}
+                         onChange={(e) => { update('field_manager_name', e.target.value); setTouched((t) => ({ ...t, field_manager_name: 1 })); }}/>
+                </div>
+                <div className="field">
+                  <label className="field__label">현장담당자 연락처</label>
+                  <input className="input"
+                         style={{ fontFamily: 'var(--font-mono)' }}
+                         placeholder="010-0000-0000"
+                         value={form.field_manager_phone}
+                         onChange={(e) => {
+                           const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
+                           const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+                           update('field_manager_phone', fmt);
+                           setTouched((t) => ({ ...t, field_manager_phone: 1 }));
+                         }}/>
+                </div>
               </div>
             </div>
           </div>
@@ -473,6 +470,12 @@ function SalesInputScreen() {
                 <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, wordBreak: 'break-all' }}>{form.usim_no || <span style={{ color: 'var(--ink-4)', fontFamily: 'inherit' }}>—</span>}</dd>
                 <dt>설치주소</dt>
                 <dd style={{ fontSize: 12.5 }}>{form.install_address || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
+                <dt>현장담당자</dt>
+                <dd style={{ fontSize: 12.5 }}>
+                  {form.field_manager_name
+                    ? <>{form.field_manager_name}{form.field_manager_phone && <span style={{ color: 'var(--ink-3)' }}> · {form.field_manager_phone}</span>}</>
+                    : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                </dd>
                 <dt>상태</dt>
                 <dd><span className="badge badge--pending"><span className="badge__dot"/>PENDING</span></dd>
               </dl>

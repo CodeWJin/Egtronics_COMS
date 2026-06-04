@@ -1013,6 +1013,7 @@ input, select, textarea { font-family: inherit; }
   /* Screen 패딩 축소 */
   .screen { padding: 18px 16px 48px; }
   .screen__head { flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .screen__head > *:last-child { width: 100%; justify-content: flex-start !important; }
   .screen__title { font-size: 18px; }
 
   /* 통계 타일: 2열 */
@@ -1026,8 +1027,9 @@ input, select, textarea { font-family: inherit; }
   /* readonly-strip */
   .readonly-strip__grid { grid-template-columns: repeat(2, 1fr); }
 
-  /* 칸반: 단열 */
-  .kanban { grid-template-columns: 1fr; }
+  /* 칸반: 가로 스크롤 (컬럼 고정) */
+  .kanban-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .kanban { min-width: max-content; }
 
   /* 타임라인: 날짜 위로 */
   .timeline__day { grid-template-columns: 1fr; gap: 12px; padding: 14px 16px; }
@@ -1543,6 +1545,8 @@ input, select, textarea { font-family: inherit; }
 .usermenu__role[data-role="sales"] { background: var(--primary-50); color: var(--primary-600); }
 .login__demo__role[data-role="production"],
 .usermenu__role[data-role="production"] { background: var(--success-50); color: var(--success-700); }
+.login__demo__role[data-role="as"],
+.usermenu__role[data-role="as"] { background: var(--warning-50); color: var(--warning-700); }
 
 .login__foot {
   display: flex; align-items: center; gap: 6px;

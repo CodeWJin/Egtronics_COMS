@@ -246,7 +246,8 @@ function ViewKanban({ orders, onPick, completingId }) {
   ];
 
   return (
-    <div className="kanban" style={{ marginTop: 16, gridTemplateColumns: `repeat(${visibleCols.length}, minmax(0, 1fr))` }}>
+    <div className="kanban-scroll" style={{ marginTop: 16 }}>
+    <div className="kanban" style={{ gridTemplateColumns: `repeat(${visibleCols.length}, 260px)` }}>
       {visibleCols.map(col => {
         const items = orders.filter(col.filter);
         return (
@@ -286,6 +287,7 @@ function ViewKanban({ orders, onPick, completingId }) {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }

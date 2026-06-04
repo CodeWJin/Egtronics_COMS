@@ -6,6 +6,7 @@ const ROLE_OPTIONS = [
   { value: 'admin',      label: '관리자' },
   { value: 'sales',      label: '영업' },
   { value: 'production', label: '생산' },
+  { value: 'as',         label: 'A/S (유지보수)' },
 ];
 
 const EMPTY_FORM = { user_id: '', password: '', name: '', role: 'sales', dept: '', phone: '', email: '' };
@@ -209,6 +210,7 @@ function AdminUsersScreen() {
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
               {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회'}
               {r.value === 'production' && '생산 대기 · 생산 매핑 · 생산 완료 · 조회'}
+              {r.value === 'as' && '조회 · A/S 이력 입력 (유지보수/기술지원)'}
             </div>
             <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>
               {users.filter(u => u.role === r.value).length}명
