@@ -130,10 +130,10 @@ function ProductionWaitingScreen() {
 function ViewTable({ orders, onPick, completingId }) {
   return (
     <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <table className="table" style={{ minWidth: 700 }}>
+      <table className="table" style={{ whiteSpace: 'nowrap' }}>
         <thead>
           <tr>
-            <th style={{ width: 80 }}>오더 #</th>
+            <th>오더 #</th>
             <th>고객사</th>
             <th>모델</th>
             <th>충전소 ID</th>
@@ -158,8 +158,8 @@ function ViewTable({ orders, onPick, completingId }) {
                 </td>
                 <td><span className="badge badge--neutral">{o.model_name}</span></td>
                 <td className="cell-mono">{o.station_id}</td>
-                <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>{o.install_address}</td>
-                <td style={{ textAlign: 'right' }}>
+                <td style={{ color: 'var(--ink-2)' }}>{o.install_address}</td>
+                <td>
                   <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</div>
                   <span style={{ display: 'inline-block', marginTop: 2, fontSize: 11, padding: '1px 7px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600 }}>{d.text}</span>
                 </td>

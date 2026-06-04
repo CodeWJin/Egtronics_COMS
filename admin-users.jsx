@@ -232,11 +232,11 @@ function AdminUsersScreen() {
           <table className="table">
             <thead>
               <tr>
-                <th>이름</th>
-                <th>아이디</th>
-                <th>역할</th>
-                <th>부서</th>
-                <th>전화번호</th>
+                <th style={{ width: 90 }}>이름</th>
+                <th style={{ width: 110 }}>아이디</th>
+                <th style={{ width: 100 }}>역할</th>
+                <th style={{ width: 110 }}>부서</th>
+                <th style={{ width: 136 }}>전화번호</th>
                 <th>이메일</th>
                 <th style={{ width: 96 }}></th>
               </tr>
@@ -250,10 +250,7 @@ function AdminUsersScreen() {
               {filtered.map(u => (
                 <tr key={u.user_id} className="row--clickable" onClick={() => setModal({ mode: 'edit', user: u })}>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--surface-3)', border: '1px solid var(--border-1)', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', flexShrink: 0 }}>
-                        {(u.name || '?').slice(0, 1)}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="cell-strong">{u.name}</span>
                       {u.user_id === currentUserId && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, background: 'var(--primary-50)', color: 'var(--primary-600)', fontWeight: 600 }}>본인</span>}
                     </div>
