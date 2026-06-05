@@ -1,8 +1,4 @@
 {
-  "functions": {
-    "api/config.js":    { "runtime": "nodejs20.x" },
-    "api/send-code.js": { "runtime": "nodejs20.x" }
-  },
   "rewrites": [
     { "source": "/supabase-config.js", "destination": "/api/config" }
   ]
