@@ -753,7 +753,7 @@ function AddCustomerModal({ onClose, onAdded }) {
             <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
                    value={code}
                    onChange={(e) => { setCode(e.target.value); setErr(''); }}
-                   placeholder="예: CASTPRO"
+                   placeholder="예: CAS"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
           </div>
           {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}

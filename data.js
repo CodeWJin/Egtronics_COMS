@@ -3,10 +3,10 @@
 
 window.MASTER = {
   CUSTOMERS: [
-    { name: '캐스트프로', code: 'CASTPRO', last: '2026-05-18' },
-    { name: '소프트베리', code: 'SOFTBERRY', last: '2026-05-20' },
-    { name: '환경부 무공해차통합누리집', code: 'ME-EV', last: '2026-05-21' },
-    { name: '대영채비', code: 'DYC', last: '2026-04-30' },
+    { name: '카스', code: 'CAS', last: '2026-05-18' },
+    { name: '마이크로', code: 'MICRO', last: '2026-05-20' },
+    { name: 'LG', code: 'LG', last: '2026-05-21' },
+    { name: '삼성', code: 'SAMSUNG', last: '2026-04-30' },
   ],
   MODELS: [
     { name: '7kW Wallbox', spec: '완속 · 벽부착', power: '7kW' },
@@ -33,7 +33,7 @@ window.MASTER = {
 window.SEED_ORDERS = [
   {
     order_id: 26020801,
-    customer_name: '캐스트프로',
+    customer_name: '카스',
     model_name: '100kW 2ch',
     delivery_date: '2026-06-12',
     station_id: 'CT9006_01',
@@ -45,7 +45,7 @@ window.SEED_ORDERS = [
   },
   {
     order_id: 26020802,
-    customer_name: '캐스트프로',
+    customer_name: '카스',
     model_name: '50kW 1ch',
     delivery_date: '2026-06-15',
     station_id: 'CR1006_01',
@@ -57,7 +57,7 @@ window.SEED_ORDERS = [
   },
   {
     order_id: 26020803,
-    customer_name: '소프트베리',
+    customer_name: '마이크로',
     model_name: '11kW Wallbox',
     delivery_date: '2026-07-02',
     station_id: 'DYC-DGU-0301',
@@ -69,7 +69,7 @@ window.SEED_ORDERS = [
   },
   {
     order_id: 26020901,
-    customer_name: '소프트베리',
+    customer_name: '마이크로',
     model_name: '100kW 2ch',
     delivery_date: '2026-06-05',
     station_id: 'LOT-SEL-0188',
@@ -92,19 +92,19 @@ window.SEED_ORDERS = [
 
 // 고객사별 담당자 (tb_customer_manager seed) — customer_name 기준
 window.SEED_MANAGERS = [
-  { customer_name: '캐스트프로',  name: '이한솔', phone: '010-2341-5678', email: 'hwjeong@kepco.kr',  is_primary: 1 },
-  { customer_name: '캐스트프로',  name: '최민서', phone: '010-7782-1043', email: 'sylee@kepco.kr',    is_primary: 1 },
-  { customer_name: '캐스트프로',  name: '김필수', phone: '010-5521-8890', email: 'jhpark@me.go.kr',   is_primary: 0 },
-  { customer_name: '소프트베리',  name: '조상범', phone: '010-6610-3325', email: 'shoh@everon.co.kr',  is_primary: 1 },
-  { customer_name: '소프트베리',  name: '윤가람', phone: '010-4471-9928', email: 'gryoon@kdn.com',     is_primary: 1 },
-  { customer_name: '소프트베리',  name: '서준호', phone: '010-1182-7740', email: 'jhseo@dyc.co.kr',    is_primary: 1 },
-  { customer_name: '소프트베리',  name: '강민수', phone: '010-8830-1156', email: 'mskang@lotte.net',   is_primary: 1 },
+  { customer_name: '카스',  name: '이XX', phone: '010-2222-4444', email: 'hwjeong@kepco.kr',  is_primary: 1 },
+  { customer_name: '카스',  name: '최XX', phone: '010-7788-1099', email: 'sylee@kepco.kr',    is_primary: 1 },
+  { customer_name: '카스',  name: '김XX', phone: '010-5555-8888', email: 'jhpark@me.go.kr',   is_primary: 0 },
+  { customer_name: '마이크로',  name: '조XX', phone: '010-6666-3333', email: 'shoh@everon.co.kr',  is_primary: 1 },
+  { customer_name: '마이크로',  name: '윤XX', phone: '010-4444-9999', email: 'gryoon@kdn.com',     is_primary: 1 },
+  { customer_name: '마이크로',  name: '서XX', phone: '010-1111-7777', email: 'jhseo@dyc.co.kr',    is_primary: 1 },
+  { customer_name: '마이크로',  name: '강XX', phone: '010-2222-1111', email: 'mskang@lotte.net',   is_primary: 1 },
 ];
 
 // Existing serials (for duplicate-check demo)
 window.EXISTING_SERIALS = new Set([
-  'SGT100K-26052601A',
-  'SGT050K-26052702B',
-  'SGT200K-26052403C',
-  'SGT100K-26052305X',
+  'EGT100K-26052601A',
+  'EGT050K-26052702B',
+  'EGT200K-26052403C',
+  'EGT100K-26052305X',
 ]);
