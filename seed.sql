@@ -22,6 +22,36 @@ CREATE TABLE IF NOT EXISTS tb_as_history (
 );
 ALTER TABLE tb_as_history DISABLE ROW LEVEL SECURITY;
 
+CREATE TABLE IF NOT EXISTS tb_master_customer (
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL,
+  code  TEXT NOT NULL,
+  last  TEXT DEFAULT ''
+);
+ALTER TABLE tb_master_customer DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_model (
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL,
+  spec  TEXT DEFAULT '',
+  power TEXT DEFAULT ''
+);
+ALTER TABLE tb_master_model DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_sw_version (
+  id       SERIAL PRIMARY KEY,
+  tag      TEXT NOT NULL,
+  released TEXT DEFAULT '',
+  stable   BOOLEAN DEFAULT true
+);
+ALTER TABLE tb_master_sw_version DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_cable_length (
+  id    SERIAL PRIMARY KEY,
+  value TEXT NOT NULL
+);
+ALTER TABLE tb_master_cable_length DISABLE ROW LEVEL SECURITY;
+
 -- ┌──────────────────────┐
 -- │  1. 사용자 (users)   │
 -- └──────────────────────┘
