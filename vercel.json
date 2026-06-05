@@ -1,5 +1,16 @@
 {
-  "rewrites": [
-    { "source": "/supabase-config.js", "destination": "/api/config" }
+  "version": 2,
+  "builds": [
+    { "src": "api/config.js",    "use": "@vercel/node" },
+    { "src": "api/send-code.js", "use": "@vercel/node" },
+    { "src": "index.html",       "use": "@vercel/static" },
+    { "src": "styles.css",       "use": "@vercel/static" },
+    { "src": "db.js",            "use": "@vercel/static" },
+    { "src": "*.jsx",            "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/supabase-config.js",               "dest": "/api/config" },
+    { "src": "/api/send-code", "methods": ["POST"], "dest": "/api/send-code" },
+    { "src": "/(.*)",                              "dest": "/$1" }
   ]
 }
