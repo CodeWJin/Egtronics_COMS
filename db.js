@@ -54,6 +54,7 @@
     { user_id: 'prod',  password: '1234', name: '김태윤', role: 'production', dept: '생산부',       phone: '010-5000-6000', email: 'prod@egtrinocs.com' },
     { user_id: 'as',    password: '1234', name: '민경선', role: 'as',         dept: '품질관리본부',       phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
+  window.SEED_USERS = SEED_USERS;
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
