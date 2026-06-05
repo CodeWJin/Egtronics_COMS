@@ -54,14 +54,6 @@
     { user_id: 'prod',  password: '1234', name: '김태윤', role: 'production', dept: '생산부',       phone: '010-5000-6000', email: 'prod@egtrinocs.com' },
     { user_id: 'as',    password: '1234', name: '민경선', role: 'as',         dept: '품질관리본부',       phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
-  window.SEED_USERS = SEED_USERS;
-
-  const primaryManagerFor = (customer) => {
-    const ms = (window.SEED_MANAGERS || []).filter(m => m.customer_name === customer);
-    const pm = ms.find(m => m.is_primary) || ms[0];
-    return pm ? pm.name : '';
-  };
-
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
@@ -432,31 +424,6 @@
         const { error } = await client.from('users').insert(SEED_USERS.map(u => ({ ...u })));
         if (error) dbLog('ERROR', 'init', '초기 사용자 삽입 실패 — ' + error.message, error);
         else backend.cache.users = SEED_USERS.map(u => ({ ...u }));
-      }
-
-      const SEED_MANAGERS = window.SEED_MANAGERS || [];
-      if (backend.cache.managers.length === 0 && SEED_MANAGERS.length > 0) {
-        dbLog('INFO', 'init', `초기 담당자 데이터 삽입 — ${SEED_MANAGERS.length}건`);
-        const rows = SEED_MANAGERS.map((m, i) => ({ manager_id: i + 1, customer_name: m.customer_name, name: m.name, phone: m.phone || '', email: m.email || '', is_primary: m.is_primary ? 1 : 0 }));
-        const { error } = await client.from('tb_customer_manager').insert(rows);
-        if (error) dbLog('ERROR', 'init', '초기 담당자 삽입 실패 — ' + error.message, error);
-        else backend.cache.managers = rows;
-      }
-
-      const SEED_ORDERS = window.SEED_ORDERS || [];
-      if (backend.cache.orders.length === 0 && SEED_ORDERS.length > 0) {
-        dbLog('INFO', 'init', `초기 주문 데이터 삽입 — ${SEED_ORDERS.length}건`);
-        const orderRows = SEED_ORDERS.map(o => ({ order_id: o.order_id, customer_name: o.customer_name, customer_manager: o.customer_manager || primaryManagerFor(o.customer_name), model_name: o.model_name, delivery_date: o.delivery_date, station_id: o.station_id, router_no: o.router_no, usim_no: o.usim_no, install_address: o.install_address, status: o.status, created: o.created }));
-        const { error: oe } = await client.from('tb_sales_order').insert(orderRows);
-        if (oe) dbLog('ERROR', 'init', '초기 주문 삽입 실패 — ' + oe.message, oe);
-        else backend.cache.orders = orderRows;
-
-        const prodRows = SEED_ORDERS.filter(o => o.production).map(o => ({ order_id: o.order_id, ...o.production }));
-        if (prodRows.length) {
-          const { error: pe } = await client.from('tb_production_info').insert(prodRows);
-          if (pe) dbLog('ERROR', 'init', '초기 생산 정보 삽입 실패 — ' + pe.message, pe);
-          else backend.cache.production = prodRows;
-        }
       }
 
       this.backend = backend;
