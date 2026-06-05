@@ -83,3 +83,46 @@ INSERT INTO tb_production_info
 VALUES
   (26020901, '2026-05-26', 'L26-W21-A', 'SGT100K-26052601A', '2026-05-27', 'v1.6.2-core', 'QC-26-0521-A')
 ON CONFLICT (order_id) DO NOTHING;
+
+-- ┌──────────────────────────────────────────────────────┐
+-- │  5. 마스터 — 고객사 (tb_master_customer)             │
+-- └──────────────────────────────────────────────────────┘
+INSERT INTO tb_master_customer (name, code, last) VALUES
+  ('카스',     'CAS',     '2026-05-18'),
+  ('마이크로', 'MICRO',   '2026-05-20'),
+  ('LG',       'LG',      '2026-05-21'),
+  ('삼성',     'SAMSUNG', '2026-04-30')
+ON CONFLICT DO NOTHING;
+
+-- ┌──────────────────────────────────────────────────────┐
+-- │  6. 마스터 — 모델 (tb_master_model)                  │
+-- └──────────────────────────────────────────────────────┘
+INSERT INTO tb_master_model (name, spec, power) VALUES
+  ('7kW Wallbox',   '완속 · 벽부착',      '7kW'),
+  ('7kW Pedestal',  '완속 · 스탠드형',    '7kW'),
+  ('11kW Wallbox',  '완속 · 벽부착',      '11kW'),
+  ('11kW Pedestal', '완속 · 스탠드형',    '11kW'),
+  ('50kW 1ch',      'DC 콤보 · 단일포트', '50kW'),
+  ('50kW 2ch',      'DC 콤보 · 듀얼포트', '50kW'),
+  ('100kW 1ch',     'DC 콤보 · 단일포트', '100kW'),
+  ('100kW 2ch',     'DC 콤보 · 듀얼포트', '100kW'),
+  ('200kW 1ch',     'DC 콤보 · 단일포트', '200kW'),
+  ('200kW 2ch',     'DC 콤보 · 단일포트', '100kW')
+ON CONFLICT DO NOTHING;
+
+-- ┌──────────────────────────────────────────────────────┐
+-- │  7. 마스터 — SW 버전 (tb_master_sw_version)          │
+-- └──────────────────────────────────────────────────────┘
+INSERT INTO tb_master_sw_version (tag, released, stable) VALUES
+  ('v1.6.2-core', '2026-05-14', true),
+  ('v1.6.1-core', '2026-04-02', true),
+  ('v1.5.8-core', '2026-02-18', true),
+  ('v1.7.0-beta', '2026-05-22', false)
+ON CONFLICT DO NOTHING;
+
+-- ┌──────────────────────────────────────────────────────┐
+-- │  8. 마스터 — 케이블 길이 (tb_master_cable_length)    │
+-- └──────────────────────────────────────────────────────┘
+INSERT INTO tb_master_cable_length (value) VALUES
+  ('3m'), ('5m'), ('7m'), ('10m')
+ON CONFLICT DO NOTHING;

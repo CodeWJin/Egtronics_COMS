@@ -723,14 +723,8 @@ function AddCustomerModal({ onClose, onAdded }) {
     const trimmedCode = code.trim().toUpperCase();
     if (!trimmedName) { setErr('고객사명을 입력하세요'); return; }
     if (!trimmedCode) { setErr('코드를 입력하세요'); return; }
-    if (window.MASTER.CUSTOMERS.find(c => c.name === trimmedName)) {
-      setErr('이미 등록된 고객사명입니다'); return;
-    }
-    if (window.MASTER.CUSTOMERS.find(c => c.code === trimmedCode)) {
-      setErr('이미 사용 중인 코드입니다'); return;
-    }
-    const today = new Date().toISOString().slice(0, 10);
-    window.MASTER.CUSTOMERS.push({ name: trimmedName, code: trimmedCode, last: today });
+    const result = window.PMDB.addMasterCustomer(trimmedName, trimmedCode);
+    if (!result.ok) { setErr(result.msg); return; }
     onAdded && onAdded(trimmedName);
   };
 
@@ -782,18 +776,15 @@ function CustomerManageModal({ onClose, onChanged }) {
     const trimmedCode = draft.code.trim().toUpperCase();
     if (!trimmedName) { setErr('고객사명을 입력하세요'); return; }
     if (!trimmedCode) { setErr('코드를 입력하세요'); return; }
-    const dupName = window.MASTER.CUSTOMERS.findIndex(c => c.name === trimmedName);
-    if (dupName !== -1 && dupName !== draft.idx) { setErr('이미 등록된 고객사명입니다'); return; }
-    const dupCode = window.MASTER.CUSTOMERS.findIndex(c => c.code === trimmedCode);
-    if (dupCode !== -1 && dupCode !== draft.idx) { setErr('이미 사용 중인 코드입니다'); return; }
-    window.MASTER.CUSTOMERS[draft.idx] = { ...window.MASTER.CUSTOMERS[draft.idx], name: trimmedName, code: trimmedCode };
+    const result = window.PMDB.updateMasterCustomer(draft.idx, trimmedName, trimmedCode);
+    if (!result.ok) { setErr(result.msg); return; }
     reload();
     onChanged && onChanged();
     setDraft(null);
   };
 
   const remove = (idx) => {
-    window.MASTER.CUSTOMERS.splice(idx, 1);
+    window.PMDB.deleteMasterCustomer(idx);
     reload();
     onChanged && onChanged();
   };

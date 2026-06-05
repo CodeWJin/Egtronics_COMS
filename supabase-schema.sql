@@ -14,6 +14,37 @@ ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cable_length       TEXT DEFA
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_name TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_phone TEXT DEFAULT '';
 
+-- 마스터 테이블 (없을 때만 생성)
+CREATE TABLE IF NOT EXISTS tb_master_customer (
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL,
+  code  TEXT NOT NULL,
+  last  TEXT DEFAULT ''
+);
+ALTER TABLE tb_master_customer DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_model (
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL,
+  spec  TEXT DEFAULT '',
+  power TEXT DEFAULT ''
+);
+ALTER TABLE tb_master_model DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_sw_version (
+  id       SERIAL PRIMARY KEY,
+  tag      TEXT NOT NULL,
+  released TEXT DEFAULT '',
+  stable   BOOLEAN DEFAULT true
+);
+ALTER TABLE tb_master_sw_version DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_cable_length (
+  id    SERIAL PRIMARY KEY,
+  value TEXT NOT NULL
+);
+ALTER TABLE tb_master_cable_length DISABLE ROW LEVEL SECURITY;
+
 -- A/S 이력 테이블 (없을 때만 생성)
 CREATE TABLE IF NOT EXISTS tb_as_history (
   id             INTEGER PRIMARY KEY,

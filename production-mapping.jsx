@@ -183,10 +183,7 @@ function MappingForm({ order }) {
   const [touched, setTouched] = useStatePM({});
   const [showAll, setShowAll] = useStatePM(false);
   const [dupState, setDupState] = useStatePM(order.production ? 'ok' : null); // null | 'checking' | 'ok' | 'dup'
-  const [swVersions, setSwVersions] = useStatePM(() => {
-    try { const s = localStorage.getItem('pm_sw_versions'); if (s) return JSON.parse(s); } catch {}
-    return window.MASTER.SW_VERSIONS;
-  });
+  const [swVersions, setSwVersions] = useStatePM(() => window.MASTER.SW_VERSIONS);
   const [addingVer, setAddingVer] = useStatePM(false);
   const [newVerTag, setNewVerTag] = useStatePM('');
   const [newVerStable, setNewVerStable] = useStatePM(true);
@@ -206,7 +203,7 @@ function MappingForm({ order }) {
     if (!form.serial_no) return;
     setDupState('checking');
     setTimeout(() => {
-      const dup = window.EXISTING_SERIALS.has(form.serial_no) || window.PMDB.serialExists(form.serial_no);
+      const dup = window.PMDB.serialExists(form.serial_no);
       setDupState(dup ? 'dup' : 'ok');
     }, 600);
   };
@@ -220,10 +217,9 @@ function MappingForm({ order }) {
     const tag = newVerTag.trim();
     if (!tag) return;
     const ver = { tag, released: todayISO, stable: newVerStable };
+    window.PMDB.addMasterSwVersion(ver);
     const next = [ver, ...swVersions];
-    window.MASTER.SW_VERSIONS = next;
     setSwVersions(next);
-    localStorage.setItem('pm_sw_versions', JSON.stringify(next));
     update('sw_version', tag);
     setTouched(t => ({ ...t, sw_version: 1 }));
     setAddingVer(false);

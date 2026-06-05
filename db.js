@@ -125,6 +125,30 @@
           dbLog('WARN', 'loadAll', 'tb_as_history 로드 오류 — ' + e.message);
         }
 
+        // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
+        try {
+          const [mc, mm, msw, mcl] = await Promise.all([
+            client.from('tb_master_customer').select('*').order('id'),
+            client.from('tb_master_model').select('*').order('id'),
+            client.from('tb_master_sw_version').select('*').order('id'),
+            client.from('tb_master_cable_length').select('*').order('id'),
+          ]);
+          if (!mc.error && !mm.error && !msw.error && !mcl.error) {
+            window.MASTER = {
+              CUSTOMERS:     (mc.data  || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' })),
+              MODELS:        (mm.data  || []).map(m => ({ name: m.name, spec: m.spec, power: m.power })),
+              SW_VERSIONS:   (msw.data || []).map(v => ({ tag: v.tag, released: v.released, stable: v.stable })),
+              CABLE_LENGTHS: (mcl.data || []).map(c => c.value),
+            };
+            dbLog('SUCCESS', 'loadAll', '마스터 데이터 로드 완료', { customers: mc.data.length, models: mm.data.length });
+          } else {
+            const e = mc.error || mm.error || msw.error || mcl.error;
+            dbLog('WARN', 'loadAll', '마스터 테이블 조회 실패 — seed.sql 실행 필요: ' + e.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', '마스터 데이터 로드 오류 — ' + e.message);
+        }
+
         const elapsed = Date.now() - t0;
         dbLog('SUCCESS', 'loadAll', `전체 조회 완료 (${elapsed}ms)`, {
           tb_sales_order:      cache.orders.length,
@@ -362,6 +386,47 @@
         dbLog('INFO', 'write:tb_as_history', `A/S 이력 삭제 — id=${id}`);
         dbWrite('tb_as_history', 'delete', () => client.from('tb_as_history').delete().eq('id', id));
       },
+
+      addMasterCustomer(name, code) {
+        if ((window.MASTER.CUSTOMERS || []).find(c => c.name === name))
+          return { ok: false, msg: '이미 등록된 고객사명입니다' };
+        if ((window.MASTER.CUSTOMERS || []).find(c => c.code === code))
+          return { ok: false, msg: '이미 사용 중인 코드입니다' };
+        const last = new Date().toISOString().slice(0, 10);
+        window.MASTER.CUSTOMERS.push({ name, code, last });
+        dbLog('INFO', 'write:tb_master_customer', `고객사 추가 — ${name}`);
+        dbWrite('tb_master_customer', 'insert', () => client.from('tb_master_customer').insert({ name, code, last }));
+        return { ok: true };
+      },
+
+      updateMasterCustomer(idx, name, code) {
+        const c = (window.MASTER.CUSTOMERS || [])[idx];
+        if (!c) return { ok: false, msg: '고객사를 찾을 수 없습니다' };
+        const dupName = window.MASTER.CUSTOMERS.findIndex(x => x.name === name);
+        if (dupName !== -1 && dupName !== idx) return { ok: false, msg: '이미 등록된 고객사명입니다' };
+        const dupCode = window.MASTER.CUSTOMERS.findIndex(x => x.code === code);
+        if (dupCode !== -1 && dupCode !== idx) return { ok: false, msg: '이미 사용 중인 코드입니다' };
+        const oldName = c.name;
+        window.MASTER.CUSTOMERS[idx] = { ...c, name, code };
+        dbLog('INFO', 'write:tb_master_customer', `고객사 수정 — ${oldName} → ${name}`);
+        dbWrite('tb_master_customer', 'update', () => client.from('tb_master_customer').update({ name, code }).eq('name', oldName));
+        return { ok: true };
+      },
+
+      deleteMasterCustomer(idx) {
+        const c = (window.MASTER.CUSTOMERS || [])[idx];
+        if (!c) return;
+        const name = c.name;
+        window.MASTER.CUSTOMERS.splice(idx, 1);
+        dbLog('INFO', 'write:tb_master_customer', `고객사 삭제 — ${name}`);
+        dbWrite('tb_master_customer', 'delete', () => client.from('tb_master_customer').delete().eq('name', name));
+      },
+
+      addMasterSwVersion(ver) {
+        window.MASTER.SW_VERSIONS.unshift(ver);
+        dbLog('INFO', 'write:tb_master_sw_version', `SW 버전 추가 — ${ver.tag}`);
+        dbWrite('tb_master_sw_version', 'insert', () => client.from('tb_master_sw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
+      },
     };
   }
 
@@ -457,10 +522,14 @@
     query()                  { return []; },
     addHistory(id, by, at, f, a) { return this.backend.addHistory(id, by, at, f, a); },
     getHistory(id)           { return this.backend.getHistory(id); },
-    getAsHistory(orderId)    { return this.backend.getAsHistory(orderId); },
-    addAsRecord(record)      { return this.backend.addAsRecord(record); },
-    deleteAsRecord(id)       { return this.backend.deleteAsRecord(id); },
-    reset()                  { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
+    getAsHistory(orderId)        { return this.backend.getAsHistory(orderId); },
+    addAsRecord(record)          { return this.backend.addAsRecord(record); },
+    deleteAsRecord(id)           { return this.backend.deleteAsRecord(id); },
+    addMasterCustomer(n, c)      { return this.backend.addMasterCustomer(n, c); },
+    updateMasterCustomer(i, n, c){ return this.backend.updateMasterCustomer(i, n, c); },
+    deleteMasterCustomer(i)      { return this.backend.deleteMasterCustomer(i); },
+    addMasterSwVersion(v)        { return this.backend.addMasterSwVersion(v); },
+    reset()                      { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };
 
   window.PMDB = PMDB;
