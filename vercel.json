@@ -1,6 +1,5 @@
 {
   "rewrites": [
-    { "source": "/supabase-config.js", "destination": "/api/config.js" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/supabase-config.js", "destination": "/api/config" }
   ]
 }
