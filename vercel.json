@@ -1,7 +1,7 @@
 {
   "functions": {
-    "api/config.js": {},
-    "api/send-code.js": {}
+    "api/config.js": { "maxDuration": 10 },
+    "api/send-code.js": { "maxDuration": 10 }
   },
   "rewrites": [
     { "source": "/supabase-config.js", "destination": "/api/config" }
