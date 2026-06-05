@@ -55,6 +55,7 @@
     { user_id: 'as',    password: '1234', name: '민경선', role: 'as',         dept: '품질관리본부',       phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
   window.SEED_USERS = SEED_USERS;
+  window.MASTER = { CUSTOMERS: [], MODELS: [], SW_VERSIONS: [], CABLE_LENGTHS: [] };
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
@@ -134,17 +135,17 @@
             client.from('tb_master_sw_version').select('*').order('id'),
             client.from('tb_master_cable_length').select('*').order('id'),
           ]);
-          if (!mc.error && !mm.error && !msw.error && !mcl.error) {
-            window.MASTER = {
-              CUSTOMERS:     (mc.data  || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' })),
-              MODELS:        (mm.data  || []).map(m => ({ name: m.name, spec: m.spec, power: m.power })),
-              SW_VERSIONS:   (msw.data || []).map(v => ({ tag: v.tag, released: v.released, stable: v.stable })),
-              CABLE_LENGTHS: (mcl.data || []).map(c => c.value),
-            };
-            dbLog('SUCCESS', 'loadAll', '마스터 데이터 로드 완료', { customers: mc.data.length, models: mm.data.length });
+          window.MASTER = {
+            CUSTOMERS:     mc.error  ? [] : (mc.data  || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' })),
+            MODELS:        mm.error  ? [] : (mm.data  || []).map(m => ({ name: m.name, spec: m.spec, power: m.power })),
+            SW_VERSIONS:   msw.error ? [] : (msw.data || []).map(v => ({ tag: v.tag, released: v.released, stable: v.stable })),
+            CABLE_LENGTHS: mcl.error ? [] : (mcl.data || []).map(c => c.value),
+          };
+          const errs = [mc.error, mm.error, msw.error, mcl.error].filter(Boolean);
+          if (errs.length) {
+            dbLog('WARN', 'loadAll', `마스터 테이블 일부 조회 실패 (${errs.length}개) — seed.sql 실행 필요: ` + errs[0].message);
           } else {
-            const e = mc.error || mm.error || msw.error || mcl.error;
-            dbLog('WARN', 'loadAll', '마스터 테이블 조회 실패 — seed.sql 실행 필요: ' + e.message);
+            dbLog('SUCCESS', 'loadAll', '마스터 데이터 로드 완료', { customers: mc.data.length, models: mm.data.length });
           }
         } catch (e) {
           dbLog('WARN', 'loadAll', '마스터 데이터 로드 오류 — ' + e.message);
