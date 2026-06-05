@@ -1,4 +1,8 @@
 {
+  "functions": {
+    "api/config.js": {},
+    "api/send-code.js": {}
+  },
   "rewrites": [
     { "source": "/supabase-config.js", "destination": "/api/config" }
   ]
