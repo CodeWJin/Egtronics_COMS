@@ -102,10 +102,7 @@ function LoginScreen() {
 
 /* ────────── 비밀번호 변경 (Resend API → hiworks 수신) ────────── */
 
-// 개발/프로덕션 환경 자동 감지
-const MAIL_API = typeof window !== 'undefined' 
-  ? `${window.location.origin}/api/send-code`
-  : 'http://localhost:4000/api/send-code';
+const MAIL_API = `${window.location.origin}/api/send-code`;
 
 function PasswordResetModal({ onClose }) {
   const [step, setStep] = useStateAU(1); // 1: 본인확인  2: 인증번호  3: 새 비밀번호  4: 완료

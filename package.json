@@ -13,9 +13,7 @@
   "author": "Egtronics",
   "license": "PRIVATE",
   "scripts": {
-    "dev": "live-server --port=3000",
-    "server": "node server.js",
-    "start": "npm run server"
+    "dev": "vercel dev"
   },
   "devDependencies": {
     "live-server": "^1.2.2"
