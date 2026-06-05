@@ -15,15 +15,7 @@
   "scripts": {
     "dev": "vercel dev"
   },
-  "devDependencies": {
-    "live-server": "^1.2.2"
-  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.2",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "github": "^14.0.0",
     "resend": "^6.12.4"
   }
 }
