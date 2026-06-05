@@ -3,6 +3,25 @@
 -- Supabase SQL 에디터에서 실행 — 중복 시 무시 (CONFLICT DO NOTHING)
 -- ============================================================
 
+-- ┌──────────────────────────────────────────────────────────┐
+-- │  0. 마이그레이션 — 신규 컬럼 추가 (이미 있으면 무시)      │
+-- └──────────────────────────────────────────────────────────┘
+ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cable_length        TEXT DEFAULT '';
+ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_name  TEXT DEFAULT '';
+ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_phone TEXT DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS tb_as_history (
+  id             INTEGER PRIMARY KEY,
+  order_id       INTEGER NOT NULL,
+  reception_date TEXT    DEFAULT '',
+  dispatch_date  TEXT    DEFAULT '',
+  action         TEXT    DEFAULT '',
+  notes          TEXT    DEFAULT '',
+  field_manager  TEXT    DEFAULT '',
+  created_at     TEXT    NOT NULL
+);
+ALTER TABLE tb_as_history DISABLE ROW LEVEL SECURITY;
+
 -- ┌──────────────────────┐
 -- │  1. 사용자 (users)   │
 -- └──────────────────────┘
