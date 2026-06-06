@@ -183,12 +183,19 @@ function MappingForm({ order }) {
   const [touched, setTouched] = useStatePM({});
   const [showAll, setShowAll] = useStatePM(false);
   const [dupState, setDupState] = useStatePM(order.production ? 'ok' : null); // null | 'checking' | 'ok' | 'dup'
-  const [swVersions, setSwVersions] = useStatePM(() => window.MASTER.SW_VERSIONS);
+  const [swVersions, setSwVersions] = useStatePM(() => [...(window.MASTER.SW_VERSIONS || [])]);
   const [addingVer, setAddingVer] = useStatePM(false);
   const [newVerTag, setNewVerTag] = useStatePM('');
   const [newVerStable, setNewVerStable] = useStatePM(true);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  React.useEffect(() => {
+    const sync = () => setSwVersions([...(window.MASTER.SW_VERSIONS || [])]);
+    sync();
+    window.addEventListener('masterLoaded', sync);
+    return () => window.removeEventListener('masterLoaded', sync);
+  }, []);
 
   // Auto lot from prod_date
   React.useEffect(() => {

@@ -149,10 +149,11 @@ function SalesInputScreen() {
 
   useEffectSI(() => {
     const sync = () => {
-      setMasterCustomers([...window.MASTER.CUSTOMERS]);
-      setMasterModels([...window.MASTER.MODELS]);
-      setMasterCableLengths([...window.MASTER.CABLE_LENGTHS]);
+      setMasterCustomers([...(window.MASTER.CUSTOMERS || [])]);
+      setMasterModels([...(window.MASTER.MODELS || [])]);
+      setMasterCableLengths([...(window.MASTER.CABLE_LENGTHS || [])]);
     };
+    sync(); // 마운트 시 즉시 최신 데이터로 동기화
     window.addEventListener('masterLoaded', sync);
     return () => window.removeEventListener('masterLoaded', sync);
   }, []);

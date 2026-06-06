@@ -593,31 +593,29 @@
         try {
           const { error } = await client.from('tb_master_model').insert(SEED_MASTER_MODELS);
           if (error) dbLog('WARN', 'init', '초기 모델 삽입 실패 — ' + error.message);
-          else {
-            window.MASTER.MODELS = SEED_MASTER_MODELS.map(m => ({ name: m.name, spec: m.spec, power: m.power }));
-            dbLog('INFO', 'init', `초기 모델 데이터 삽입 — ${window.MASTER.MODELS.length}개`);
-          }
+          else dbLog('INFO', 'init', `초기 모델 데이터 삽입 완료`);
         } catch (e) { dbLog('WARN', 'init', '초기 모델 삽입 오류 — ' + e.message); }
+        // DB 삽입 성공 여부와 무관하게 메모리에 시드 데이터 보장
+        window.MASTER.MODELS = SEED_MASTER_MODELS.map(m => ({ name: m.name, spec: m.spec, power: m.power }));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
       }
       if (window.MASTER.SW_VERSIONS.length === 0) {
         try {
           const { error } = await client.from('tb_master_sw_version').insert(SEED_MASTER_SW_VERSIONS);
           if (error) dbLog('WARN', 'init', '초기 SW버전 삽입 실패 — ' + error.message);
-          else {
-            window.MASTER.SW_VERSIONS = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
-            dbLog('INFO', 'init', `초기 SW버전 데이터 삽입 — ${window.MASTER.SW_VERSIONS.length}개`);
-          }
+          else dbLog('INFO', 'init', '초기 SW버전 데이터 삽입 완료');
         } catch (e) { dbLog('WARN', 'init', '초기 SW버전 삽입 오류 — ' + e.message); }
+        window.MASTER.SW_VERSIONS = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
       }
       if (window.MASTER.CABLE_LENGTHS.length === 0) {
         try {
           const { error } = await client.from('tb_master_cable_length').insert(SEED_MASTER_CABLE_LENGTHS.map(v => ({ value: v })));
           if (error) dbLog('WARN', 'init', '초기 케이블길이 삽입 실패 — ' + error.message);
-          else {
-            window.MASTER.CABLE_LENGTHS = [...SEED_MASTER_CABLE_LENGTHS];
-            dbLog('INFO', 'init', `초기 케이블길이 데이터 삽입 — ${window.MASTER.CABLE_LENGTHS.length}개`);
-          }
+          else dbLog('INFO', 'init', `초기 케이블길이 데이터 삽입 완료`);
         } catch (e) { dbLog('WARN', 'init', '초기 케이블길이 삽입 오류 — ' + e.message); }
+        // DB 삽입 성공 여부와 무관하게 메모리에 시드 데이터 보장
+        window.MASTER.CABLE_LENGTHS = [...SEED_MASTER_CABLE_LENGTHS];
         window.dispatchEvent(new CustomEvent('masterLoaded'));
       }
 
