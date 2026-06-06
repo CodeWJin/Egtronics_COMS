@@ -14,6 +14,37 @@ ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cable_length       TEXT DEFA
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_name TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_phone TEXT DEFAULT '';
 
+-- ┌─────────────────────────────────────────────────────────┐
+-- │  CHECK 제약 (npm test 통과에 필요)                        │
+-- └─────────────────────────────────────────────────────────┘
+
+-- 주문 상태: 허용 값 외 삽입·수정 거부
+ALTER TABLE tb_sales_order
+  DROP CONSTRAINT IF EXISTS chk_status,
+  ADD  CONSTRAINT chk_status
+    CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED'));
+
+-- 사용자 역할: 허용 값 외 삽입·수정 거부
+ALTER TABLE users
+  DROP CONSTRAINT IF EXISTS chk_role,
+  ADD  CONSTRAINT chk_role
+    CHECK (role IN ('admin', 'sales', 'production', 'as'));
+
+-- ┌─────────────────────────────────────────────────────────┐
+-- │  tb_as_history RLS 정책 수정                             │
+-- │  (INSERT 차단 오류 해결 — 앱이 anon key로 직접 삽입)      │
+-- └─────────────────────────────────────────────────────────┘
+ALTER TABLE tb_as_history DISABLE ROW LEVEL SECURITY;
+
+-- ┌─────────────────────────────────────────────────────────┐
+-- │  [선택] users 테이블 외부 직접 수정 차단                  │
+-- │  앱 외부에서 anon key로 사용자 추가·변경 불가              │
+-- │  ⚠️  활성화 시 초기 seed insert는 service role key 필요  │
+-- └─────────────────────────────────────────────────────────┘
+-- ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- DROP POLICY IF EXISTS users_select ON users;
+-- CREATE POLICY users_select ON users FOR SELECT TO anon USING (true);
+
 -- 마스터 테이블 (없을 때만 생성)
 CREATE TABLE IF NOT EXISTS tb_master_customer (
   id    SERIAL PRIMARY KEY,
