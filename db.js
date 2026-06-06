@@ -458,6 +458,62 @@
         dbLog('INFO', 'write:tb_master_sw_version', `SW 버전 추가 — ${ver.tag}`);
         dbWrite('tb_master_sw_version', 'insert', () => client.from('tb_master_sw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
       },
+
+      addMasterModel(name, spec, power) {
+        if ((window.MASTER.MODELS || []).find(m => m.name === name))
+          return { ok: false, msg: '이미 등록된 모델명입니다' };
+        const row = { name, spec: spec || '', power: power || '' };
+        window.MASTER.MODELS.push(row);
+        dbLog('INFO', 'write:tb_master_model', `모델 추가 — ${name}`);
+        dbWrite('tb_master_model', 'insert', () => client.from('tb_master_model').insert(row));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
+        return { ok: true };
+      },
+
+      updateMasterModel(idx, name, spec, power) {
+        const m = (window.MASTER.MODELS || [])[idx];
+        if (!m) return { ok: false, msg: '모델을 찾을 수 없습니다' };
+        if (name !== m.name && (window.MASTER.MODELS || []).find(x => x.name === name))
+          return { ok: false, msg: '이미 등록된 모델명입니다' };
+        const oldName = m.name;
+        Object.assign(m, { name, spec: spec || '', power: power || '' });
+        dbLog('INFO', 'write:tb_master_model', `모델 수정 — ${name}`);
+        dbWrite('tb_master_model', 'update', () => client.from('tb_master_model').update({ name, spec: spec || '', power: power || '' }).eq('name', oldName));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
+        return { ok: true };
+      },
+
+      deleteMasterModel(idx) {
+        const m = (window.MASTER.MODELS || [])[idx];
+        if (!m) return;
+        const name = m.name;
+        window.MASTER.MODELS.splice(idx, 1);
+        dbLog('INFO', 'write:tb_master_model', `모델 삭제 — ${name}`);
+        dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('name', name));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
+      },
+
+      addMasterCableLength(value) {
+        const v = (value || '').trim();
+        if (!v) return { ok: false, msg: '값을 입력하세요' };
+        if ((window.MASTER.CABLE_LENGTHS || []).includes(v))
+          return { ok: false, msg: '이미 등록된 케이블 길이입니다' };
+        window.MASTER.CABLE_LENGTHS.push(v);
+        window.MASTER.CABLE_LENGTHS.sort((a, b) => parseInt(a) - parseInt(b));
+        dbLog('INFO', 'write:tb_master_cable_length', `케이블 길이 추가 — ${v}`);
+        dbWrite('tb_master_cable_length', 'insert', () => client.from('tb_master_cable_length').insert({ value: v }));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
+        return { ok: true };
+      },
+
+      deleteMasterCableLength(value) {
+        const idx = (window.MASTER.CABLE_LENGTHS || []).indexOf(value);
+        if (idx === -1) return;
+        window.MASTER.CABLE_LENGTHS.splice(idx, 1);
+        dbLog('INFO', 'write:tb_master_cable_length', `케이블 길이 삭제 — ${value}`);
+        dbWrite('tb_master_cable_length', 'delete', () => client.from('tb_master_cable_length').delete().eq('value', value));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
+      },
     };
   }
 
@@ -599,10 +655,15 @@
     getAsHistory(orderId)        { return this.backend.getAsHistory(orderId); },
     addAsRecord(record)          { return this.backend.addAsRecord(record); },
     deleteAsRecord(id)           { return this.backend.deleteAsRecord(id); },
-    addMasterCustomer(n, c)      { return this.backend.addMasterCustomer(n, c); },
-    updateMasterCustomer(i, n, c){ return this.backend.updateMasterCustomer(i, n, c); },
-    deleteMasterCustomer(i)      { return this.backend.deleteMasterCustomer(i); },
-    addMasterSwVersion(v)        { return this.backend.addMasterSwVersion(v); },
+    addMasterCustomer(n, c)         { return this.backend.addMasterCustomer(n, c); },
+    updateMasterCustomer(i, n, c)   { return this.backend.updateMasterCustomer(i, n, c); },
+    deleteMasterCustomer(i)         { return this.backend.deleteMasterCustomer(i); },
+    addMasterModel(n, s, p)         { return this.backend.addMasterModel(n, s, p); },
+    updateMasterModel(i, n, s, p)   { return this.backend.updateMasterModel(i, n, s, p); },
+    deleteMasterModel(i)            { return this.backend.deleteMasterModel(i); },
+    addMasterCableLength(v)         { return this.backend.addMasterCableLength(v); },
+    deleteMasterCableLength(v)      { return this.backend.deleteMasterCableLength(v); },
+    addMasterSwVersion(v)           { return this.backend.addMasterSwVersion(v); },
     reset()                      { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };
 

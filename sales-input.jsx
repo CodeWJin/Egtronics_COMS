@@ -143,6 +143,9 @@ function SalesInputScreen() {
   const [showHistory, setShowHistory] = useStateSI(false);
   const [showAddCustomer, setShowAddCustomer] = useStateSI(false);
   const [showCustomerMgr, setShowCustomerMgr] = useStateSI(false);
+  const [showAddModel, setShowAddModel] = useStateSI(false);
+  const [showModelMgr, setShowModelMgr] = useStateSI(false);
+  const [showCableMgr, setShowCableMgr] = useStateSI(false);
 
   useEffectSI(() => {
     const sync = () => {
@@ -335,24 +338,43 @@ function SalesInputScreen() {
                 </div>
                 <div className="field">
                   <label className="field__label">모델 <span className="field__req">*</span></label>
-                  <ComboField value={form.model_name}
-                              onChange={(v) => { update('model_name', v); setTouched((t) => ({ ...t, model_name: 1 })); }}
-                              options={masterModels}
-                              placeholder="충전기 라인업 선택"
-                              error={showErr('model_name')}/>
+                  <div className="mgr-field">
+                    <ComboField value={form.model_name}
+                                onChange={(v) => { update('model_name', v); setTouched((t) => ({ ...t, model_name: 1 })); }}
+                                options={masterModels}
+                                placeholder="충전기 라인업 선택"
+                                error={showErr('model_name')}/>
+                    <button type="button" className="btn btn--secondary mgr-field__manage"
+                            onClick={() => setShowAddModel(true)}
+                            title="신규 모델 등록">
+                      <Icon name="plus" size={13}/> 추가
+                    </button>
+                    <button type="button" className="btn btn--secondary mgr-field__manage"
+                            onClick={() => setShowModelMgr(true)}
+                            title="모델 목록 관리">
+                      <Icon name="settings" size={13}/> 관리
+                    </button>
+                  </div>
                   {showErr('model_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
                 </div>
                 <div className="field">
                   <label className="field__label">케이블 길이 <span className="field__req">*</span></label>
-                  <div className="chips">
-                    {masterCableLengths.map(c => (
-                      <button key={c}
-                              type="button"
-                              className={`chip ${form.cable_length === c ? 'chip--active' : ''}`}
-                              onClick={() => { update('cable_length', c); setTouched((t) => ({ ...t, cable_length: 1 })); }}>
-                        {c}
-                      </button>
-                    ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <div className="chips">
+                      {masterCableLengths.map(c => (
+                        <button key={c}
+                                type="button"
+                                className={`chip ${form.cable_length === c ? 'chip--active' : ''}`}
+                                onClick={() => { update('cable_length', c); setTouched((t) => ({ ...t, cable_length: 1 })); }}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="btn btn--secondary btn--sm"
+                            onClick={() => setShowCableMgr(true)}
+                            title="케이블 길이 관리">
+                      <Icon name="settings" size={13}/> 관리
+                    </button>
                   </div>
                   {showErr('cable_length') && <div className="field__err"><Icon name="alert" size={12}/> {errors.cable_length}</div>}
                 </div>
@@ -535,6 +557,32 @@ function SalesInputScreen() {
             setMasterCustomers([...window.MASTER.CUSTOMERS]);
             const current = window.MASTER.CUSTOMERS.find(c => c.name === form.customer_name);
             if (!current) update('customer_name', '');
+          }}/>
+      )}
+      {showAddModel && (
+        <AddModelModal
+          onClose={() => setShowAddModel(false)}
+          onAdded={(name) => {
+            setMasterModels([...window.MASTER.MODELS]);
+            update('model_name', name);
+            setShowAddModel(false);
+          }}/>
+      )}
+      {showModelMgr && (
+        <ModelManageModal
+          onClose={() => setShowModelMgr(false)}
+          onChanged={() => {
+            setMasterModels([...window.MASTER.MODELS]);
+            const current = window.MASTER.MODELS.find(m => m.name === form.model_name);
+            if (!current) update('model_name', '');
+          }}/>
+      )}
+      {showCableMgr && (
+        <CableLengthManageModal
+          onClose={() => setShowCableMgr(false)}
+          onChanged={() => {
+            setMasterCableLengths([...window.MASTER.CABLE_LENGTHS]);
+            if (!window.MASTER.CABLE_LENGTHS.includes(form.cable_length)) update('cable_length', '');
           }}/>
       )}
     </div>
@@ -856,6 +904,224 @@ function CustomerManageModal({ onClose, onChanged }) {
               </div>
             </div>
           )}
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────── 모델 추가 모달 ────────── */
+function AddModelModal({ onClose, onAdded }) {
+  const [name, setName] = useStateSI('');
+  const [spec, setSpec] = useStateSI('');
+  const [power, setPower] = useStateSI('');
+  const [err, setErr] = useStateSI('');
+
+  const save = () => {
+    const n = name.trim();
+    if (!n) { setErr('모델명을 입력하세요'); return; }
+    const result = window.PMDB.addMasterModel(n, spec.trim(), power.trim());
+    if (!result.ok) { setErr(result.msg); return; }
+    onAdded && onAdded(n);
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 420, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h3 className="modal__title">모델 추가</h3>
+          <p className="modal__sub">신규 모델을 마스터 목록에 등록합니다</p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="field">
+            <label className="field__label">모델명 <span className="field__req">*</span></label>
+            <input className="input" autoFocus value={name}
+                   onChange={(e) => { setName(e.target.value); setErr(''); }}
+                   placeholder="예: 50kW 1ch"/>
+          </div>
+          <div className="field">
+            <label className="field__label">사양</label>
+            <input className="input" value={spec}
+                   onChange={(e) => { setSpec(e.target.value); setErr(''); }}
+                   placeholder="예: DC 콤보 · 단일포트"/>
+          </div>
+          <div className="field">
+            <label className="field__label">출력</label>
+            <input className="input" value={power}
+                   onChange={(e) => { setPower(e.target.value); setErr(''); }}
+                   placeholder="예: 50kW"
+                   onKeyDown={(e) => e.key === 'Enter' && save()}/>
+          </div>
+          {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>취소</button>
+          <button className="btn btn--primary" onClick={save}><Icon name="check" size={13}/> 추가</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────── 모델 관리 모달 ────────── */
+function ModelManageModal({ onClose, onChanged }) {
+  const [list, setList] = useStateSI([...window.MASTER.MODELS]);
+  const [draft, setDraft] = useStateSI(null); // { idx, name, spec, power }
+  const [err, setErr] = useStateSI('');
+
+  const reload = () => setList([...window.MASTER.MODELS]);
+
+  const startEdit = (m, idx) => { setErr(''); setDraft({ idx, name: m.name, spec: m.spec || '', power: m.power || '' }); };
+
+  const saveDraft = () => {
+    const n = draft.name.trim();
+    if (!n) { setErr('모델명을 입력하세요'); return; }
+    const result = window.PMDB.updateMasterModel(draft.idx, n, draft.spec.trim(), draft.power.trim());
+    if (!result.ok) { setErr(result.msg); return; }
+    reload();
+    onChanged && onChanged();
+    setDraft(null);
+  };
+
+  const remove = (idx) => {
+    window.PMDB.deleteMasterModel(idx);
+    reload();
+    onChanged && onChanged();
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 560, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h3 className="modal__title">모델 관리</h3>
+          <p className="modal__sub">tb_master_model</p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="mgr-list">
+            {list.length === 0 && (
+              <div className="emptystate" style={{ padding: '20px 0' }}>
+                <div className="emptystate__title">등록된 모델이 없습니다</div>
+              </div>
+            )}
+            {list.map((m, idx) => (
+              <div key={m.name + idx} className="mgr-row">
+                <div className="mgr-row__main">
+                  <div className="mgr-row__name">{m.name}</div>
+                  <div className="mgr-row__meta">
+                    <span>{m.spec || '—'}</span>
+                    {m.power && <span style={{ color: 'var(--ink-4)' }}> · {m.power}</span>}
+                  </div>
+                </div>
+                <div className="mgr-row__actions">
+                  <button className="btn btn--secondary btn--sm" onClick={() => startEdit(m, idx)}>수정</button>
+                  <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(idx)}><Icon name="x" size={14}/></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {draft && (
+            <div className="mgr-edit">
+              <div className="mgr-edit__title">모델 수정</div>
+              <div className="form-grid">
+                <div className="field">
+                  <label className="field__label">모델명 <span className="field__req">*</span></label>
+                  <input className="input" autoFocus value={draft.name}
+                         onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
+                </div>
+                <div className="field">
+                  <label className="field__label">출력</label>
+                  <input className="input" value={draft.power}
+                         onChange={(e) => { setDraft(d => ({ ...d, power: e.target.value })); setErr(''); }}/>
+                </div>
+                <div className="field" style={{ gridColumn: 'span 2' }}>
+                  <label className="field__label">사양</label>
+                  <input className="input" value={draft.spec}
+                         onChange={(e) => { setDraft(d => ({ ...d, spec: e.target.value })); setErr(''); }}/>
+                </div>
+              </div>
+              {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
+                <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────── 케이블 길이 관리 모달 ────────── */
+function CableLengthManageModal({ onClose, onChanged }) {
+  const [list, setList] = useStateSI([...window.MASTER.CABLE_LENGTHS]);
+  const [input, setInput] = useStateSI('');
+  const [err, setErr] = useStateSI('');
+
+  const reload = () => setList([...window.MASTER.CABLE_LENGTHS]);
+
+  const add = () => {
+    const v = input.trim();
+    if (!v) { setErr('값을 입력하세요'); return; }
+    const result = window.PMDB.addMasterCableLength(v);
+    if (!result.ok) { setErr(result.msg); return; }
+    setInput('');
+    setErr('');
+    reload();
+    onChanged && onChanged();
+  };
+
+  const remove = (value) => {
+    window.PMDB.deleteMasterCableLength(value);
+    reload();
+    onChanged && onChanged();
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 400, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h3 className="modal__title">케이블 길이 관리</h3>
+          <p className="modal__sub">tb_master_cable_length</p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="mgr-list">
+            {list.length === 0 && (
+              <div className="emptystate" style={{ padding: '16px 0' }}>
+                <div className="emptystate__title">등록된 케이블 길이가 없습니다</div>
+              </div>
+            )}
+            {list.map(c => (
+              <div key={c} className="mgr-row">
+                <div className="mgr-row__main">
+                  <div className="mgr-row__name" style={{ fontFamily: 'var(--font-mono)' }}>{c}</div>
+                </div>
+                <div className="mgr-row__actions">
+                  <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(c)}><Icon name="x" size={14}/></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mgr-edit">
+            <div className="mgr-edit__title">길이 추가</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              <input className="input" value={input}
+                     placeholder="예: 15m"
+                     style={{ fontFamily: 'var(--font-mono)' }}
+                     onChange={(e) => { setInput(e.target.value); setErr(''); }}
+                     onKeyDown={(e) => e.key === 'Enter' && add()}/>
+              <button className="btn btn--primary btn--sm" onClick={add} style={{ whiteSpace: 'nowrap' }}>
+                <Icon name="plus" size={13}/> 추가
+              </button>
+            </div>
+            {err && <div className="field__err" style={{ marginTop: 4 }}><Icon name="alert" size={12}/> {err}</div>}
+          </div>
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>닫기</button>
