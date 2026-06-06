@@ -174,8 +174,10 @@
           } else {
             dbLog('SUCCESS', 'loadAll', '마스터 데이터 로드 완료', { customers: mc.data.length, models: mm.data.length });
           }
+          window.dispatchEvent(new CustomEvent('masterLoaded'));
         } catch (e) {
           dbLog('WARN', 'loadAll', '마스터 데이터 로드 오류 — ' + e.message);
+          window.dispatchEvent(new CustomEvent('masterLoaded'));
         }
 
         const elapsed = Date.now() - t0;
@@ -560,6 +562,7 @@
             dbLog('INFO', 'init', `초기 케이블길이 데이터 삽입 — ${window.MASTER.CABLE_LENGTHS.length}개`);
           }
         } catch (e) { dbLog('WARN', 'init', '초기 케이블길이 삽입 오류 — ' + e.message); }
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
       }
 
       this.backend = backend;

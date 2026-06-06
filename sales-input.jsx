@@ -135,11 +135,24 @@ function SalesInputScreen() {
   const [form, setForm] = useStateSI(empty);
   const [touched, setTouched] = useStateSI({});
   const [showAll, setShowAll] = useStateSI(false);
+  const [masterCustomers, setMasterCustomers] = useStateSI(window.MASTER.CUSTOMERS);
+  const [masterModels, setMasterModels] = useStateSI(window.MASTER.MODELS);
+  const [masterCableLengths, setMasterCableLengths] = useStateSI(window.MASTER.CABLE_LENGTHS);
   const [managers, setManagers] = useStateSI([]);
   const [showMgr, setShowMgr] = useStateSI(false);
   const [showHistory, setShowHistory] = useStateSI(false);
   const [showAddCustomer, setShowAddCustomer] = useStateSI(false);
   const [showCustomerMgr, setShowCustomerMgr] = useStateSI(false);
+
+  useEffectSI(() => {
+    const sync = () => {
+      setMasterCustomers([...window.MASTER.CUSTOMERS]);
+      setMasterModels([...window.MASTER.MODELS]);
+      setMasterCableLengths([...window.MASTER.CABLE_LENGTHS]);
+    };
+    window.addEventListener('masterLoaded', sync);
+    return () => window.removeEventListener('masterLoaded', sync);
+  }, []);
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -277,7 +290,7 @@ function SalesInputScreen() {
                   <div className="mgr-field">
                     <ComboField value={form.customer_name}
                                 onChange={(v) => { setForm(f => ({ ...f, customer_name: v, customer_manager: '' })); setTouched((t) => ({ ...t, customer_name: 1 })); }}
-                                options={window.MASTER.CUSTOMERS}
+                                options={masterCustomers}
                                 placeholder="고객사명 입력 또는 선택"
                                 error={showErr('customer_name')}
                                 metaKey="last"/>
@@ -324,7 +337,7 @@ function SalesInputScreen() {
                   <label className="field__label">모델 <span className="field__req">*</span></label>
                   <ComboField value={form.model_name}
                               onChange={(v) => { update('model_name', v); setTouched((t) => ({ ...t, model_name: 1 })); }}
-                              options={window.MASTER.MODELS}
+                              options={masterModels}
                               placeholder="충전기 라인업 선택"
                               error={showErr('model_name')}/>
                   {showErr('model_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
@@ -332,7 +345,7 @@ function SalesInputScreen() {
                 <div className="field">
                   <label className="field__label">케이블 길이 <span className="field__req">*</span></label>
                   <div className="chips">
-                    {window.MASTER.CABLE_LENGTHS.map(c => (
+                    {masterCableLengths.map(c => (
                       <button key={c}
                               type="button"
                               className={`chip ${form.cable_length === c ? 'chip--active' : ''}`}
@@ -510,6 +523,7 @@ function SalesInputScreen() {
         <AddCustomerModal
           onClose={() => setShowAddCustomer(false)}
           onAdded={(name) => {
+            setMasterCustomers([...window.MASTER.CUSTOMERS]);
             setForm(f => ({ ...f, customer_name: name, customer_manager: '' }));
             setShowAddCustomer(false);
           }}/>
@@ -518,6 +532,7 @@ function SalesInputScreen() {
         <CustomerManageModal
           onClose={() => setShowCustomerMgr(false)}
           onChanged={() => {
+            setMasterCustomers([...window.MASTER.CUSTOMERS]);
             const current = window.MASTER.CUSTOMERS.find(c => c.name === form.customer_name);
             if (!current) update('customer_name', '');
           }}/>
