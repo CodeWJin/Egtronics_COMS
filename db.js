@@ -55,6 +55,32 @@
     { user_id: 'as',    password: '1234', name: '민경선', role: 'as',         dept: '품질관리본부',       phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
   window.SEED_USERS = SEED_USERS;
+
+  const SEED_MASTER_CUSTOMERS = [
+    { name: '카스',     code: 'CAS',     last: '' },
+    { name: '마이크로', code: 'MICRO',   last: '' },
+    { name: 'LG',       code: 'LG',      last: '' },
+    { name: '삼성',     code: 'SAMSUNG', last: '' },
+  ];
+  const SEED_MASTER_MODELS = [
+    { name: '7kW Wallbox',   spec: '완속 · 벽부착',      power: '7kW'   },
+    { name: '7kW Pedestal',  spec: '완속 · 스탠드형',    power: '7kW'   },
+    { name: '11kW Wallbox',  spec: '완속 · 벽부착',      power: '11kW'  },
+    { name: '11kW Pedestal', spec: '완속 · 스탠드형',    power: '11kW'  },
+    { name: '50kW 1ch',      spec: 'DC 콤보 · 단일포트', power: '50kW'  },
+    { name: '50kW 2ch',      spec: 'DC 콤보 · 듀얼포트', power: '50kW'  },
+    { name: '100kW 1ch',     spec: 'DC 콤보 · 단일포트', power: '100kW' },
+    { name: '100kW 2ch',     spec: 'DC 콤보 · 듀얼포트', power: '100kW' },
+    { name: '200kW 1ch',     spec: 'DC 콤보 · 단일포트', power: '200kW' },
+    { name: '200kW 2ch',     spec: 'DC 콤보 · 단일포트', power: '200kW' },
+  ];
+  const SEED_MASTER_SW_VERSIONS = [
+    { tag: 'v1.6.2-core', released: '2026-05-14', stable: true  },
+    { tag: 'v1.6.1-core', released: '2026-04-02', stable: true  },
+    { tag: 'v1.5.8-core', released: '2026-02-18', stable: true  },
+    { tag: 'v1.7.0-beta', released: '2026-05-22', stable: false },
+  ];
+  const SEED_MASTER_CABLE_LENGTHS = ['3m', '5m', '7m', '10m'];
   window.MASTER = { CUSTOMERS: [], MODELS: [], SW_VERSIONS: [], CABLE_LENGTHS: [] };
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
@@ -492,6 +518,48 @@
         const { error } = await client.from('users').insert(SEED_USERS.map(u => ({ ...u })));
         if (error) dbLog('ERROR', 'init', '초기 사용자 삽입 실패 — ' + error.message, error);
         else backend.cache.users = SEED_USERS.map(u => ({ ...u }));
+      }
+
+      // 마스터 테이블이 비어 있으면 초기 데이터 삽입
+      if (window.MASTER.CUSTOMERS.length === 0) {
+        try {
+          const { data, error } = await client.from('tb_master_customer').insert(SEED_MASTER_CUSTOMERS).select();
+          if (error) dbLog('WARN', 'init', '초기 고객사 삽입 실패 — ' + error.message);
+          else {
+            window.MASTER.CUSTOMERS = (data || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
+            dbLog('INFO', 'init', `초기 고객사 데이터 삽입 — ${window.MASTER.CUSTOMERS.length}개`);
+          }
+        } catch (e) { dbLog('WARN', 'init', '초기 고객사 삽입 오류 — ' + e.message); }
+      }
+      if (window.MASTER.MODELS.length === 0) {
+        try {
+          const { error } = await client.from('tb_master_model').insert(SEED_MASTER_MODELS);
+          if (error) dbLog('WARN', 'init', '초기 모델 삽입 실패 — ' + error.message);
+          else {
+            window.MASTER.MODELS = SEED_MASTER_MODELS.map(m => ({ name: m.name, spec: m.spec, power: m.power }));
+            dbLog('INFO', 'init', `초기 모델 데이터 삽입 — ${window.MASTER.MODELS.length}개`);
+          }
+        } catch (e) { dbLog('WARN', 'init', '초기 모델 삽입 오류 — ' + e.message); }
+      }
+      if (window.MASTER.SW_VERSIONS.length === 0) {
+        try {
+          const { error } = await client.from('tb_master_sw_version').insert(SEED_MASTER_SW_VERSIONS);
+          if (error) dbLog('WARN', 'init', '초기 SW버전 삽입 실패 — ' + error.message);
+          else {
+            window.MASTER.SW_VERSIONS = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
+            dbLog('INFO', 'init', `초기 SW버전 데이터 삽입 — ${window.MASTER.SW_VERSIONS.length}개`);
+          }
+        } catch (e) { dbLog('WARN', 'init', '초기 SW버전 삽입 오류 — ' + e.message); }
+      }
+      if (window.MASTER.CABLE_LENGTHS.length === 0) {
+        try {
+          const { error } = await client.from('tb_master_cable_length').insert(SEED_MASTER_CABLE_LENGTHS.map(v => ({ value: v })));
+          if (error) dbLog('WARN', 'init', '초기 케이블길이 삽입 실패 — ' + error.message);
+          else {
+            window.MASTER.CABLE_LENGTHS = [...SEED_MASTER_CABLE_LENGTHS];
+            dbLog('INFO', 'init', `초기 케이블길이 데이터 삽입 — ${window.MASTER.CABLE_LENGTHS.length}개`);
+          }
+        } catch (e) { dbLog('WARN', 'init', '초기 케이블길이 삽입 오류 — ' + e.message); }
       }
 
       this.backend = backend;
