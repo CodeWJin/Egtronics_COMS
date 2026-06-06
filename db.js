@@ -129,6 +129,7 @@
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
+          const mapResult = (r, fn) => r.error ? [] : (r.data || []).map(fn);
           const [mc, mm, msw, mcl] = await Promise.all([
             client.from('tb_master_customer').select('*').order('id'),
             client.from('tb_master_model').select('*').order('id'),
@@ -136,14 +137,14 @@
             client.from('tb_master_cable_length').select('*').order('id'),
           ]);
           window.MASTER = {
-            CUSTOMERS:     mc.error  ? [] : (mc.data  || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' })),
-            MODELS:        mm.error  ? [] : (mm.data  || []).map(m => ({ name: m.name, spec: m.spec, power: m.power })),
-            SW_VERSIONS:   msw.error ? [] : (msw.data || []).map(v => ({ tag: v.tag, released: v.released, stable: v.stable })),
-            CABLE_LENGTHS: mcl.error ? [] : (mcl.data || []).map(c => c.value),
+            CUSTOMERS:     mapResult(mc,  c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' })),
+            MODELS:        mapResult(mm,  m => ({ name: m.name, spec: m.spec, power: m.power })),
+            SW_VERSIONS:   mapResult(msw, v => ({ tag: v.tag, released: v.released, stable: v.stable })),
+            CABLE_LENGTHS: mapResult(mcl, c => c.value),
           };
-          const errs = [mc.error, mm.error, msw.error, mcl.error].filter(Boolean);
+          const errs = [mc, mm, msw, mcl].map(r => r.error).filter(Boolean);
           if (errs.length) {
-            dbLog('WARN', 'loadAll', `마스터 테이블 일부 조회 실패 (${errs.length}개) — seed.sql 실행 필요: ` + errs[0].message);
+            dbLog('WARN', 'loadAll', `마스터 테이블 일부 조회 실패 (${errs.length}개) — seed.sql 실행 필요: ` + errs.map(e => e.message).join('; '));
           } else {
             dbLog('SUCCESS', 'loadAll', '마스터 데이터 로드 완료', { customers: mc.data.length, models: mm.data.length });
           }
