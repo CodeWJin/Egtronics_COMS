@@ -11,9 +11,10 @@ function ComboField({ value, onChange, options, placeholder, error, displayKey =
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, []);
+  const opts = options || [];
   const filtered = showAll
-    ? options
-    : options.filter(o =>
+    ? opts
+    : opts.filter(o =>
         !value || (o[displayKey] || '').toLowerCase().includes((value || '').toLowerCase())
       );
   return (
@@ -136,8 +137,8 @@ function SalesInputScreen() {
   const [touched, setTouched] = useStateSI({});
   const [showAll, setShowAll] = useStateSI(false);
   const [masterCustomers, setMasterCustomers] = useStateSI([]);
-  const [masterModels, setMasterModels] = useStateSI(window.MASTER.MODELS);
-  const [masterCableLengths, setMasterCableLengths] = useStateSI(window.MASTER.CABLE_LENGTHS);
+  const [masterModels, setMasterModels] = useStateSI([]);
+  const [masterCableLengths, setMasterCableLengths] = useStateSI([]);
   const [managers, setManagers] = useStateSI([]);
   const [showMgr, setShowMgr] = useStateSI(false);
   const [showHistory, setShowHistory] = useStateSI(false);
