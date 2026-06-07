@@ -64,6 +64,11 @@
   ];
 
   const SEED_MASTER_CABLE_LENGTHS = ['3m', '5m', '7m', '10m'];
+
+  const TODAY_ISO = new Date().toISOString().slice(0, 10);
+  const SEED_MASTER_SW_VERSIONS = [
+    { tag: 'v1.0.0', released: TODAY_ISO, stable: true },
+  ];
   window.MASTER = { CABLE_LENGTHS: [] };
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
