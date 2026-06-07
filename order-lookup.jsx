@@ -13,6 +13,13 @@ function OrderLookupScreen() {
   const [search, setSearch] = useStateOL('');
   const [fStatus, setFStatus] = useStateOL('all');
   const [fModel, setFModel] = useStateOL('all');
+  const [models, setModels] = useStateOL(() => window.PMDB.getModels());
+
+  React.useEffect(() => {
+    const sync = () => setModels(window.PMDB.getModels());
+    window.addEventListener('masterLoaded', sync);
+    return () => window.removeEventListener('masterLoaded', sync);
+  }, []);
   const [fCustomer, setFCustomer] = useStateOL('all');
   const [dateField, setDateField] = useStateOL('delivery'); // 'delivery' | 'prod'
   const [dateFrom, setDateFrom] = useStateOL('');
@@ -131,7 +138,7 @@ function OrderLookupScreen() {
               <label className="field__label">모델</label>
               <select className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
                 <option value="all">모델 전체</option>
-                {window.MASTER.MODELS.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
               </select>
             </div>
             <div className="field">

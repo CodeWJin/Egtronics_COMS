@@ -26,6 +26,13 @@ function ProductionWaitingScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStatePW('');
   const [filterModel, setFilterModel] = useStatePW('all');
+  const [models, setModels] = useStatePW(() => window.PMDB.getModels());
+
+  React.useEffect(() => {
+    const sync = () => setModels(window.PMDB.getModels());
+    window.addEventListener('masterLoaded', sync);
+    return () => window.removeEventListener('masterLoaded', sync);
+  }, []);
 
   const filtered = useMemoPW(() => {
     return s.orders.filter(o => {
@@ -80,7 +87,7 @@ function ProductionWaitingScreen() {
         <select className="select" style={{ width: 160, height: 34 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
-          {window.MASTER.MODELS.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+          {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
         </select>
         <button className={`toolbar__filter ${filterModel !== 'all' || search ? 'toolbar__filter--active' : ''}`}
                 onClick={() => { setSearch(''); setFilterModel('all'); }}>

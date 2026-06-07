@@ -151,7 +151,7 @@ function SalesInputScreen() {
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
     const syncMaster = () => {
-      setMasterModels([...(window.MASTER.MODELS || [])]);
+      setMasterModels(window.PMDB.getModels());
       setMasterCableLengths([...(window.MASTER.CABLE_LENGTHS || [])]);
     };
     syncMaster();
@@ -565,7 +565,7 @@ function SalesInputScreen() {
         <AddModelModal
           onClose={() => setShowAddModel(false)}
           onAdded={(name) => {
-            setMasterModels([...window.MASTER.MODELS]);
+            setMasterModels(window.PMDB.getModels());
             update('model_name', name);
             setShowAddModel(false);
           }}/>
@@ -574,9 +574,9 @@ function SalesInputScreen() {
         <ModelManageModal
           onClose={() => setShowModelMgr(false)}
           onChanged={() => {
-            setMasterModels([...window.MASTER.MODELS]);
-            const current = window.MASTER.MODELS.find(m => m.name === form.model_name);
-            if (!current) update('model_name', '');
+            const updated = window.PMDB.getModels();
+            setMasterModels(updated);
+            if (!updated.find(m => m.name === form.model_name)) update('model_name', '');
           }}/>
       )}
       {showCableMgr && (
@@ -970,11 +970,11 @@ function AddModelModal({ onClose, onAdded }) {
 
 /* ────────── 모델 관리 모달 ────────── */
 function ModelManageModal({ onClose, onChanged }) {
-  const [list, setList] = useStateSI([...window.MASTER.MODELS]);
+  const [list, setList] = useStateSI(() => window.PMDB.getModels());
   const [draft, setDraft] = useStateSI(null); // { idx, name, spec, power }
   const [err, setErr] = useStateSI('');
 
-  const reload = () => setList([...window.MASTER.MODELS]);
+  const reload = () => setList(window.PMDB.getModels());
 
   const startEdit = (m, idx) => { setErr(''); setDraft({ idx, name: m.name, spec: m.spec || '', power: m.power || '' }); };
 

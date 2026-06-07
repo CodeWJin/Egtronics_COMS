@@ -38,6 +38,13 @@ function ProductionCompleteScreen() {
   const [search, setSearch] = useStatePC('');
   const [filterModel, setFilterModel] = useStatePC('all');
   const [report, setReport] = useStatePC(null);
+  const [models, setModels] = useStatePC(() => window.PMDB.getModels());
+
+  React.useEffect(() => {
+    const sync = () => setModels(window.PMDB.getModels());
+    window.addEventListener('masterLoaded', sync);
+    return () => window.removeEventListener('masterLoaded', sync);
+  }, []);
 
   const completed = useMemoPC(
     () => s.orders.filter(o => o.status === 'COMPLETED' && o.production),
@@ -137,7 +144,7 @@ function ProductionCompleteScreen() {
         <select className="select" style={{ width: 160, height: 34 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
-          {window.MASTER.MODELS.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+          {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
         </select>
         <button className={`toolbar__filter ${search || filterModel !== 'all' ? 'toolbar__filter--active' : ''}`}
                 onClick={() => { setSearch(''); setFilterModel('all'); }}>
