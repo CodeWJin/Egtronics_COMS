@@ -62,31 +62,14 @@
     { name: 'LG',       code: 'LG',      last: '' },
     { name: '삼성',     code: 'SAMSUNG', last: '' },
   ];
-  const SEED_MASTER_MODELS = [
-    { name: '7kW Wallbox',   spec: '완속 · 벽부착',      power: '7kW'   },
-    { name: '7kW Pedestal',  spec: '완속 · 스탠드형',    power: '7kW'   },
-    { name: '11kW Wallbox',  spec: '완속 · 벽부착',      power: '11kW'  },
-    { name: '11kW Pedestal', spec: '완속 · 스탠드형',    power: '11kW'  },
-    { name: '50kW 1ch',      spec: 'DC 콤보 · 단일포트', power: '50kW'  },
-    { name: '50kW 2ch',      spec: 'DC 콤보 · 듀얼포트', power: '50kW'  },
-    { name: '100kW 1ch',     spec: 'DC 콤보 · 단일포트', power: '100kW' },
-    { name: '100kW 2ch',     spec: 'DC 콤보 · 듀얼포트', power: '100kW' },
-    { name: '200kW 1ch',     spec: 'DC 콤보 · 단일포트', power: '200kW' },
-    { name: '200kW 2ch',     spec: 'DC 콤보 · 단일포트', power: '200kW' },
-  ];
-  const SEED_MASTER_SW_VERSIONS = [
-    { tag: 'v1.6.2-core', released: '2026-05-14', stable: true  },
-    { tag: 'v1.6.1-core', released: '2026-04-02', stable: true  },
-    { tag: 'v1.5.8-core', released: '2026-02-18', stable: true  },
-    { tag: 'v1.7.0-beta', released: '2026-05-22', stable: false },
-  ];
+
   const SEED_MASTER_CABLE_LENGTHS = ['3m', '5m', '7m', '10m'];
-  window.MASTER = { CUSTOMERS: [], MODELS: [], SW_VERSIONS: [], CABLE_LENGTHS: [] };
+  window.MASTER = { CABLE_LENGTHS: [] };
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], sw_versions: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asHistSeq = 0;
@@ -162,10 +145,9 @@
             client.from('tb_master_sw_version').select('*').order('id'),
             client.from('tb_master_cable_length').select('*').order('id'),
           ]);
+          cache.customers = mapResult(mc, c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
+          cache.sw_versions = mapResult(msw, r => ({ tag: r.tag, released: r.released, stable: r.stable }));
           window.MASTER = {
-            CUSTOMERS:     mapResult(mc,  c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' })),
-            MODELS:        mapResult(mm,  m => ({ name: m.name, spec: m.spec, power: m.power })),
-            SW_VERSIONS:   mapResult(msw, v => ({ tag: v.tag, released: v.released, stable: v.stable })),
             CABLE_LENGTHS: mapResult(mcl, c => c.value),
           };
           const errs = [mc, mm, msw, mcl].map(r => r.error).filter(Boolean);
@@ -418,43 +400,51 @@
         dbWrite('tb_as_history', 'delete', () => client.from('tb_as_history').delete().eq('id', id));
       },
 
+      getCustomers() {
+        return [...cache.customers];
+      },
+
       addMasterCustomer(name, code) {
-        if ((window.MASTER.CUSTOMERS || []).find(c => c.name === name))
+        if (cache.customers.find(c => c.name === name))
           return { ok: false, msg: '이미 등록된 고객사명입니다' };
-        if ((window.MASTER.CUSTOMERS || []).find(c => c.code === code))
+        if (cache.customers.find(c => c.code === code))
           return { ok: false, msg: '이미 사용 중인 코드입니다' };
         const last = new Date().toISOString().slice(0, 10);
-        window.MASTER.CUSTOMERS.push({ name, code, last });
+        cache.customers.push({ name, code, last });
         dbLog('INFO', 'write:tb_master_customer', `고객사 추가 — ${name}`);
         dbWrite('tb_master_customer', 'insert', () => client.from('tb_master_customer').insert({ name, code, last }));
         return { ok: true };
       },
 
       updateMasterCustomer(idx, name, code) {
-        const c = (window.MASTER.CUSTOMERS || [])[idx];
+        const c = cache.customers[idx];
         if (!c) return { ok: false, msg: '고객사를 찾을 수 없습니다' };
-        const dupName = window.MASTER.CUSTOMERS.findIndex(x => x.name === name);
+        const dupName = cache.customers.findIndex(x => x.name === name);
         if (dupName !== -1 && dupName !== idx) return { ok: false, msg: '이미 등록된 고객사명입니다' };
-        const dupCode = window.MASTER.CUSTOMERS.findIndex(x => x.code === code);
+        const dupCode = cache.customers.findIndex(x => x.code === code);
         if (dupCode !== -1 && dupCode !== idx) return { ok: false, msg: '이미 사용 중인 코드입니다' };
         const oldName = c.name;
-        window.MASTER.CUSTOMERS[idx] = { ...c, name, code };
+        cache.customers[idx] = { ...c, name, code };
         dbLog('INFO', 'write:tb_master_customer', `고객사 수정 — ${oldName} → ${name}`);
         dbWrite('tb_master_customer', 'update', () => client.from('tb_master_customer').update({ name, code }).eq('name', oldName));
         return { ok: true };
       },
 
       deleteMasterCustomer(idx) {
-        const c = (window.MASTER.CUSTOMERS || [])[idx];
+        const c = cache.customers[idx];
         if (!c) return;
         const name = c.name;
-        window.MASTER.CUSTOMERS.splice(idx, 1);
+        cache.customers.splice(idx, 1);
         dbLog('INFO', 'write:tb_master_customer', `고객사 삭제 — ${name}`);
         dbWrite('tb_master_customer', 'delete', () => client.from('tb_master_customer').delete().eq('name', name));
       },
 
+      getSwVersions() {
+        return [...cache.sw_versions];
+      },
+
       addMasterSwVersion(ver) {
-        window.MASTER.SW_VERSIONS.unshift(ver);
+        cache.sw_versions.unshift({ tag: ver.tag, released: ver.released, stable: ver.stable });
         dbLog('INFO', 'write:tb_master_sw_version', `SW 버전 추가 — ${ver.tag}`);
         dbWrite('tb_master_sw_version', 'insert', () => client.from('tb_master_sw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
       },
@@ -579,33 +569,23 @@
       }
 
       // 마스터 테이블이 비어 있으면 초기 데이터 삽입
-      if (window.MASTER.CUSTOMERS.length === 0) {
+      if (backend.cache.customers.length === 0) {
         try {
           const { data, error } = await client.from('tb_master_customer').insert(SEED_MASTER_CUSTOMERS).select();
           if (error) dbLog('WARN', 'init', '초기 고객사 삽입 실패 — ' + error.message);
           else {
-            window.MASTER.CUSTOMERS = (data || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
-            dbLog('INFO', 'init', `초기 고객사 데이터 삽입 — ${window.MASTER.CUSTOMERS.length}개`);
+            backend.cache.customers = (data || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
+            dbLog('INFO', 'init', `초기 고객사 데이터 삽입 — ${backend.cache.customers.length}개`);
           }
         } catch (e) { dbLog('WARN', 'init', '초기 고객사 삽입 오류 — ' + e.message); }
       }
-      if (window.MASTER.MODELS.length === 0) {
-        try {
-          const { error } = await client.from('tb_master_model').insert(SEED_MASTER_MODELS);
-          if (error) dbLog('WARN', 'init', '초기 모델 삽입 실패 — ' + error.message);
-          else dbLog('INFO', 'init', `초기 모델 데이터 삽입 완료`);
-        } catch (e) { dbLog('WARN', 'init', '초기 모델 삽입 오류 — ' + e.message); }
-        // DB 삽입 성공 여부와 무관하게 메모리에 시드 데이터 보장
-        window.MASTER.MODELS = SEED_MASTER_MODELS.map(m => ({ name: m.name, spec: m.spec, power: m.power }));
-        window.dispatchEvent(new CustomEvent('masterLoaded'));
-      }
-      if (window.MASTER.SW_VERSIONS.length === 0) {
+      if (backend.cache.sw_versions.length === 0) {
         try {
           const { error } = await client.from('tb_master_sw_version').insert(SEED_MASTER_SW_VERSIONS);
           if (error) dbLog('WARN', 'init', '초기 SW버전 삽입 실패 — ' + error.message);
           else dbLog('INFO', 'init', '초기 SW버전 데이터 삽입 완료');
         } catch (e) { dbLog('WARN', 'init', '초기 SW버전 삽입 오류 — ' + e.message); }
-        window.MASTER.SW_VERSIONS = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
+        backend.cache.sw_versions = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
         window.dispatchEvent(new CustomEvent('masterLoaded'));
       }
       if (window.MASTER.CABLE_LENGTHS.length === 0) {
@@ -653,6 +633,7 @@
     getAsHistory(orderId)        { return this.backend.getAsHistory(orderId); },
     addAsRecord(record)          { return this.backend.addAsRecord(record); },
     deleteAsRecord(id)           { return this.backend.deleteAsRecord(id); },
+    getCustomers()                   { return this.backend.getCustomers(); },
     addMasterCustomer(n, c)         { return this.backend.addMasterCustomer(n, c); },
     updateMasterCustomer(i, n, c)   { return this.backend.updateMasterCustomer(i, n, c); },
     deleteMasterCustomer(i)         { return this.backend.deleteMasterCustomer(i); },
@@ -661,6 +642,7 @@
     deleteMasterModel(i)            { return this.backend.deleteMasterModel(i); },
     addMasterCableLength(v)         { return this.backend.addMasterCableLength(v); },
     deleteMasterCableLength(v)      { return this.backend.deleteMasterCableLength(v); },
+    getSwVersions()                 { return this.backend.getSwVersions(); },
     addMasterSwVersion(v)           { return this.backend.addMasterSwVersion(v); },
     reset()                      { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };

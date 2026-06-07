@@ -135,7 +135,7 @@ function SalesInputScreen() {
   const [form, setForm] = useStateSI(empty);
   const [touched, setTouched] = useStateSI({});
   const [showAll, setShowAll] = useStateSI(false);
-  const [masterCustomers, setMasterCustomers] = useStateSI(window.MASTER.CUSTOMERS);
+  const [masterCustomers, setMasterCustomers] = useStateSI([]);
   const [masterModels, setMasterModels] = useStateSI(window.MASTER.MODELS);
   const [masterCableLengths, setMasterCableLengths] = useStateSI(window.MASTER.CABLE_LENGTHS);
   const [managers, setManagers] = useStateSI([]);
@@ -148,14 +148,14 @@ function SalesInputScreen() {
   const [showCableMgr, setShowCableMgr] = useStateSI(false);
 
   useEffectSI(() => {
-    const sync = () => {
-      setMasterCustomers([...(window.MASTER.CUSTOMERS || [])]);
+    setMasterCustomers(window.PMDB.getCustomers());
+    const syncMaster = () => {
       setMasterModels([...(window.MASTER.MODELS || [])]);
       setMasterCableLengths([...(window.MASTER.CABLE_LENGTHS || [])]);
     };
-    sync(); // 마운트 시 즉시 최신 데이터로 동기화
-    window.addEventListener('masterLoaded', sync);
-    return () => window.removeEventListener('masterLoaded', sync);
+    syncMaster();
+    window.addEventListener('masterLoaded', syncMaster);
+    return () => window.removeEventListener('masterLoaded', syncMaster);
   }, []);
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -546,7 +546,7 @@ function SalesInputScreen() {
         <AddCustomerModal
           onClose={() => setShowAddCustomer(false)}
           onAdded={(name) => {
-            setMasterCustomers([...window.MASTER.CUSTOMERS]);
+            setMasterCustomers(window.PMDB.getCustomers());
             setForm(f => ({ ...f, customer_name: name, customer_manager: '' }));
             setShowAddCustomer(false);
           }}/>
@@ -555,9 +555,9 @@ function SalesInputScreen() {
         <CustomerManageModal
           onClose={() => setShowCustomerMgr(false)}
           onChanged={() => {
-            setMasterCustomers([...window.MASTER.CUSTOMERS]);
-            const current = window.MASTER.CUSTOMERS.find(c => c.name === form.customer_name);
-            if (!current) update('customer_name', '');
+            const updated = window.PMDB.getCustomers();
+            setMasterCustomers(updated);
+            if (!updated.find(c => c.name === form.customer_name)) update('customer_name', '');
           }}/>
       )}
       {showAddModel && (
@@ -827,11 +827,11 @@ function AddCustomerModal({ onClose, onAdded }) {
 
 /* ────────── 고객사 마스터 관리 모달 ────────── */
 function CustomerManageModal({ onClose, onChanged }) {
-  const [list, setList] = useStateSI([...window.MASTER.CUSTOMERS]);
+  const [list, setList] = useStateSI(() => window.PMDB.getCustomers());
   const [draft, setDraft] = useStateSI(null); // { idx, name, code }
   const [err, setErr] = useStateSI('');
 
-  const reload = () => setList([...window.MASTER.CUSTOMERS]);
+  const reload = () => setList(window.PMDB.getCustomers());
 
   const startEdit = (c, idx) => { setErr(''); setDraft({ idx, name: c.name, code: c.code }); };
 
