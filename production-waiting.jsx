@@ -69,7 +69,7 @@ function ProductionWaitingScreen() {
           <h1 className="screen__title">생산 대기 목록</h1>
           <p className="screen__sub">{isSales
             ? '영업 담당자는 생산대기 상태의 오더를 선택해 발주 정보를 수정할 수 있습니다.'
-            : '영업에서 등록한 오더 중 생산 미완료 항목입니다. 카드를 선택하면 생산 매핑 화면으로 이동합니다.'}</p>
+            : '영업에서 등록한 오더 중 생산 미완료 항목입니다. 카드를 선택하면 생산 입력 화면으로 이동합니다.'}</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--secondary" onClick={() => window.actions.setView('sales')}>

@@ -430,7 +430,7 @@ function OrderDrawer({ order, onClose, onAsChange }) {
               <div style={{ padding: '20px 18px', background: 'var(--warning-50)', border: '1px solid var(--warning)', borderRadius: 'var(--r-lg)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Icon name="clock" size={16} style={{ color: 'var(--warning-700)', flexShrink: 0, marginTop: 1 }}/>
                 <div style={{ fontSize: 12.5, color: 'var(--warning-700)', lineHeight: 1.55 }}>
-                  아직 생산이 완료되지 않은 오더입니다. 생산 매핑 화면에서 실적을 입력하면 이 영역이 채워집니다.
+                  아직 생산이 완료되지 않은 오더입니다. 생산 입력 화면에서 실적을 입력하면 이 영역이 채워집니다.
                 </div>
               </div>
             )}
@@ -457,7 +457,7 @@ function OrderDrawer({ order, onClose, onAsChange }) {
               </button>
             ) : (
               <button className="btn btn--primary" onClick={goMapping}>
-                <Icon name="factory" size={13}/> 생산 매핑으로 이동
+                <Icon name="factory" size={13}/> 생산 입력으로 이동
               </button>
             )
           )}

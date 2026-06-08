@@ -161,7 +161,7 @@ function ProductionCompleteScreen() {
           <div className="emptystate">
             <Icon name="truck" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
             <div className="emptystate__title">완료된 생산 오더가 없습니다</div>
-            <div className="emptystate__sub">생산 매핑에서 실적을 등록하면 이 목록에 표시됩니다</div>
+            <div className="emptystate__sub">생산 입력에서 실적을 등록하면 이 목록에 표시됩니다</div>
           </div>
         </div>
       ) : (
@@ -231,7 +231,7 @@ function InspectionReport({ order, onClose }) {
           <span className="report__bar__label"><Icon name="doc" size={14}/> 출하 검사 성적서 미리보기</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn--secondary btn--sm" onClick={() => {
-              if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 되돌릴까요?\n생산 실적은 보존되며 생산 매핑에서 다시 수정할 수 있습니다.`)) {
+              if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 되돌릴까요?\n생산 실적은 보존되며 생산 입력에서 다시 수정할 수 있습니다.`)) {
                 window.actions.revertOrder(order.order_id);
                 onClose();
               }

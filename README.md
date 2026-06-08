@@ -6,7 +6,7 @@ Egtronics COMS(Charger Operation Management System)는 이지트로닉스의 EV 
 
 - **영업 입력**: 신규 발주 데이터 입력 (우편번호 실검색, 케이블 길이, 현장담당자)
 - **생산 대기/완료**: 생산 상태별 테이블·카드·칸반·타임라인 뷰
-- **생산 매핑**: 생산 실적 입력 (시리얼·로트·SW 버전·검사일)
+- **생산 입력**: 생산 실적 입력 (시리얼·로트·SW 버전·검사일)
 - **주문 조회**: 전체 오더 검색·필터·정렬 및 드로어 상세 조회
 - **A/S 이력**: A/S 역할 계정으로 오더별 유지보수 이력 등록·조회
 - **사용자 관리**: 역할(영업·생산·A/S·관리자) 기반 접근 제어
@@ -71,7 +71,7 @@ Supabase SQL 에디터에서 `seed.sql` 전체 실행:
 ├── Views
 ├── sales-input.jsx              # 영업 입력 (발주·고객·담당자·주소)
 ├── production-waiting.jsx       # 생산 대기 (테이블·카드·칸반·타임라인)
-├── production-mapping.jsx       # 생산 매핑 (실적 입력)
+├── production-mapping.jsx       # 생산 입력 (실적 입력)
 ├── production-complete.jsx      # 생산 완료 목록
 ├── order-lookup.jsx             # 통합 조회 + A/S 이력
 ├── admin-users.jsx              # 사용자 관리 (관리자 전용)
@@ -99,7 +99,7 @@ Supabase SQL 에디터에서 `seed.sql` 전체 실행:
 |------|--------------|
 | `admin` (관리자) | 전체 + 사용자 관리 |
 | `sales` (영업) | 영업 입력 · 생산 대기 · 통합 조회 |
-| `production` (생산) | 생산 대기 · 생산 매핑 · 생산 완료 · 통합 조회 |
+| `production` (생산) | 생산 대기 · 생산 입력 · 생산 완료 · 통합 조회 |
 | `as` (A/S) | 통합 조회 · A/S 이력 등록·삭제 |
 
 ## Supabase 테이블 구조

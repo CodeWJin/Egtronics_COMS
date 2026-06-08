@@ -182,7 +182,7 @@ function TopNav() {
   const TAB_META = {
     sales:     { label: '영업 입력' },
     waiting:   { label: '생산 대기', count: pendingCount + inProgressCount },
-    mapping:   { label: '생산 매핑' },
+    mapping:   { label: '생산 입력' },
     completed: { label: '생산 완료', count: completedCount },
     lookup:    { label: '조회' },
     admin:     { label: '사용자 관리' },

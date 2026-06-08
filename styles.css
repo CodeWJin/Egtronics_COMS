@@ -667,7 +667,8 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface);
   border: 1px solid var(--border-1);
   border-radius: 0 0 var(--r-lg) var(--r-lg);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .table {
   width: 100%;
@@ -693,6 +694,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--ink-1);
   vertical-align: middle;
   letter-spacing: -0.224px;
+  text-align: left;
 }
 .table tr:last-child td { border-bottom: 0; }
 .table tr.row--clickable { cursor: pointer; transition: background 100ms; }
@@ -1093,6 +1095,7 @@ input, select, textarea { font-family: inherit; }
   .col-span-2 { grid-column: span 1; }
   .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .readonly-strip__grid { grid-template-columns: repeat(2, 1fr); }
+  .table { min-width: 640px; }
   .kanban-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .kanban { min-width: max-content; }
   .timeline__day { grid-template-columns: 1fr; gap: 12px; padding: 14px 16px; }
