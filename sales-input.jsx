@@ -122,7 +122,8 @@ function SalesInputScreen() {
 
   const empty = {
     customer_name: '',
-    customer_manager:'',
+    customer_manager: '',
+    cpo_name: '',
     model_name: '',
     delivery_date: '',
     cable_length: '',
@@ -137,6 +138,7 @@ function SalesInputScreen() {
   const [touched, setTouched] = useStateSI({});
   const [showAll, setShowAll] = useStateSI(false);
   const [masterCustomers, setMasterCustomers] = useStateSI([]);
+  const [masterCpos, setMasterCpos] = useStateSI([]);
   const [masterModels, setMasterModels] = useStateSI([]);
   const [masterCableLengths, setMasterCableLengths] = useStateSI([]);
   const [managers, setManagers] = useStateSI([]);
@@ -147,11 +149,15 @@ function SalesInputScreen() {
   const [showAddModel, setShowAddModel] = useStateSI(false);
   const [showModelMgr, setShowModelMgr] = useStateSI(false);
   const [showCableMgr, setShowCableMgr] = useStateSI(false);
+  const [showAddCpo, setShowAddCpo] = useStateSI(false);
+  const [showCpoMgr, setShowCpoMgr] = useStateSI(false);
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
+    setMasterCpos(window.PMDB.getCpos());
     const syncMaster = () => {
       setMasterModels(window.PMDB.getModels());
+      setMasterCpos(window.PMDB.getCpos());
       setMasterCableLengths([...(window.MASTER.CABLE_LENGTHS || [])]);
     };
     syncMaster();
@@ -167,6 +173,7 @@ function SalesInputScreen() {
       setForm({
         customer_name: editing.customer_name || '',
         customer_manager: editing.customer_manager || '',
+        cpo_name: editing.cpo_name || '',
         model_name: editing.model_name || '',
         delivery_date: editing.delivery_date || '',
         cable_length: editing.cable_length || '',
@@ -339,6 +346,25 @@ function SalesInputScreen() {
                   )}
                 </div>
                 <div className="field">
+                  <label className="field__label">CPO 운영사 <span className="helpdot" title="공용 충전기를 운영·관리하는 CPO(Charge Point Operator) 사업자">?</span></label>
+                  <div className="mgr-field">
+                    <ComboField value={form.cpo_name}
+                                onChange={(v) => { update('cpo_name', v); }}
+                                options={masterCpos}
+                                placeholder="CPO 운영사 선택 또는 직접 입력"/>
+                    <button type="button" className="btn btn--secondary mgr-field__manage"
+                            onClick={() => setShowAddCpo(true)}
+                            title="신규 CPO 운영사 등록">
+                      <Icon name="plus" size={13}/> 추가
+                    </button>
+                    <button type="button" className="btn btn--secondary mgr-field__manage"
+                            onClick={() => setShowCpoMgr(true)}
+                            title="CPO 운영사 목록 관리">
+                      <Icon name="settings" size={13}/> 관리
+                    </button>
+                  </div>
+                </div>
+                <div className="field">
                   <label className="field__label">모델 <span className="field__req">*</span></label>
                   <div className="mgr-field">
                     <ComboField value={form.model_name}
@@ -493,6 +519,8 @@ function SalesInputScreen() {
                 <dd>{form.customer_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>담당자</dt>
                 <dd>{form.customer_manager || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
+                <dt>CPO 운영사</dt>
+                <dd>{form.cpo_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>모델</dt>
                 <dd>{form.model_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>케이블 길이</dt>
@@ -585,6 +613,24 @@ function SalesInputScreen() {
           onChanged={() => {
             setMasterCableLengths([...window.MASTER.CABLE_LENGTHS]);
             if (!window.MASTER.CABLE_LENGTHS.includes(form.cable_length)) update('cable_length', '');
+          }}/>
+      )}
+      {showAddCpo && (
+        <AddCpoModal
+          onClose={() => setShowAddCpo(false)}
+          onAdded={(name) => {
+            setMasterCpos(window.PMDB.getCpos());
+            update('cpo_name', name);
+            setShowAddCpo(false);
+          }}/>
+      )}
+      {showCpoMgr && (
+        <CpoManageModal
+          onClose={() => setShowCpoMgr(false)}
+          onChanged={() => {
+            const updated = window.PMDB.getCpos();
+            setMasterCpos(updated);
+            if (!updated.find(c => c.name === form.cpo_name)) update('cpo_name', '');
           }}/>
       )}
     </div>
@@ -1124,6 +1170,143 @@ function CableLengthManageModal({ onClose, onChanged }) {
             </div>
             {err && <div className="field__err" style={{ marginTop: 4 }}><Icon name="alert" size={12}/> {err}</div>}
           </div>
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────── CPO 운영사 추가 모달 ────────── */
+function AddCpoModal({ onClose, onAdded }) {
+  const [name, setName] = useStateSI('');
+  const [code, setCode] = useStateSI('');
+  const [err, setErr] = useStateSI('');
+
+  const save = () => {
+    const n = name.trim();
+    const c = code.trim().toUpperCase();
+    if (!n) { setErr('CPO 운영사명을 입력하세요'); return; }
+    if (!c) { setErr('코드를 입력하세요'); return; }
+    const result = window.PMDB.addMasterCpo(n, c);
+    if (!result.ok) { setErr(result.msg); return; }
+    onAdded && onAdded(n);
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 400, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h3 className="modal__title">CPO 운영사 추가</h3>
+          <p className="modal__sub">신규 CPO 운영사를 마스터 목록에 등록합니다</p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="field">
+            <label className="field__label">CPO 운영사명 <span className="field__req">*</span></label>
+            <input className="input" autoFocus value={name}
+                   onChange={(e) => { setName(e.target.value); setErr(''); }}
+                   placeholder="예: 한국전력공사"/>
+          </div>
+          <div className="field">
+            <label className="field__label">코드 <span className="field__req">*</span></label>
+            <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+                   value={code}
+                   onChange={(e) => { setCode(e.target.value); setErr(''); }}
+                   placeholder="예: KEPCO"
+                   onKeyDown={(e) => e.key === 'Enter' && save()}/>
+          </div>
+          {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>취소</button>
+          <button className="btn btn--primary" onClick={save}><Icon name="check" size={13}/> 추가</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────── CPO 운영사 관리 모달 ────────── */
+function CpoManageModal({ onClose, onChanged }) {
+  const [list, setList] = useStateSI(() => window.PMDB.getCpos());
+  const [draft, setDraft] = useStateSI(null);
+  const [err, setErr] = useStateSI('');
+
+  const reload = () => setList(window.PMDB.getCpos());
+  const startEdit = (c, idx) => { setErr(''); setDraft({ idx, name: c.name, code: c.code }); };
+
+  const saveDraft = () => {
+    const n = draft.name.trim();
+    const c = draft.code.trim().toUpperCase();
+    if (!n) { setErr('CPO 운영사명을 입력하세요'); return; }
+    if (!c) { setErr('코드를 입력하세요'); return; }
+    const result = window.PMDB.updateMasterCpo(draft.idx, n, c);
+    if (!result.ok) { setErr(result.msg); return; }
+    reload();
+    onChanged && onChanged();
+    setDraft(null);
+  };
+
+  const remove = (idx) => {
+    window.PMDB.deleteMasterCpo(idx);
+    reload();
+    onChanged && onChanged();
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ width: 520, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h3 className="modal__title">CPO 운영사 관리</h3>
+          <p className="modal__sub">tb_master_cpo</p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="mgr-list">
+            {list.length === 0 && (
+              <div className="emptystate" style={{ padding: '20px 0' }}>
+                <div className="emptystate__title">등록된 CPO 운영사가 없습니다</div>
+              </div>
+            )}
+            {list.map((c, idx) => (
+              <div key={c.code || idx} className="mgr-row">
+                <div className="mgr-row__main">
+                  <div className="mgr-row__name">{c.name}</div>
+                  <div className="mgr-row__meta">
+                    <span style={{ fontFamily: 'var(--font-mono)' }}>{c.code}</span>
+                  </div>
+                </div>
+                <div className="mgr-row__actions">
+                  <button className="btn btn--secondary btn--sm" onClick={() => startEdit(c, idx)}>수정</button>
+                  <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(idx)}><Icon name="x" size={14}/></button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {draft && (
+            <div className="mgr-edit">
+              <div className="mgr-edit__title">CPO 운영사 수정</div>
+              <div className="form-grid">
+                <div className="field">
+                  <label className="field__label">CPO 운영사명 <span className="field__req">*</span></label>
+                  <input className="input" autoFocus value={draft.name}
+                         onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
+                </div>
+                <div className="field">
+                  <label className="field__label">코드 <span className="field__req">*</span></label>
+                  <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+                         value={draft.code}
+                         onChange={(e) => { setDraft(d => ({ ...d, code: e.target.value })); setErr(''); }}/>
+                </div>
+              </div>
+              {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
+                <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>닫기</button>

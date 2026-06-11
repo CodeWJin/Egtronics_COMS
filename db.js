@@ -63,6 +63,13 @@
     { name: '삼성',     code: 'SAMSUNG', last: '' },
   ];
 
+  const SEED_MASTER_CPOS = [
+    { name: '한국전력공사',   code: 'KEPCO' },
+    { name: '환경부',         code: 'ME' },
+    { name: '이지트로닉스',   code: 'EGT' },
+    { name: '차지비',         code: 'CHEVI' },
+  ];
+
   const SEED_MASTER_CABLE_LENGTHS = ['3m', '5m', '7m', '10m'];
 
   const TODAY_ISO = new Date().toISOString().slice(0, 10);
@@ -74,7 +81,7 @@
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], sw_versions: [], models: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], cpos: [], sw_versions: [], models: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asHistSeq = 0;
@@ -144,19 +151,21 @@
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
           const mapResult = (r, fn) => r.error ? [] : (r.data || []).map(fn);
-          const [mc, mm, msw, mcl] = await Promise.all([
+          const [mc, mm, msw, mcl, mcpo] = await Promise.all([
             client.from('tb_master_customer').select('*').order('id'),
             client.from('tb_master_model').select('*').order('id'),
             client.from('tb_master_sw_version').select('*').order('id'),
             client.from('tb_master_cable_length').select('*').order('id'),
+            client.from('tb_master_cpo').select('*').order('id'),
           ]);
           cache.customers = mapResult(mc, c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
+          cache.cpos = mapResult(mcpo, c => ({ id: c.id, name: c.name, code: c.code }));
           cache.models = mapResult(mm, m => ({ name: m.name, spec: m.spec || '', power: m.power || '' }));
           cache.sw_versions = mapResult(msw, r => ({ tag: r.tag, released: r.released, stable: r.stable }));
           window.MASTER = {
             CABLE_LENGTHS: mapResult(mcl, c => c.value),
           };
-          const errs = [mc, mm, msw, mcl].map(r => r.error).filter(Boolean);
+          const errs = [mc, mm, msw, mcl, mcpo].map(r => r.error).filter(Boolean);
           if (errs.length) {
             dbLog('WARN', 'loadAll', `마스터 테이블 일부 조회 실패 (${errs.length}개) — seed.sql 실행 필요: ` + errs.map(e => e.message).join('; '));
           } else {
@@ -189,7 +198,7 @@
 
       addOrder(form) {
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
+        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
         cache.orders.push(row);
         dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
         dbWrite('tb_sales_order', 'insert', () => client.from('tb_sales_order').insert(row));
@@ -202,7 +211,7 @@
           dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
+        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
         Object.assign(o, upd);
         dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'update', () => client.from('tb_sales_order').update(upd).eq('order_id', order_id));
@@ -445,6 +454,45 @@
         dbWrite('tb_master_customer', 'delete', () => client.from('tb_master_customer').delete().eq('name', name));
       },
 
+      getCpos() {
+        return [...cache.cpos];
+      },
+
+      addMasterCpo(name, code) {
+        if (cache.cpos.find(c => c.name === name))
+          return { ok: false, msg: '이미 등록된 CPO 운영사명입니다' };
+        if (cache.cpos.find(c => c.code === code))
+          return { ok: false, msg: '이미 사용 중인 코드입니다' };
+        const row = { name, code };
+        cache.cpos.push(row);
+        dbLog('INFO', 'write:tb_master_cpo', `CPO 운영사 추가 — ${name}`);
+        dbWrite('tb_master_cpo', 'insert', () => client.from('tb_master_cpo').insert({ name, code }));
+        return { ok: true };
+      },
+
+      updateMasterCpo(idx, name, code) {
+        const c = cache.cpos[idx];
+        if (!c) return { ok: false, msg: 'CPO 운영사를 찾을 수 없습니다' };
+        const dupName = cache.cpos.findIndex(x => x.name === name);
+        if (dupName !== -1 && dupName !== idx) return { ok: false, msg: '이미 등록된 CPO 운영사명입니다' };
+        const dupCode = cache.cpos.findIndex(x => x.code === code);
+        if (dupCode !== -1 && dupCode !== idx) return { ok: false, msg: '이미 사용 중인 코드입니다' };
+        const oldName = c.name;
+        cache.cpos[idx] = { ...c, name, code };
+        dbLog('INFO', 'write:tb_master_cpo', `CPO 운영사 수정 — ${oldName} → ${name}`);
+        dbWrite('tb_master_cpo', 'update', () => client.from('tb_master_cpo').update({ name, code }).eq('name', oldName));
+        return { ok: true };
+      },
+
+      deleteMasterCpo(idx) {
+        const c = cache.cpos[idx];
+        if (!c) return;
+        const name = c.name;
+        cache.cpos.splice(idx, 1);
+        dbLog('INFO', 'write:tb_master_cpo', `CPO 운영사 삭제 — ${name}`);
+        dbWrite('tb_master_cpo', 'delete', () => client.from('tb_master_cpo').delete().eq('name', name));
+      },
+
       getSwVersions() {
         return [...cache.sw_versions];
       },
@@ -586,6 +634,18 @@
           }
         } catch (e) { dbLog('WARN', 'init', '초기 고객사 삽입 오류 — ' + e.message); }
       }
+      if (backend.cache.cpos.length === 0) {
+        try {
+          const { data, error } = await client.from('tb_master_cpo').insert(SEED_MASTER_CPOS).select();
+          if (error) dbLog('WARN', 'init', '초기 CPO 운영사 삽입 실패 — ' + error.message);
+          else {
+            backend.cache.cpos = (data || []).map(c => ({ id: c.id, name: c.name, code: c.code }));
+            dbLog('INFO', 'init', `초기 CPO 운영사 데이터 삽입 — ${backend.cache.cpos.length}개`);
+          }
+        } catch (e) { dbLog('WARN', 'init', '초기 CPO 운영사 삽입 오류 — ' + e.message); }
+        if (backend.cache.cpos.length === 0)
+          backend.cache.cpos = SEED_MASTER_CPOS.map(c => ({ ...c }));
+      }
       if (backend.cache.sw_versions.length === 0) {
         try {
           const { error } = await client.from('tb_master_sw_version').insert(SEED_MASTER_SW_VERSIONS);
@@ -644,6 +704,10 @@
     addMasterCustomer(n, c)         { return this.backend.addMasterCustomer(n, c); },
     updateMasterCustomer(i, n, c)   { return this.backend.updateMasterCustomer(i, n, c); },
     deleteMasterCustomer(i)         { return this.backend.deleteMasterCustomer(i); },
+    getCpos()                        { return this.backend.getCpos(); },
+    addMasterCpo(n, c)               { return this.backend.addMasterCpo(n, c); },
+    updateMasterCpo(i, n, c)         { return this.backend.updateMasterCpo(i, n, c); },
+    deleteMasterCpo(i)               { return this.backend.deleteMasterCpo(i); },
     getModels()                     { return this.backend.getModels(); },
     addMasterModel(n, s, p)         { return this.backend.addMasterModel(n, s, p); },
     updateMasterModel(i, n, s, p)   { return this.backend.updateMasterModel(i, n, s, p); },
