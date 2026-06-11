@@ -69,8 +69,9 @@ function ProductionCompleteScreen() {
   const avgLead = completed.length
     ? Math.round(completed.reduce((a, o) => a + daysBetween(o.created, o.production.prod_date), 0) / completed.length)
     : 0;
-  const avgQc = completed.length
-    ? (completed.reduce((a, o) => a + Math.max(0, daysBetween(o.production.prod_date, o.production.inspection_date)), 0) / completed.length).toFixed(1)
+  const inspected = completed.filter(o => o.production.inspection_date);
+  const avgQc = inspected.length
+    ? (inspected.reduce((a, o) => a + Math.max(0, daysBetween(o.production.prod_date, o.production.inspection_date)), 0) / inspected.length).toFixed(1)
     : 0;
 
   const exportCSV = () => {
@@ -219,7 +220,9 @@ function ProductionCompleteScreen() {
 function InspectionReport({ order, onClose }) {
   const p = order.production;
   const validUntil = useMemoPC(() => {
+    if (!p.inspection_date) return null;
     const d = new Date(p.inspection_date);
+    if (isNaN(d.getTime())) return null;
     d.setFullYear(d.getFullYear() + 7);
     return d.toISOString().slice(0, 10);
   }, [order]);
@@ -301,7 +304,7 @@ function InspectionReport({ order, onClose }) {
                 </tr>
                 <tr>
                   <th>검정 유효기간</th>
-                  <td>{validUntil} 까지</td>
+                  <td>{validUntil ? `${validUntil} 까지` : <span style={{ color: 'var(--ink-4)' }}>비공용 — 해당없음</span>}</td>
                   <th>종합 판정</th>
                   <td><span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span></td>
                 </tr>
