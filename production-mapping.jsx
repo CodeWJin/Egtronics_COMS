@@ -241,11 +241,10 @@ function MappingForm({ order }) {
 
   const submit = () => {
     setShowAll(true);
-    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, inspection_date: 1, sw_version: 1, doc_no: 1 });
+    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, doc_no: 1 });
     if (hasErr) return;
     if (dupState === null && form.serial_no) {
-      // Force check if not yet done
-      if (window.EXISTING_SERIALS.has(form.serial_no) || window.PMDB.serialExists(form.serial_no)) {
+      if (window.PMDB.serialExists(form.serial_no)) {
         setDupState('dup');
         return;
       }
