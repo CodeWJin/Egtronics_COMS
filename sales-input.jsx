@@ -123,6 +123,7 @@ function SalesInputScreen() {
   const empty = {
     customer_name: '',
     customer_manager: '',
+    usage_type: '공용',
     cpo_name: '',
     model_name: '',
     delivery_date: '',
@@ -149,6 +150,7 @@ function SalesInputScreen() {
   const [showAddModel, setShowAddModel] = useStateSI(false);
   const [showModelMgr, setShowModelMgr] = useStateSI(false);
   const [showCableMgr, setShowCableMgr] = useStateSI(false);
+  const [useCpo, setUseCpo] = useStateSI(false);
   const [showAddCpo, setShowAddCpo] = useStateSI(false);
   const [showCpoMgr, setShowCpoMgr] = useStateSI(false);
 
@@ -173,6 +175,7 @@ function SalesInputScreen() {
       setForm({
         customer_name: editing.customer_name || '',
         customer_manager: editing.customer_manager || '',
+        usage_type: editing.usage_type || '공용',
         cpo_name: editing.cpo_name || '',
         model_name: editing.model_name || '',
         delivery_date: editing.delivery_date || '',
@@ -184,9 +187,10 @@ function SalesInputScreen() {
         field_manager_name: editing.field_manager_name || '',
         field_manager_phone: editing.field_manager_phone || '',
       });
+      setUseCpo(!!(editing.cpo_name));
       setTouched({}); setShowAll(false);
     } else {
-      setForm(empty); setTouched({}); setShowAll(false);
+      setForm(empty); setUseCpo(false); setTouched({}); setShowAll(false);
     }
   }, [s.editingOrderId]);
 
@@ -346,24 +350,57 @@ function SalesInputScreen() {
                   )}
                 </div>
                 <div className="field">
-                  <label className="field__label">CPO 운영사 <span className="helpdot" title="공용 충전기를 운영·관리하는 CPO(Charge Point Operator) 사업자">?</span></label>
-                  <div className="mgr-field">
-                    <ComboField value={form.cpo_name}
-                                onChange={(v) => { update('cpo_name', v); }}
-                                options={masterCpos}
-                                placeholder="CPO 운영사 선택 또는 직접 입력"/>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setShowAddCpo(true)}
-                            title="신규 CPO 운영사 등록">
-                      <Icon name="plus" size={13}/> 추가
-                    </button>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setShowCpoMgr(true)}
-                            title="CPO 운영사 목록 관리">
-                      <Icon name="settings" size={13}/> 관리
-                    </button>
+                  <label className="field__label">충전기 용도 <span className="field__req">*</span></label>
+                  <div className="chips">
+                    {['공용', '비공용'].map(t => (
+                      <button key={t} type="button"
+                              className={`chip ${form.usage_type === t ? 'chip--active' : ''}`}
+                              onClick={() => {
+                                update('usage_type', t);
+                                if (t === '비공용') { setUseCpo(false); update('cpo_name', ''); }
+                              }}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="field__hint">
+                    {form.usage_type === '공용'
+                      ? <><Icon name="info" size={11}/> 공용: 환경부·CPO 등록 대상 · 검정일자 입력 필요</>
+                      : <><Icon name="info" size={11}/> 비공용: 자가용 충전기 · 검정일자 불필요</>}
                   </div>
                 </div>
+                {form.usage_type === '공용' && (
+                  <div className="field">
+                    <label className="field__label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="checkbox" checked={useCpo}
+                             onChange={(e) => {
+                               setUseCpo(e.target.checked);
+                               if (!e.target.checked) update('cpo_name', '');
+                             }}
+                             style={{ width: 15, height: 15, accentColor: 'var(--primary)', cursor: 'pointer' }}/>
+                      CPO 운영사 사용
+                      <span className="helpdot" title="공용 충전기를 운영·관리하는 CPO(Charge Point Operator) 사업자">?</span>
+                    </label>
+                    {useCpo && (
+                      <div className="mgr-field" style={{ marginTop: 6 }}>
+                        <ComboField value={form.cpo_name}
+                                    onChange={(v) => { update('cpo_name', v); }}
+                                    options={masterCpos}
+                                    placeholder="CPO 운영사 선택 또는 직접 입력"/>
+                        <button type="button" className="btn btn--secondary mgr-field__manage"
+                                onClick={() => setShowAddCpo(true)}
+                                title="신규 CPO 운영사 등록">
+                          <Icon name="plus" size={13}/> 추가
+                        </button>
+                        <button type="button" className="btn btn--secondary mgr-field__manage"
+                                onClick={() => setShowCpoMgr(true)}
+                                title="CPO 운영사 목록 관리">
+                          <Icon name="settings" size={13}/> 관리
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="field">
                   <label className="field__label">모델 <span className="field__req">*</span></label>
                   <div className="mgr-field">
@@ -519,8 +556,18 @@ function SalesInputScreen() {
                 <dd>{form.customer_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>담당자</dt>
                 <dd>{form.customer_manager || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                <dt>CPO 운영사</dt>
-                <dd>{form.cpo_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
+                <dt>충전기 용도</dt>
+                <dd>
+                  <span className={`badge ${form.usage_type === '공용' ? 'badge--info' : 'badge--pending'}`}>
+                    <span className="badge__dot"/>{form.usage_type || '공용'}
+                  </span>
+                </dd>
+                {useCpo && form.usage_type === '공용' && (
+                  <>
+                    <dt>CPO 운영사</dt>
+                    <dd>{form.cpo_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
+                  </>
+                )}
                 <dt>모델</dt>
                 <dd>{form.model_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
                 <dt>케이블 길이</dt>

@@ -1181,7 +1181,7 @@ input, select, textarea { font-family: inherit; }
   .timeline__day { padding: 12px 12px; }
   .toast { bottom: 16px; max-width: 90vw; font-size: 13px; padding: 10px 16px; }
   .btn--lg { height: 40px; padding: 0 18px; font-size: 15px; }
-  .btn { width: 71.34px; }
+  .btn { width: auto; }
 }
 
 /* Form grid */

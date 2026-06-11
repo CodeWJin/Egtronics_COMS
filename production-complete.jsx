@@ -220,7 +220,7 @@ function InspectionReport({ order, onClose }) {
   const p = order.production;
   const validUntil = useMemoPC(() => {
     const d = new Date(p.inspection_date);
-    d.setFullYear(d.getFullYear() + 3);
+    d.setFullYear(d.getFullYear() + 7);
     return d.toISOString().slice(0, 10);
   }, [order]);
 

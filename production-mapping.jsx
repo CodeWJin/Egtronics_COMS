@@ -136,6 +136,8 @@ function SalesReadOnly({ order }) {
       </div>
       <div className="readonly-strip__grid">
         <Cell k="고객사" v={order.customer_name}/>
+        <Cell k="충전기 용도" v={order.usage_type || '공용'}/>
+        {order.cpo_name && <Cell k="CPO 운영사" v={order.cpo_name}/>}
         <Cell k="모델" v={order.model_name}/>
         <Cell k="케이블 길이" v={order.cable_length}/>
         <Cell k="납품일자" v={order.delivery_date} mono/>
@@ -162,6 +164,7 @@ function Cell({ k, v, mono }) {
 
 function MappingForm({ order }) {
   const todayISO = new Date().toISOString().slice(0, 10);
+  const isPublic = (order.usage_type || '공용') === '공용';
   const suggestSerial = useMemoPM(() => {
     // SGT + power code + YYMMDD + 2-digit seq + letter
     const power = (order.model_name.match(/(\d+)kW/) || ['', '050'])[1].padStart(3, '0');
@@ -229,7 +232,7 @@ function MappingForm({ order }) {
     prod_date: !form.prod_date && '생산일자를 선택하세요',
     lot_no: !form.lot_no && '로트번호를 입력하세요',
     serial_no: !form.serial_no ? '시리얼을 입력하세요' : (dupState === 'dup' ? '이미 사용된 시리얼입니다' : null),
-    inspection_date: !form.inspection_date && '검정일자를 선택하세요',
+    inspection_date: isPublic && !form.inspection_date && '검정일자를 선택하세요',
     sw_version: !form.sw_version && 'S/W 버전을 선택하세요',
     doc_no: !form.doc_no && '문서번호를 입력하세요',
   };
@@ -350,16 +353,18 @@ function MappingForm({ order }) {
               {showErr('serial_no') && dupState !== 'dup' && <div className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
             </div>
 
-            {/* 검정일자 */}
-            <div className="field">
-              <label className="field__label"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
-              <input type="date"
-                     className={`input ${showErr('inspection_date') ? 'input--error' : ''}`}
-                     value={form.inspection_date}
-                     onChange={(e) => { update('inspection_date', e.target.value); setTouched(t => ({ ...t, inspection_date: 1 })); }}/>
-              <div className="field__hint">KTC 등 공인기관 형식승인 · 검정 완료일</div>
-              {showErr('inspection_date') && <div className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
-            </div>
+            {/* 검정일자 — 공용 충전기만 표시 */}
+            {isPublic && (
+              <div className="field">
+                <label className="field__label"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
+                <input type="date"
+                       className={`input ${showErr('inspection_date') ? 'input--error' : ''}`}
+                       value={form.inspection_date}
+                       onChange={(e) => { update('inspection_date', e.target.value); setTouched(t => ({ ...t, inspection_date: 1 })); }}/>
+                <div className="field__hint">KTC 등 공인기관 형식승인 · 검정 완료일 · 유효기간 7년</div>
+                {showErr('inspection_date') && <div className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
+              </div>
+            )}
 
             {/* S/W 버전 */}
             <div className="field col-span-2">
