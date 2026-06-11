@@ -119,14 +119,9 @@ input, select, textarea { font-family: inherit; }
   color: rgba(255, 255, 255, 0.92);
 }
 .topnav__logo {
-  width: 60px; height: 26px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.12);
-  display: grid;
-  place-items: center;
-  color: white;
-  font-weight: 700;
-  font-size: 12px;
+  height: 26px;
+  width: auto;
+  object-fit: contain;
 }
 .topnav__tabs {
   display: flex;
@@ -1536,13 +1531,10 @@ input, select, textarea { font-family: inherit; }
   gap: 12px;
   margin-bottom: 32px;
 }
-/* Apple-style logo: flat dark circle */
 .login__logo {
-  width: 60px; height: 42px;
-  border-radius: 11px;
-  background: var(--ink-1);
-  display: grid; place-items: center;
-  color: #fff; font-weight: 700; font-size: 17px;
+  height: 42px;
+  width: auto;
+  object-fit: contain;
 }
 .login__brand__name {
   font-weight: 600;

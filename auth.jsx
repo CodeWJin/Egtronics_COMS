@@ -38,7 +38,7 @@ function LoginScreen() {
     <div className="login">
       <div className="login__card">
         <div className="login__brand">
-          <div className="login__logo">Egtronics</div>
+          <img className="login__logo" src="logo.ico" alt="Egtronics" />
           <div>
             <div className="login__brand__name">Egtronics COMS</div>
             <div className="login__brand__sub">EV 충전기 영업 · 생산 통합 관리</div>

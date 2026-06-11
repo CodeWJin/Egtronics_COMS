@@ -22,10 +22,9 @@
     font-family: 'Pretendard Variable', system-ui, -apple-system, sans-serif;
   }
   .boot__logo {
-    width: 46px; height: 46px; border-radius: 12px;
-    background: #1d1d1f;
-    display: grid; place-items: center;
-    color: #fff; font-weight: 700; font-size: 20px;
+    height: 46px;
+    width: auto;
+    object-fit: contain;
   }
   .boot__txt { font-size: 14px; letter-spacing: -0.224px; color: #7a7a7a; }
   .boot__spin {
@@ -43,7 +42,7 @@
 <body>
 <div id="root">
   <div class="boot">
-    <div class="boot__logo">P</div>
+    <img class="boot__logo" src="logo.ico" alt="Egtronics" />
     <div class="boot__spin"></div>
     <div class="boot__txt">Supabase 연결 중…</div>
   </div>
