@@ -12,7 +12,7 @@ function statusBadge(o) {
 function OrderLookupScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStateOL('');
-  const [fStatus, setFStatus] = useStateOL('COMPLETED');
+  const fStatus = 'COMPLETED';
   const [fModel, setFModel] = useStateOL('all');
   const [models, setModels] = useStateOL(() => window.PMDB.getModels());
 
@@ -45,7 +45,7 @@ function OrderLookupScreen() {
     return { totalRecords, ordersWithAs };
   }, [s.orders, asVer]);
 
-  const activeFilters = (fStatus !== 'all') + (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
+  const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
 
   const filtered = useMemoOL(() => {
     let list = s.orders.filter(o => {
@@ -78,7 +78,7 @@ function OrderLookupScreen() {
   }, [s.orders, search, fStatus, fModel, fCustomer, dateField, dateFrom, dateTo, sortKey, sortDir, fAsOnly, asVer]);
 
   const reset = () => {
-    setSearch(''); setFStatus('all'); setFModel('all'); setFCustomer('all');
+    setSearch(''); setFModel('all'); setFCustomer('all');
     setDateFrom(''); setDateTo(''); setDateField('delivery'); setFAsOnly(false);
   };
 
@@ -100,11 +100,9 @@ function OrderLookupScreen() {
           <p className="screen__sub">영업·생산 전 과정의 오더를 한 곳에서 검색합니다. 행을 선택하면 우측에 전체 상세가 열립니다.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12.5, color: 'var(--ink-3)' }}>
-          전체 <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{s.orders.length}</strong>건 ·
-          대기 <strong style={{ color: 'var(--warning-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'PENDING').length}</strong> ·
-          완료 <strong style={{ color: 'var(--success-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong> ·
-          A/S <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.ordersWithAs}</strong>오더
-          <span style={{ color: 'var(--ink-5)' }}>|</span>
+          생산완료 <strong style={{ color: 'var(--success-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong>건 ·
+          검색결과 <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{filtered.length}</strong>건 ·
+          A/S <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.ordersWithAs}</strong>오더 ·
           이력 <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.totalRecords}</strong>건
         </div>
       </div>
@@ -126,16 +124,6 @@ function OrderLookupScreen() {
               <label className="field__label" htmlFor="ol-search"><Icon name="search" size={11}/>통합 검색</label>
               <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 문서번호 · 주소 …"
                      value={search} onChange={(e) => setSearch(e.target.value)}/>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-status">상태</label>
-              <select id="ol-status" className="select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-                <option value="all">전체 상태</option>
-                <option value="PENDING">생산대기</option>
-                <option value="IN_PROGRESS">생산중</option>
-                <option value="AWAIT_PICKUP">출하대기</option>
-                <option value="COMPLETED">생산완료</option>
-              </select>
             </div>
             <div className="field">
               <label className="field__label" htmlFor="ol-model">모델</label>
@@ -271,11 +259,6 @@ function AsHistorySection({ orderId, canEdit, onAsChange }) {
   const reload = () => setList(window.PMDB.getAsHistory(orderId));
   React.useEffect(() => { reload(); }, [orderId]);
 
-  const startAdd = () => {
-    setDraft({ reception_date: '', dispatch_date: '', action: '', notes: '', field_manager: '' });
-    setShowForm(true);
-  };
-
   const save = () => {
     const today = new Date().toISOString().slice(0, 10);
     window.PMDB.addAsRecord({ order_id: orderId, ...draft, created_at: today });
@@ -314,47 +297,6 @@ function AsHistorySection({ orderId, canEdit, onAsChange }) {
           </div>
         </div>
       ))}
-      {canEdit && !showForm && (
-        <button className="btn btn--secondary btn--sm" style={{ marginTop: 10 }} onClick={startAdd}>
-          <Icon name="plus" size={12}/> A/S 이력 추가
-        </button>
-      )}
-      {showForm && draft && (
-        <div className="mgr-edit" style={{ marginTop: 10 }}>
-          <div className="mgr-edit__title">A/S 이력 추가</div>
-          <div className="form-grid">
-            <div className="field">
-              <label className="field__label" htmlFor="ol-reception-date">접수일정</label>
-              <input id="ol-reception-date" type="date" className="input" value={draft.reception_date}
-                     onChange={e => setDraft(d => ({ ...d, reception_date: e.target.value }))}/>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-dispatch-date">출동일정</label>
-              <input id="ol-dispatch-date" type="date" className="input" value={draft.dispatch_date}
-                     onChange={e => setDraft(d => ({ ...d, dispatch_date: e.target.value }))}/>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-field-manager">현장 담당자</label>
-              <input id="ol-field-manager" className="input" placeholder="담당자명" value={draft.field_manager}
-                     onChange={e => setDraft(d => ({ ...d, field_manager: e.target.value }))}/>
-            </div>
-            <div className="field col-span-2">
-              <label className="field__label" htmlFor="ol-action">조치내용</label>
-              <input id="ol-action" className="input" placeholder="조치 내용을 입력하세요" value={draft.action}
-                     onChange={e => setDraft(d => ({ ...d, action: e.target.value }))}/>
-            </div>
-            <div className="field col-span-2">
-              <label className="field__label" htmlFor="ol-notes">비고</label>
-              <input id="ol-notes" className="input" placeholder="비고" value={draft.notes}
-                     onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))}/>
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-            <button className="btn btn--secondary btn--sm" onClick={() => { setShowForm(false); setDraft(null); }}>취소</button>
-            <button className="btn btn--primary btn--sm" onClick={save}><Icon name="check" size={12}/> 저장</button>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
