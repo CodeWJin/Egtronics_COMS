@@ -32,13 +32,13 @@ ALTER TABLE tb_master_cpo DISABLE ROW LEVEL SECURITY;
 ALTER TABLE tb_sales_order
   DROP CONSTRAINT IF EXISTS chk_status,
   ADD  CONSTRAINT chk_status
-    CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED'));
+    CHECK (status IN ('PENDING', 'IN_PROGRESS', 'AWAIT_PICKUP', 'COMPLETED'));
 
 -- 사용자 역할: 허용 값 외 삽입·수정 거부
 ALTER TABLE users
   DROP CONSTRAINT IF EXISTS chk_role,
   ADD  CONSTRAINT chk_role
-    CHECK (role IN ('admin', 'sales', 'production', 'as'));
+    CHECK (role IN ('admin', 'sales', 'production', 'quality', 'as'));
 
 -- ┌─────────────────────────────────────────────────────────┐
 -- │  tb_as_history RLS 정책 수정                             │
@@ -150,6 +150,33 @@ CREATE TABLE IF NOT EXISTS tb_as_photo (
   uploaded_at    TEXT    NOT NULL
 );
 ALTER TABLE tb_as_photo DISABLE ROW LEVEL SECURITY;
+
+-- ┌─────────────────────────────────────────────────────────┐
+-- │  Supabase Storage — as-photos 버킷 RLS 정책              │
+-- │  anon key로 업로드·조회·삭제 허용                         │
+-- └─────────────────────────────────────────────────────────┘
+
+-- 버킷 생성 (이미 있으면 public=true 로 갱신)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('as-photos', 'as-photos', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- 기존 정책 초기화 후 재생성
+DROP POLICY IF EXISTS "as_photos_insert" ON storage.objects;
+DROP POLICY IF EXISTS "as_photos_select" ON storage.objects;
+DROP POLICY IF EXISTS "as_photos_delete" ON storage.objects;
+
+CREATE POLICY "as_photos_insert" ON storage.objects
+  FOR INSERT TO anon
+  WITH CHECK (bucket_id = 'as-photos');
+
+CREATE POLICY "as_photos_select" ON storage.objects
+  FOR SELECT TO anon
+  USING (bucket_id = 'as-photos');
+
+CREATE POLICY "as_photos_delete" ON storage.objects
+  FOR DELETE TO anon
+  USING (bucket_id = 'as-photos');
 
 -- ================================================================
 -- 이하는 처음 세팅 시 사용 (기존 테이블 전체 삭제 후 재생성)

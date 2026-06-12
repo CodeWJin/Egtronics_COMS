@@ -3,8 +3,9 @@
 const { useState: useStateOL, useMemo: useMemoOL } = React;
 
 function statusBadge(o) {
-  if (o.status === 'COMPLETED')   return <span className="badge badge--complete"><Icon name="check" size={10}/>생산완료</span>;
-  if (o.status === 'IN_PROGRESS') return <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>;
+  if (o.status === 'COMPLETED')    return <span className="badge badge--complete"><Icon name="check" size={10}/>생산완료</span>;
+  if (o.status === 'AWAIT_PICKUP') return <span className="badge badge--progress"><Icon name="truck" size={10}/>출하대기</span>;
+  if (o.status === 'IN_PROGRESS')  return <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>;
   return <span className="badge badge--pending"><span className="badge__dot"/>생산대기</span>;
 }
 
@@ -122,49 +123,51 @@ function OrderLookupScreen() {
           </div>
           <div className="filter-grid">
             <div className="field col-span-2">
-              <label className="field__label"><Icon name="search" size={11}/>통합 검색</label>
-              <input className="input" placeholder="고객사 · 충전소ID · 시리얼 · 문서번호 · 주소 …"
+              <label className="field__label" htmlFor="ol-search"><Icon name="search" size={11}/>통합 검색</label>
+              <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 문서번호 · 주소 …"
                      value={search} onChange={(e) => setSearch(e.target.value)}/>
             </div>
             <div className="field">
-              <label className="field__label">상태</label>
-              <select className="select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+              <label className="field__label" htmlFor="ol-status">상태</label>
+              <select id="ol-status" className="select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
                 <option value="all">전체 상태</option>
                 <option value="PENDING">생산대기</option>
+                <option value="IN_PROGRESS">생산중</option>
+                <option value="AWAIT_PICKUP">출하대기</option>
                 <option value="COMPLETED">생산완료</option>
               </select>
             </div>
             <div className="field">
-              <label className="field__label">모델</label>
-              <select className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
+              <label className="field__label" htmlFor="ol-model">모델</label>
+              <select id="ol-model" className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
                 <option value="all">모델 전체</option>
                 {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
               </select>
             </div>
             <div className="field">
-              <label className="field__label">고객사</label>
-              <select className="select" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)}>
+              <label className="field__label" htmlFor="ol-customer">고객사</label>
+              <select id="ol-customer" className="select" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)}>
                 <option value="all">고객사 전체</option>
                 {customers.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="field">
-              <label className="field__label">기간 기준</label>
-              <select className="select" value={dateField} onChange={(e) => setDateField(e.target.value)}>
+              <label className="field__label" htmlFor="ol-date-field">기간 기준</label>
+              <select id="ol-date-field" className="select" value={dateField} onChange={(e) => setDateField(e.target.value)}>
                 <option value="delivery">납품일자</option>
                 <option value="prod">생산일자</option>
               </select>
             </div>
             <div className="field">
-              <label className="field__label">시작일</label>
-              <input type="date" className="input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
+              <label className="field__label" htmlFor="ol-date-from">시작일</label>
+              <input id="ol-date-from" type="date" className="input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
             </div>
             <div className="field">
-              <label className="field__label">종료일</label>
-              <input type="date" className="input" value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
+              <label className="field__label" htmlFor="ol-date-to">종료일</label>
+              <input id="ol-date-to" type="date" className="input" value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
             </div>
             <div className="field" style={{ justifyContent: 'flex-end' }}>
-              <label className="field__label">A/S 필터</label>
+              <div className="field__label">A/S 필터</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, cursor: 'pointer',
                               padding: '0 12px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)',
                               background: fAsOnly ? 'var(--warning-50)' : 'var(--surface)',
@@ -321,28 +324,28 @@ function AsHistorySection({ orderId, canEdit, onAsChange }) {
           <div className="mgr-edit__title">A/S 이력 추가</div>
           <div className="form-grid">
             <div className="field">
-              <label className="field__label">접수일정</label>
-              <input type="date" className="input" value={draft.reception_date}
+              <label className="field__label" htmlFor="ol-reception-date">접수일정</label>
+              <input id="ol-reception-date" type="date" className="input" value={draft.reception_date}
                      onChange={e => setDraft(d => ({ ...d, reception_date: e.target.value }))}/>
             </div>
             <div className="field">
-              <label className="field__label">출동일정</label>
-              <input type="date" className="input" value={draft.dispatch_date}
+              <label className="field__label" htmlFor="ol-dispatch-date">출동일정</label>
+              <input id="ol-dispatch-date" type="date" className="input" value={draft.dispatch_date}
                      onChange={e => setDraft(d => ({ ...d, dispatch_date: e.target.value }))}/>
             </div>
             <div className="field">
-              <label className="field__label">현장 담당자</label>
-              <input className="input" placeholder="담당자명" value={draft.field_manager}
+              <label className="field__label" htmlFor="ol-field-manager">현장 담당자</label>
+              <input id="ol-field-manager" className="input" placeholder="담당자명" value={draft.field_manager}
                      onChange={e => setDraft(d => ({ ...d, field_manager: e.target.value }))}/>
             </div>
             <div className="field col-span-2">
-              <label className="field__label">조치내용</label>
-              <input className="input" placeholder="조치 내용을 입력하세요" value={draft.action}
+              <label className="field__label" htmlFor="ol-action">조치내용</label>
+              <input id="ol-action" className="input" placeholder="조치 내용을 입력하세요" value={draft.action}
                      onChange={e => setDraft(d => ({ ...d, action: e.target.value }))}/>
             </div>
             <div className="field col-span-2">
-              <label className="field__label">비고</label>
-              <input className="input" placeholder="비고" value={draft.notes}
+              <label className="field__label" htmlFor="ol-notes">비고</label>
+              <input id="ol-notes" className="input" placeholder="비고" value={draft.notes}
                      onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))}/>
             </div>
           </div>

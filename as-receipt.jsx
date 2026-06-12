@@ -1,6 +1,6 @@
 // AS 접수 화면 — 접수 목록 조회 + 새 접수 등록
 
-const { useState: useStateAREC, useEffect: useEffectAREC, useMemo: useMemoAREC } = React;
+const { useState: useStateAREC, useMemo: useMemoAREC } = React;
 
 // ── 헬퍼 ────────────────────────────────────────────────────────
 function getUserDisplayName(userId) {
@@ -210,9 +210,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
   return (
     <>
       <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="modal" style={{ width: 580, maxWidth: '96vw' }}>
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-as-receipt-title" style={{ width: 580, maxWidth: '96vw' }}>
           <div className="modal__head">
-            <h3 className="modal__title">새 AS 접수</h3>
+            <h3 id="modal-as-receipt-title" className="modal__title">새 AS 접수</h3>
             <p className="modal__sub">고장 충전기 정보와 증상을 입력하세요</p>
           </div>
 
@@ -299,7 +299,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 {err.fault_type && <div className="field__err">{err.fault_type}</div>}
               </div>
               <div className="field">
-                <label className="field__label">긴급도</label>
+                <div className="field__label">긴급도</div>
                 <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
                   {['일반', '긴급'].map(p => (
                     <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13 }}>
@@ -332,7 +332,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
             </div>
 
             {/* 신고자 정보 */}
-            <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div className="reporter-info" style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
               <div className="field">
                 <label className="field__label" htmlFor="ar-reporter-name">신고자</label>
                 <input

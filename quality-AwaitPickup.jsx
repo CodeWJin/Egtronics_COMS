@@ -47,7 +47,7 @@ function ProductionCompleteScreen() {
   }, []);
 
   const completed = useMemoPC(
-    () => s.orders.filter(o => o.status === 'COMPLETED' && o.production?.serial_no),
+    () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.production?.serial_no),
     [s.orders]
   );
 
@@ -66,6 +66,7 @@ function ProductionCompleteScreen() {
   // KPIs
   const weekStart = startOfWeek(TODAY_PC);
   const thisWeek = completed.filter(o => new Date(o.production.prod_date) >= weekStart).length;
+  const weekStartLabel = `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}일(월)`;
   const avgLead = completed.length
     ? Math.round(completed.reduce((a, o) => a + daysBetween(o.created, o.production.prod_date), 0) / completed.length)
     : 0;
@@ -116,7 +117,7 @@ function ProductionCompleteScreen() {
             <span className="stat__icon stat__icon--primary"><Icon name="calendar" size={15}/></span>
           </div>
           <div className="stat__value">{thisWeek}<small>건</small></div>
-          <div className="stat__foot">5월 25일(월) ~ 오늘 기준</div>
+          <div className="stat__foot">{weekStartLabel} ~ 오늘 기준</div>
         </div>
         <div className="stat">
           <div className="stat__top">
@@ -176,6 +177,7 @@ function ProductionCompleteScreen() {
                 <th>생산일</th>
                 <th>검정일</th>
                 <th>성적서</th>
+                <th style={{ width: 110 }}>출하</th>
               </tr>
             </thead>
             <tbody>
@@ -197,6 +199,16 @@ function ProductionCompleteScreen() {
                     <td>
                       <button className="btn btn--secondary btn--sm" onClick={(e) => { e.stopPropagation(); setReport(o); }}>
                         <Icon name="doc" size={12}/> 성적서 보기
+                      </button>
+                    </td>
+                    <td>
+                      <button className="btn btn--primary btn--sm" onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`오더 #${o.order_id}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`)) {
+                          window.actions.shipOrder(o.order_id);
+                        }
+                      }}>
+                        <Icon name="truck" size={12}/> 출하 완료
                       </button>
                     </td>
                   </tr>
@@ -225,7 +237,7 @@ function InspectionReport({ order, onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="report">
+      <div className="report" role="dialog" aria-modal="true" aria-label="출하 검사 성적서 미리보기">
         <div className="report__bar">
           <span className="report__bar__label"><Icon name="doc" size={14}/> 출하 검사 성적서 미리보기</span>
           <div style={{ display: 'flex', gap: 8 }}>

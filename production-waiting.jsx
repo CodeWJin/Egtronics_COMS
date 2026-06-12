@@ -36,7 +36,7 @@ function ProductionWaitingScreen() {
 
   const filtered = useMemoPW(() => {
     return s.orders.filter(o => {
-      if (o.status === 'COMPLETED') return false;
+      if (o.status === 'AWAIT_PICKUP' || o.status === 'COMPLETED') return false;
       if (filterModel !== 'all' && o.model_name !== filterModel) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -271,10 +271,10 @@ function ViewKanban({ orders, onPick, completingId, editedIds }) {
     { id: 'fresh',      title: '신규 접수',      dot: 'var(--ink-4)',  filter: (o) => o.status === 'PENDING' && daysUntil(o.delivery_date) > 7 },
     { id: 'urgent',     title: '긴급 (D-7 이내)', dot: 'var(--danger)', filter: (o) => o.status === 'PENDING' && daysUntil(o.delivery_date) <= 7 },
     { id: 'inprogress', title: '작업중',          dot: 'var(--primary)',filter: (o) => o.status === 'IN_PROGRESS' },
-    { id: 'done',       title: '생산완료',        dot: 'var(--success)',filter: (o) => o.status === 'COMPLETED' },
+    { id: 'done',       title: '출하대기',        dot: 'var(--success)',filter: (o) => o.status === 'AWAIT_PICKUP' },
   ];
   const hasInProgress = orders.some(o => o.status === 'IN_PROGRESS');
-  const hasCompleted = orders.some(o => o.status === 'COMPLETED');
+  const hasCompleted = orders.some(o => o.status === 'AWAIT_PICKUP');
   const visibleCols = [
     cols[0],
     cols[1],

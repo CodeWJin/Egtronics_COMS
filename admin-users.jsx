@@ -4,8 +4,9 @@ const { useState: useStateAM, useEffect: useEffectAM, useRef: useRefAM } = React
 
 const ROLE_OPTIONS = [
   { value: 'admin',      label: '관리자' },
-  { value: 'sales',      label: '영업' },
-  { value: 'production', label: '생산' },
+  { value: 'sales',      label: '영업본부' },
+  { value: 'production', label: '제조생산본부' },
+  { value: 'quality',    label: '품질관리본부' },
   { value: 'as',         label: 'A/S (유지보수)' },
 ];
 
@@ -36,27 +37,27 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 480 }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-user-form-title" style={{ maxWidth: 480 }}>
         <div className="modal__head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="modal__title">{isEdit ? '사용자 수정' : '사용자 추가'}</span>
-          <button className="btn btn--ghost btn--icon" onClick={onClose}><Icon name="x" size={18}/></button>
+          <span id="modal-user-form-title" className="modal__title">{isEdit ? '사용자 수정' : '사용자 추가'}</span>
+          <button className="btn btn--ghost btn--icon" aria-label="닫기" onClick={onClose}><Icon name="x" size={18}/></button>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!isEdit && (
             <div className="form-grid">
               <div className="field">
-                <label className="field__label">아이디 <span className="field__req">*</span></label>
-                <input className={`input ${errors.user_id ? 'input--error' : ''}`} value={form.user_id}
+                <label className="field__label" htmlFor="uf-user-id">아이디 <span className="field__req">*</span></label>
+                <input id="uf-user-id" className={`input ${errors.user_id ? 'input--error' : ''}`} value={form.user_id}
                   onChange={e => set('user_id', e.target.value)} placeholder="영문+숫자"/>
                 {errors.user_id && <span className="field__err">{errors.user_id}</span>}
               </div>
               <div className="field">
-                <label className="field__label">초기 비밀번호 <span className="field__req">*</span></label>
+                <label className="field__label" htmlFor="uf-password">초기 비밀번호 <span className="field__req">*</span></label>
                 <div className="input-group">
-                  <input className={`input ${errors.password ? 'input--error' : ''}`}
+                  <input id="uf-password" className={`input ${errors.password ? 'input--error' : ''}`}
                     type={showPw ? 'text' : 'password'} value={form.password}
                     onChange={e => set('password', e.target.value)} placeholder="초기 비밀번호"/>
-                  <button className="input-group__btn" type="button" onClick={() => setShowPw(v => !v)}>
+                  <button className="input-group__btn" type="button" aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'} onClick={() => setShowPw(v => !v)}>
                     {showPw ? '숨김' : '표시'}
                   </button>
                 </div>
@@ -66,11 +67,11 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
           )}
           {isEdit && (
             <div className="field">
-              <label className="field__label">비밀번호 재설정 <span style={{ color: 'var(--ink-4)', fontSize: 11 }}>(비워두면 변경 안함)</span></label>
+              <label className="field__label" htmlFor="uf-password-reset">비밀번호 재설정 <span style={{ color: 'var(--ink-4)', fontSize: 11 }}>(비워두면 변경 안함)</span></label>
               <div className="input-group">
-                <input className="input" type={showPw ? 'text' : 'password'} value={form.password || ''}
+                <input id="uf-password-reset" className="input" type={showPw ? 'text' : 'password'} value={form.password || ''}
                   onChange={e => set('password', e.target.value)} placeholder="새 비밀번호"/>
-                <button className="input-group__btn" type="button" onClick={() => setShowPw(v => !v)}>
+                <button className="input-group__btn" type="button" aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'} onClick={() => setShowPw(v => !v)}>
                   {showPw ? '숨김' : '표시'}
                 </button>
               </div>
@@ -78,14 +79,14 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
           )}
           <div className="form-grid">
             <div className="field">
-              <label className="field__label">이름 <span className="field__req">*</span></label>
-              <input className={`input ${errors.name ? 'input--error' : ''}`} value={form.name}
+              <label className="field__label" htmlFor="uf-name">이름 <span className="field__req">*</span></label>
+              <input id="uf-name" className={`input ${errors.name ? 'input--error' : ''}`} value={form.name}
                 onChange={e => set('name', e.target.value)} placeholder="홍길동"/>
               {errors.name && <span className="field__err">{errors.name}</span>}
             </div>
             <div className="field">
-              <label className="field__label">역할 <span className="field__req">*</span></label>
-              <select className={`select ${errors.role ? 'input--error' : ''}`} value={form.role}
+              <label className="field__label" htmlFor="uf-role">역할 <span className="field__req">*</span></label>
+              <select id="uf-role" className={`select ${errors.role ? 'input--error' : ''}`} value={form.role}
                 onChange={e => set('role', e.target.value)}>
                 {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -93,17 +94,17 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
             </div>
           </div>
           <div className="field">
-            <label className="field__label">부서</label>
-            <input className="input" value={form.dept} onChange={e => set('dept', e.target.value)} placeholder="예) 영업부"/>
+            <label className="field__label" htmlFor="uf-dept">부서</label>
+            <input id="uf-dept" className="input" value={form.dept} onChange={e => set('dept', e.target.value)} placeholder="예) 영업부"/>
           </div>
           <div className="form-grid">
             <div className="field">
-              <label className="field__label">전화번호</label>
-              <input className="input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="010-0000-0000"/>
+              <label className="field__label" htmlFor="uf-phone">전화번호</label>
+              <input id="uf-phone" className="input" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="010-0000-0000"/>
             </div>
             <div className="field">
-              <label className="field__label">이메일</label>
-              <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="user@example.com"/>
+              <label className="field__label" htmlFor="uf-email">이메일</label>
+              <input id="uf-email" className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="user@example.com"/>
             </div>
           </div>
         </div>
@@ -121,10 +122,10 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
 function DeleteConfirmModal({ user, onConfirm, onClose }) {
   return (
     <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 380 }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-user-delete-title" style={{ maxWidth: 380 }}>
         <div className="modal__head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="modal__title">사용자 삭제</span>
-          <button className="btn btn--ghost btn--icon" onClick={onClose}><Icon name="x" size={18}/></button>
+          <span id="modal-user-delete-title" className="modal__title">사용자 삭제</span>
+          <button className="btn btn--ghost btn--icon" aria-label="닫기" onClick={onClose}><Icon name="x" size={18}/></button>
         </div>
         <div className="modal__body">
           <p style={{ margin: 0, color: 'var(--ink-2)', lineHeight: 1.6 }}>
@@ -209,8 +210,9 @@ function AdminUsersScreen() {
             <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
               {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회'}
-              {r.value === 'production' && '생산 대기 · 생산 입력 · 생산 완료 · 조회'}
-              {r.value === 'as' && '조회 · A/S 이력 입력 (유지보수/기술지원)'}
+              {r.value === 'production' && '생산 대기 · 생산 입력 · 출하대기 · 조회'}
+              {r.value === 'quality' && '출하대기 · 조회'}
+              {r.value === 'as' && '조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
             </div>
             <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>
               {users.filter(u => u.role === r.value).length}명
@@ -257,7 +259,7 @@ function AdminUsersScreen() {
                   </td>
                   <td><span className="cell-mono">@{u.user_id}</span></td>
                   <td>
-                    <span className="usermenu__role" data-role={u.role} style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11.5, fontWeight: 600 }}>
+                    <span className="usermenu__role" data-role={u.role} style={{ padding: '3px 8px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
                       {window.ROLE_LABEL[u.role] || u.role}
                     </span>
                   </td>
@@ -266,13 +268,14 @@ function AdminUsersScreen() {
                   <td className="cell-muted">{u.email || '—'}</td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-                      <button className="btn btn--ghost btn--sm" onClick={() => setModal({ mode: 'edit', user: u })}>
+                      <button className="btn btn--ghost btn--sm" aria-label="편집" onClick={() => setModal({ mode: 'edit', user: u })}>
                         <Icon name="edit" size={13}/>
                       </button>
                       <button className="btn btn--ghost btn--sm"
                         style={{ color: u.user_id === currentUserId ? 'var(--ink-5)' : 'var(--danger)' }}
                         disabled={u.user_id === currentUserId}
                         title={u.user_id === currentUserId ? '본인 계정은 삭제할 수 없습니다' : '삭제'}
+                        aria-label={u.user_id === currentUserId ? '삭제 불가 — 본인 계정' : '삭제'}
                         onClick={() => setModal({ mode: 'delete', user: u })}>
                         <Icon name="trash" size={13}/>
                       </button>

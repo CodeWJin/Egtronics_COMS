@@ -32,7 +32,7 @@ function ProductionMappingScreen() {
     );
   }
 
-  if (order.status === 'COMPLETED') return <CompletedView order={order}/>;
+  if (order.status === 'AWAIT_PICKUP' || order.status === 'COMPLETED') return <CompletedView order={order}/>;
   if (order.status === 'IN_PROGRESS') return <MappingForm order={order}/>;
   return <PendingView order={order}/>;
 }
@@ -379,8 +379,8 @@ function MappingForm({ order }) {
           <div className="form-grid form-grid--3">
             {/* 생산일자 */}
             <div className="field">
-              <label className="field__label"><Icon name="calendar" size={11}/>생산일자 <span className="field__req">*</span></label>
-              <input type="date"
+              <label className="field__label" htmlFor="pm-prod-date"><Icon name="calendar" size={11}/>생산일자 <span className="field__req">*</span></label>
+              <input id="pm-prod-date" type="date"
                      className={`input ${showErr('prod_date') ? 'input--error' : ''}`}
                      value={form.prod_date}
                      onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); update('lot_no', ''); }}/>
@@ -390,8 +390,9 @@ function MappingForm({ order }) {
 
             {/* 로트 */}
             <div className="field">
-              <label className="field__label"><Icon name="package" size={11}/>로트번호 <span className="field__req">*</span></label>
-              <input className={`input ${showErr('lot_no') ? 'input--error' : ''}`}
+              <label className="field__label" htmlFor="pm-lot-no"><Icon name="package" size={11}/>로트번호 <span className="field__req">*</span></label>
+              <input id="pm-lot-no"
+                     className={`input ${showErr('lot_no') ? 'input--error' : ''}`}
                      style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                      placeholder="예: L26-W22-A"
                      value={form.lot_no}
@@ -402,10 +403,11 @@ function MappingForm({ order }) {
 
             {/* 시리얼 */}
             <div className="field">
-              <label className="field__label"><Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span></label>
+              <label className="field__label" htmlFor="pm-serial-no"><Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span></label>
               <div className="input-group">
-                <input className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
+                <input id="pm-serial-no"
+                       className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
+                       style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                        placeholder="예: SGT100K-26052801A"
                        value={form.serial_no}
                        onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
@@ -429,8 +431,8 @@ function MappingForm({ order }) {
             {/* 검정일자 — 공용 충전기만 표시 */}
             {isPublic && (
               <div className="field">
-                <label className="field__label"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
-                <input type="date"
+                <label className="field__label" htmlFor="pm-inspection-date"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
+                <input id="pm-inspection-date" type="date"
                        className={`input ${showErr('inspection_date') ? 'input--error' : ''}`}
                        value={form.inspection_date}
                        onChange={(e) => { update('inspection_date', e.target.value); setTouched(t => ({ ...t, inspection_date: 1 })); }}/>
@@ -441,7 +443,7 @@ function MappingForm({ order }) {
 
             {/* S/W 버전 */}
             <div className="field col-span-2">
-              <label className="field__label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></label>
+              <div className="field__label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
               <div className="tagpicker">
                 {swVersions.map(v => (
                   <button key={v.tag}
@@ -487,8 +489,9 @@ function MappingForm({ order }) {
 
             {/* 문서번호 */}
             <div className="field col-span-2">
-              <label className="field__label"><Icon name="doc" size={11}/>문서번호 (기능 검사 성적서) <span className="field__req">*</span></label>
-              <input className={`input ${showErr('doc_no') ? 'input--error' : ''}`}
+              <label className="field__label" htmlFor="pm-doc-no"><Icon name="doc" size={11}/>문서번호 (기능 검사 성적서) <span className="field__req">*</span></label>
+              <input id="pm-doc-no"
+                     className={`input ${showErr('doc_no') ? 'input--error' : ''}`}
                      style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                      placeholder="예: QC-26-0528-A"
                      value={form.doc_no}

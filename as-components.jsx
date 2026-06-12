@@ -46,7 +46,7 @@ function ChargerSearchModal({ onSelect, onClose }) {
   const [query, setQuery] = useStateASC('');
 
   const orders = useMemoASC(
-    () => window.PMDB.loadOrders().filter(o => o.status === 'COMPLETED'),
+    () => window.PMDB.loadOrders().filter(o => o.status === 'AWAIT_PICKUP' || o.status === 'COMPLETED'),
     []
   );
 
@@ -62,9 +62,9 @@ function ChargerSearchModal({ onSelect, onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 620, maxWidth: '96vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-charger-search-title" style={{ width: 620, maxWidth: '96vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">충전소 검색</h3>
+          <h3 id="modal-charger-search-title" className="modal__title">충전소 검색</h3>
           <p className="modal__sub">생산완료된 오더 중 충전소를 검색하여 정보를 자동 입력합니다</p>
         </div>
         <div className="modal__body">

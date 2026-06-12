@@ -88,7 +88,7 @@ function App() {
           {s.view === 'sales'          && <SalesInputScreen/>}
           {s.view === 'waiting'        && <ProductionWaitingScreen/>}
           {s.view === 'mapping'        && <ProductionMappingScreen/>}
-          {s.view === 'completed'      && <ProductionCompleteScreen/>}
+          {s.view === 'AwaitPickup'    && <ProductionCompleteScreen/>}
           {s.view === 'lookup'         && <OrderLookupScreen/>}
           {s.view === 'admin'          && <AdminUsersScreen/>}
           {s.view === 'as-receipt'     && <AsReceiptScreen/>}
@@ -120,7 +120,7 @@ function App() {
         <TweakSection label="데모 액션" />
         <TweakButton label="신규 오더 화면으로" onClick={() => window.actions.setView('sales')}/>
         <TweakButton label="생산 대기 화면으로" onClick={() => window.actions.setView('waiting')}/>
-        <TweakButton label="생산 완료 화면으로" onClick={() => window.actions.setView('completed')}/>
+        <TweakButton label="생산 완료 화면으로" onClick={() => window.actions.setView('AwaitPickup')}/>
         <TweakButton label="통합 조회 화면으로" onClick={() => window.actions.setView('lookup')}/>
         <TweakButton label="첫 오더 매핑 시작" onClick={() => {
           const store = window['__pm_store__'];

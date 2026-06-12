@@ -1,7 +1,7 @@
 // 영업 부서 입력 화면 (Sales Input Dashboard)
 const { useState: useStateSI, useRef: useRefSI, useEffect: useEffectSI } = React;
 
-function ComboField({ value, onChange, options, placeholder, error, displayKey = 'name', metaKey = 'spec' }) {
+function ComboField({ value, onChange, options, placeholder, error, displayKey = 'name', metaKey = 'spec', ariaLabel }) {
   const [open, setOpen] = useStateSI(false);
   const [highlight, setHighlight] = useStateSI(0);
   const [showAll, setShowAll] = useStateSI(false);
@@ -22,6 +22,7 @@ function ComboField({ value, onChange, options, placeholder, error, displayKey =
       <div className="input-group">
         <input className={`input ${error ? 'input--error' : ''}`}
                placeholder={placeholder}
+               aria-label={ariaLabel}
                value={value || ''}
                onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlight(0); setShowAll(false); }}
                onFocus={() => setOpen(true)}
@@ -84,7 +85,7 @@ function ScannerInput({ value, onChange, placeholder, error, maxLength, format }
   );
 }
 
-function AddressField({ value, onChange, error }) {
+function AddressField({ value, onChange, error, id }) {
   const openPostcode = () => {
     const open = () => new window.daum.Postcode({
       oncomplete(data) {
@@ -104,7 +105,7 @@ function AddressField({ value, onChange, error }) {
 
   return (
     <div className="input-group">
-      <input className={`input ${error ? 'input--error' : ''}`}
+      <input id={id} className={`input ${error ? 'input--error' : ''}`}
              placeholder="우편번호 검색 후 상세주소 입력"
              value={value || ''}
              onChange={(e) => onChange(e.target.value)}/>
@@ -308,12 +309,13 @@ function SalesInputScreen() {
             <div className="card__body">
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label">고객사 <span className="field__req">*</span><span className="helpdot" title="자주 사용하는 고객사는 드롭다운에서 선택">?</span></label>
+                  <div className="field__label">고객사 <span className="field__req">*</span><span className="helpdot" title="자주 사용하는 고객사는 드롭다운에서 선택">?</span></div>
                   <div className="mgr-field">
                     <ComboField value={form.customer_name}
                                 onChange={(v) => { setForm(f => ({ ...f, customer_name: v, customer_manager: '' })); setTouched((t) => ({ ...t, customer_name: 1 })); }}
                                 options={masterCustomers}
                                 placeholder="고객사명 입력 또는 선택"
+                                ariaLabel="고객사"
                                 error={showErr('customer_name')}
                                 metaKey="last"/>
                     <button type="button" className="btn btn--secondary mgr-field__manage"
@@ -330,12 +332,13 @@ function SalesInputScreen() {
                   {showErr('customer_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.customer_name}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label">고객사 담당자 <span className="field__req">*</span><span className="helpdot" title="고객사별 담당자는 DB(tb_customer_manager)에서 관리됩니다">?</span></label>
+                  <div className="field__label">고객사 담당자 <span className="field__req">*</span><span className="helpdot" title="고객사별 담당자는 DB(tb_customer_manager)에서 관리됩니다">?</span></div>
                   <div className="mgr-field">
                     <ComboField value={form.customer_manager}
                                 onChange={(v) => { update('customer_manager', v); setTouched((t) => ({ ...t, customer_manager: 1 })); }}
                                 options={managers}
                                 placeholder={form.customer_name ? '담당자 선택 또는 입력' : '고객사를 먼저 선택하세요'}
+                                ariaLabel="고객사 담당자"
                                 error={showErr('customer_manager')}
                                 displayKey="display"
                                 metaKey="email"/>
@@ -356,7 +359,7 @@ function SalesInputScreen() {
                   )}
                 </div>
                 <div className="field">
-                  <label className="field__label">충전기 용도 <span className="field__req">*</span></label>
+                  <div className="field__label">충전기 용도 <span className="field__req">*</span></div>
                   <div className="chips">
                     {['공용', '비공용'].map(t => (
                       <button key={t} type="button"
@@ -408,12 +411,13 @@ function SalesInputScreen() {
                   </div>
                 )}
                 <div className="field">
-                  <label className="field__label">모델 <span className="field__req">*</span></label>
+                  <div className="field__label">모델 <span className="field__req">*</span></div>
                   <div className="mgr-field">
                     <ComboField value={form.model_name}
                                 onChange={(v) => { update('model_name', v); setTouched((t) => ({ ...t, model_name: 1 })); }}
                                 options={masterModels}
                                 placeholder="충전기 라인업 선택"
+                                ariaLabel="모델"
                                 error={showErr('model_name')}/>
                     <button type="button" className="btn btn--secondary mgr-field__manage"
                             onClick={() => setShowAddModel(true)}
@@ -429,7 +433,7 @@ function SalesInputScreen() {
                   {showErr('model_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label">케이블 길이 <span className="field__req">*</span></label>
+                  <div className="field__label">케이블 길이 <span className="field__req">*</span></div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <div className="chips">
                       {masterCableLengths.map(c => (
@@ -441,7 +445,7 @@ function SalesInputScreen() {
                         </button>
                       ))}
                     </div>
-                    <button type="button" className="btn btn--secondary btn--sm"
+                    <button type="button" className="btn btn--secondary mgr-field__manage"
                             onClick={() => setShowCableMgr(true)}
                             title="케이블 길이 관리">
                       <Icon name="settings" size={13}/> 관리
@@ -450,9 +454,9 @@ function SalesInputScreen() {
                   {showErr('cable_length') && <div className="field__err"><Icon name="alert" size={12}/> {errors.cable_length}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label">납품일자 <span className="field__req">*</span></label>
+                  <label className="field__label" htmlFor="si-delivery-date">납품일자 <span className="field__req">*</span></label>
                   <div className="input-group">
-                    <input type="date"
+                    <input id="si-delivery-date" type="date"
                            className={`input ${showErr('delivery_date') ? 'input--error' : ''}`}
                            value={form.delivery_date}
                            onChange={(e) => { update('delivery_date', e.target.value); setTouched((t) => ({ ...t, delivery_date: 1 })); }}/>
@@ -460,8 +464,8 @@ function SalesInputScreen() {
                   {showErr('delivery_date') && <div className="field__err"><Icon name="alert" size={12}/> {errors.delivery_date}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label">충전소 ID <span className="helpdot" title="환경부 또는 자체 관제용 충전소 고유 식별자">?</span></label>
-                  <input className={`input ${showErr('station_id') ? 'input--error' : ''}`}
+                  <label className="field__label" htmlFor="si-station-id">충전소 ID <span className="helpdot" title="환경부 또는 자체 관제용 충전소 고유 식별자">?</span></label>
+                  <input id="si-station-id" className={`input ${showErr('station_id') ? 'input--error' : ''}`}
                          placeholder="예: CT3006"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.station_id}
@@ -486,15 +490,15 @@ function SalesInputScreen() {
             <div className="card__body">
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label">라우터번호 (S/N)</label>
-                  <input className={`input ${showErr('router_no') ? 'input--error' : ''}`}
+                  <label className="field__label" htmlFor="si-router-no">라우터번호 (S/N)</label>
+                  <input id="si-router-no" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.router_no}
                          onChange={(e) => { update('router_no', e.target.value); setTouched((t) => ({ ...t, router_no: 1 })); }}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">USIM번호 (ICCID)</label>
-                  <input className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
+                  <label className="field__label" htmlFor="si-usim-no">USIM번호 (ICCID)</label>
+                  <input id="si-usim-no" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.usim_no}
                          onChange={(e) => { update('usim_no', e.target.value); setTouched((t) => ({ ...t, usim_no: 1 })); }}/>
@@ -516,23 +520,23 @@ function SalesInputScreen() {
             <div className="card__body">
               <div className="form-grid">
                 <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="field__label">설치주소</label>
-                  <AddressField value={form.install_address}
+                  <label className="field__label" htmlFor="si-install-addr">설치주소</label>
+                  <AddressField id="si-install-addr" value={form.install_address}
                                 onChange={(v) => { update('install_address', v); setTouched((t) => ({ ...t, install_address: 1 })); }}
                                 error={showErr('install_address')}/>
                   <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 검색하세요</div>
                   {showErr('install_address') && <div className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label">현장담당자 이름</label>
-                  <input className="input"
+                  <label className="field__label" htmlFor="si-field-mgr-name">현장담당자 이름</label>
+                  <input id="si-field-mgr-name" className="input"
                          placeholder="담당자 이름"
                          value={form.field_manager_name}
                          onChange={(e) => { update('field_manager_name', e.target.value); setTouched((t) => ({ ...t, field_manager_name: 1 })); }}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">현장담당자 연락처</label>
-                  <input className="input"
+                  <label className="field__label" htmlFor="si-field-mgr-phone">현장담당자 연락처</label>
+                  <input id="si-field-mgr-phone" className="input"
                          style={{ fontFamily: 'var(--font-mono)' }}
                          placeholder="010-0000-0000"
                          value={form.field_manager_phone}
@@ -735,9 +739,9 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 520, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-customer-mgr-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">고객사 담당자 관리</h3>
+          <h3 id="modal-customer-mgr-title" className="modal__title">고객사 담당자 관리</h3>
           <p className="modal__sub"><strong style={{ color: 'var(--ink-1)' }}>{customerName}</strong> · tb_customer_manager</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -774,19 +778,19 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
               <div className="mgr-edit__title">{draft.manager_id ? '담당자 수정' : '담당자 추가'}</div>
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label">이름 <span className="field__req">*</span></label>
-                  <input className="input" autoFocus value={draft.name}
+                  <label className="field__label" htmlFor="si-mgr-name">이름 <span className="field__req">*</span></label>
+                  <input id="si-mgr-name" className="input" autoFocus value={draft.name}
                          onChange={(e) => setDraft(d => ({ ...d, name: e.target.value }))}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">휴대폰</label>
-                  <input className="input" style={{ fontFamily: 'var(--font-mono)' }} placeholder="010-0000-0000"
+                  <label className="field__label" htmlFor="si-mgr-phone">휴대폰</label>
+                  <input id="si-mgr-phone" className="input" style={{ fontFamily: 'var(--font-mono)' }} placeholder="010-0000-0000"
                          value={draft.phone}
                          onChange={(e) => setDraft(d => ({ ...d, phone: fmtPhone(e.target.value) }))}/>
                 </div>
                 <div className="field col-span-2">
-                  <label className="field__label">이메일</label>
-                  <input className="input" placeholder="name@company.com" value={draft.email}
+                  <label className="field__label" htmlFor="si-mgr-email">이메일</label>
+                  <input id="si-mgr-email" className="input" placeholder="name@company.com" value={draft.email}
                          onChange={(e) => setDraft(d => ({ ...d, email: e.target.value }))}/>
                 </div>
               </div>
@@ -825,9 +829,9 @@ function OrderHistoryModal({ orderId, onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 560, maxWidth: '96vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-order-history-title" style={{ width: 560, maxWidth: '96vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title"><Icon name="clock" size={14}/> 수정 이력</h3>
+          <h3 id="modal-order-history-title" className="modal__title"><Icon name="clock" size={14}/> 수정 이력</h3>
           <p className="modal__sub">오더 #{orderId} · tb_order_history · {history.length}건</p>
         </div>
         <div className="modal__body" style={{ maxHeight: 440, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -894,21 +898,21 @@ function AddCustomerModal({ onClose, onAdded }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 400, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-customer-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">고객사 추가</h3>
+          <h3 id="modal-add-customer-title" className="modal__title">고객사 추가</h3>
           <p className="modal__sub">신규 고객사를 마스터 목록에 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="field">
-            <label className="field__label">고객사명 <span className="field__req">*</span></label>
-            <input className="input" autoFocus value={name}
+            <label className="field__label" htmlFor="si-add-cust-name">고객사명 <span className="field__req">*</span></label>
+            <input id="si-add-cust-name" className="input" autoFocus value={name}
                    onChange={(e) => { setName(e.target.value); setErr(''); }}
                    placeholder="예: (주)에이비씨"/>
           </div>
           <div className="field">
-            <label className="field__label">코드 <span className="field__req">*</span></label>
-            <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+            <label className="field__label" htmlFor="si-add-cust-code">코드 <span className="field__req">*</span></label>
+            <input id="si-add-cust-code" className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
                    value={code}
                    onChange={(e) => { setCode(e.target.value); setErr(''); }}
                    placeholder="예: CAS"
@@ -955,9 +959,9 @@ function CustomerManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 520, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-customer-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">고객사 관리</h3>
+          <h3 id="modal-manage-customer-title" className="modal__title">고객사 관리</h3>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="mgr-list">
@@ -987,13 +991,13 @@ function CustomerManageModal({ onClose, onChanged }) {
               <div className="mgr-edit__title">고객사 수정</div>
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label">고객사명 <span className="field__req">*</span></label>
-                  <input className="input" autoFocus value={draft.name}
+                  <label className="field__label" htmlFor="si-edit-cust-name">고객사명 <span className="field__req">*</span></label>
+                  <input id="si-edit-cust-name" className="input" autoFocus value={draft.name}
                          onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">코드 <span className="field__req">*</span></label>
-                  <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+                  <label className="field__label" htmlFor="si-edit-cust-code">코드 <span className="field__req">*</span></label>
+                  <input id="si-edit-cust-code" className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
                          value={draft.code}
                          onChange={(e) => { setDraft(d => ({ ...d, code: e.target.value })); setErr(''); }}/>
                 </div>
@@ -1031,27 +1035,27 @@ function AddModelModal({ onClose, onAdded }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 420, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-model-title" style={{ width: 420, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">모델 추가</h3>
+          <h3 id="modal-add-model-title" className="modal__title">모델 추가</h3>
           <p className="modal__sub">신규 모델을 마스터 목록에 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="field">
-            <label className="field__label">모델명 <span className="field__req">*</span></label>
-            <input className="input" autoFocus value={name}
+            <label className="field__label" htmlFor="si-add-model-name">모델명 <span className="field__req">*</span></label>
+            <input id="si-add-model-name" className="input" autoFocus value={name}
                    onChange={(e) => { setName(e.target.value); setErr(''); }}
                    placeholder="예: 50kW 1ch"/>
           </div>
           <div className="field">
-            <label className="field__label">사양</label>
-            <input className="input" value={spec}
+            <label className="field__label" htmlFor="si-add-model-spec">사양</label>
+            <input id="si-add-model-spec" className="input" value={spec}
                    onChange={(e) => { setSpec(e.target.value); setErr(''); }}
                    placeholder="예: DC 콤보 · 단일포트"/>
           </div>
           <div className="field">
-            <label className="field__label">출력</label>
-            <input className="input" value={power}
+            <label className="field__label" htmlFor="si-add-model-power">출력</label>
+            <input id="si-add-model-power" className="input" value={power}
                    onChange={(e) => { setPower(e.target.value); setErr(''); }}
                    placeholder="예: 50kW"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
@@ -1095,9 +1099,9 @@ function ModelManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 560, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-model-title" style={{ width: 560, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">모델 관리</h3>
+          <h3 id="modal-manage-model-title" className="modal__title">모델 관리</h3>
           <p className="modal__sub">tb_master_model</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1128,18 +1132,18 @@ function ModelManageModal({ onClose, onChanged }) {
               <div className="mgr-edit__title">모델 수정</div>
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label">모델명 <span className="field__req">*</span></label>
-                  <input className="input" autoFocus value={draft.name}
+                  <label className="field__label" htmlFor="si-edit-model-name">모델명 <span className="field__req">*</span></label>
+                  <input id="si-edit-model-name" className="input" autoFocus value={draft.name}
                          onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">출력</label>
-                  <input className="input" value={draft.power}
+                  <label className="field__label" htmlFor="si-edit-model-power">출력</label>
+                  <input id="si-edit-model-power" className="input" value={draft.power}
                          onChange={(e) => { setDraft(d => ({ ...d, power: e.target.value })); setErr(''); }}/>
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="field__label">사양</label>
-                  <input className="input" value={draft.spec}
+                  <label className="field__label" htmlFor="si-edit-model-spec">사양</label>
+                  <input id="si-edit-model-spec" className="input" value={draft.spec}
                          onChange={(e) => { setDraft(d => ({ ...d, spec: e.target.value })); setErr(''); }}/>
                 </div>
               </div>
@@ -1186,9 +1190,9 @@ function CableLengthManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 400, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-cable-length-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">케이블 길이 관리</h3>
+          <h3 id="modal-cable-length-title" className="modal__title">케이블 길이 관리</h3>
           <p className="modal__sub">tb_master_cable_length</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1250,21 +1254,21 @@ function AddCpoModal({ onClose, onAdded }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 400, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-cpo-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">CPO 운영사 추가</h3>
+          <h3 id="modal-add-cpo-title" className="modal__title">CPO 운영사 추가</h3>
           <p className="modal__sub">신규 CPO 운영사를 마스터 목록에 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="field">
-            <label className="field__label">CPO 운영사명 <span className="field__req">*</span></label>
-            <input className="input" autoFocus value={name}
+            <label className="field__label" htmlFor="si-add-cpo-name">CPO 운영사명 <span className="field__req">*</span></label>
+            <input id="si-add-cpo-name" className="input" autoFocus value={name}
                    onChange={(e) => { setName(e.target.value); setErr(''); }}
                    placeholder="예: 한국전력공사"/>
           </div>
           <div className="field">
-            <label className="field__label">코드 <span className="field__req">*</span></label>
-            <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+            <label className="field__label" htmlFor="si-add-cpo-code">코드 <span className="field__req">*</span></label>
+            <input id="si-add-cpo-code" className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
                    value={code}
                    onChange={(e) => { setCode(e.target.value); setErr(''); }}
                    placeholder="예: KEPCO"
@@ -1310,9 +1314,9 @@ function CpoManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 520, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-cpo-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">CPO 운영사 관리</h3>
+          <h3 id="modal-manage-cpo-title" className="modal__title">CPO 운영사 관리</h3>
           <p className="modal__sub">tb_master_cpo</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1342,13 +1346,13 @@ function CpoManageModal({ onClose, onChanged }) {
               <div className="mgr-edit__title">CPO 운영사 수정</div>
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label">CPO 운영사명 <span className="field__req">*</span></label>
-                  <input className="input" autoFocus value={draft.name}
+                  <label className="field__label" htmlFor="si-edit-cpo-name">CPO 운영사명 <span className="field__req">*</span></label>
+                  <input id="si-edit-cpo-name" className="input" autoFocus value={draft.name}
                          onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">코드 <span className="field__req">*</span></label>
-                  <input className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+                  <label className="field__label" htmlFor="si-edit-cpo-code">코드 <span className="field__req">*</span></label>
+                  <input id="si-edit-cpo-code" className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
                          value={draft.code}
                          onChange={(e) => { setDraft(d => ({ ...d, code: e.target.value })); setErr(''); }}/>
                 </div>

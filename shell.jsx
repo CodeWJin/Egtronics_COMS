@@ -11,7 +11,7 @@ window[STORE_KEY] = window[STORE_KEY] || {
   editingOrderId: null,
   currentUser: null,
   dbReady: false,
-  view: 'sales', // 'sales' | 'waiting' | 'mapping' | 'completed' | 'lookup' | 'as-receipt' | 'as-processing'
+  view: 'sales', // 'sales' | 'waiting' | 'mapping' | 'AwaitPickup' | 'lookup' | 'as-receipt' | 'as-processing'
   waitingView: 'kanban', // 'table' | 'card' | 'kanban' | 'timeline'
   toast: null,
   completingOrderId: null,
@@ -164,12 +164,21 @@ window.actions = {
       window.PMDB.completeOrder(order_id, production);
       s.orders = window.PMDB.loadOrders();
       s.completingOrderId = null;
-      s.toast = { kind: 'success', text: `오더 #${order_id} 생산완료 처리` };
+      s.toast = { kind: 'success', text: `오더 #${order_id} 생산완료 — 출하대기로 이동` };
       s.selectedOrderId = null;
       s.view = 'waiting';
       notify();
       setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2600);
     }, 900);
+  },
+  shipOrder(order_id) {
+    const s = window[STORE_KEY];
+    const ok = window.PMDB.shipOrder(order_id);
+    if (!ok) { window.actions.flashToast('출하대기 상태의 오더만 출하 처리할 수 있습니다', 'error'); return; }
+    s.orders = window.PMDB.loadOrders();
+    s.toast = { kind: 'success', text: `오더 #${order_id} 출하 완료 처리` };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
   },
 
   // ── AS 접수 ────────────────────────────────────────────────────
@@ -206,7 +215,7 @@ function TopNav() {
   const s = useStore();
   const pendingCount = s.orders.filter(o => o.status === 'PENDING').length;
   const inProgressCount = s.orders.filter(o => o.status === 'IN_PROGRESS').length;
-  const completedCount = s.orders.filter(o => o.status === 'COMPLETED').length;
+  const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP').length;
   const user = s.currentUser;
   const allowed = user ? (window.ROLE_TABS[user.role] || []) : [];
 
@@ -216,7 +225,7 @@ function TopNav() {
     sales:           { label: '영업 입력' },
     waiting:         { label: '생산 대기', count: pendingCount + inProgressCount },
     mapping:         { label: '생산 입력' },
-    completed:       { label: '출하대기', count: completedCount },
+    AwaitPickup:     { label: '출하대기', count: awaitPickupCount },
     lookup:          { label: '조회' },
     admin:           { label: '사용자 관리' },
     'as-receipt':    { label: 'AS 접수', count: asCount },
@@ -234,15 +243,15 @@ function TopNav() {
         {allowed.map(k => (
           <button key={k}
                   className={`topnav__tab ${s.view === k ? 'topnav__tab--active' : ''}`}
+                  aria-current={s.view === k ? 'page' : undefined}
                   onClick={() => window.actions.setView(k)}>
             {TAB_META[k].label}
-            {TAB_META[k].count != null && <span className="topnav__count">{TAB_META[k].count}</span>}
+            {TAB_META[k].count != null && <span className="topnav__count" aria-label={`${TAB_META[k].count}건`}>{TAB_META[k].count}</span>}
           </button>
         ))}
       </nav>
       <div className="topnav__spacer" />
       <div className="topnav__right">
-        
         {user && <UserMenu user={user}/>}
       </div>
     </header>
@@ -257,15 +266,10 @@ function UserMenu({ user }) {
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, []);
-  const initial = user.role;//(user.name || user.user_id || '?').slice(0, 1);
-  
   return (
     <div className="usermenu" ref={ref}>
-      <button className="usermenu__trigger" onClick={() => setOpen(v => !v)}>
-        
+      <button className="usermenu__trigger" aria-expanded={open} aria-label={`사용자 메뉴 — ${user.name}`} onClick={() => setOpen(v => !v)}>
         <span className="usermenu__role" data-role={user.role}>{window.ROLE_LABEL[user.role]}</span>
-        <span className="usermenu__meta">
-        </span>
         <span className="usermenu__name">{user.name}</span>
         <Icon name="chevron-down" size={20} style={{ color: 'var(--ink-4)' }}/>
       </button>

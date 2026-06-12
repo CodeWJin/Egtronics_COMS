@@ -2,12 +2,13 @@
 
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
-  admin:      ['sales', 'waiting', 'mapping', 'completed', 'lookup', 'admin', 'as-receipt', 'as-processing'],
+  admin:      ['sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
   sales:      ['sales', 'waiting', 'lookup'],
-  production: ['waiting', 'mapping', 'completed', 'lookup'],
+  production: ['waiting', 'mapping', 'AwaitPickup', 'lookup'],
+  quality:    ['AwaitPickup', 'lookup'],
   as:         ['lookup', 'as-receipt', 'as-processing'],
 };
-window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', as: 'A/S' };
+window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질', as: 'A/S' };
 
 const { useState: useStateAU } = React;
 
@@ -49,15 +50,15 @@ function LoginScreen() {
 
         <form onSubmit={submit} className="login__form">
           <div className="field">
-            <label className="field__label"><Icon name="user" size={11}/>아이디</label>
-            <input className={`input ${err ? 'input--error' : ''}`} autoFocus
+            <label className="field__label" htmlFor="login-userid"><Icon name="user" size={11}/>아이디</label>
+            <input id="login-userid" className={`input ${err ? 'input--error' : ''}`} autoFocus
                    placeholder="예: admin"
                    value={userId}
                    onChange={(e) => { setUserId(e.target.value); setErr(''); }}/>
           </div>
           <div className="field">
-            <label className="field__label"><Icon name="lock" size={11}/>비밀번호</label>
-            <input type="password"
+            <label className="field__label" htmlFor="login-pw"><Icon name="lock" size={11}/>비밀번호</label>
+            <input id="login-pw" type="password"
                    className={`input ${err ? 'input--error' : ''}`}
                    placeholder="••••"
                    value={pw}
@@ -223,9 +224,9 @@ function PasswordResetModal({ onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ width: 420, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-pw-reset-title" style={{ width: 420, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 className="modal__title">{step === 4 ? '변경 완료' : '비밀번호 변경'}</h3>
+          <h3 id="modal-pw-reset-title" className="modal__title">{step === 4 ? '변경 완료' : '비밀번호 변경'}</h3>
           <p className="modal__sub">이메일 본인확인 후 새 비밀번호를 설정합니다</p>
         </div>
 
@@ -249,13 +250,13 @@ function PasswordResetModal({ onClose }) {
           {step === 1 && (
             <>
               <div className="field">
-                <label className="field__label"><Icon name="user" size={11}/> 아이디</label>
-                <input className="input" autoFocus placeholder="예: admin" value={userId}
+                <label className="field__label" htmlFor="reset-userid"><Icon name="user" size={11}/> 아이디</label>
+                <input id="reset-userid" className="input" autoFocus placeholder="예: admin" value={userId}
                        onChange={(e) => { setUserId(e.target.value); setErr(''); }}/>
               </div>
               <div className="field">
-                <label className="field__label"><Icon name="bell" size={11}/> 이메일</label>
-                <input className="input" type="email" placeholder="등록된 이메일 주소"
+                <label className="field__label" htmlFor="reset-email"><Icon name="bell" size={11}/> 이메일</label>
+                <input id="reset-email" className="input" type="email" placeholder="등록된 이메일 주소"
                        value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }}/>
                 <div className="field__hint">계정에 등록된 이메일과 일치하면 인증번호가 발급됩니다 (유효시간 3분)</div>
               </div>
@@ -279,8 +280,8 @@ function PasswordResetModal({ onClose }) {
               </div>
 
               <div className="field">
-                <label className="field__label">인증번호 6자리 입력</label>
-                <input className="input otp-input" autoFocus inputMode="numeric" maxLength={6}
+                <label className="field__label" htmlFor="au-otp-code">인증번호 6자리 입력</label>
+                <input id="au-otp-code" className="input otp-input" autoFocus inputMode="numeric" maxLength={6}
                        placeholder="000000" disabled={expired}
                        value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setErr(''); }}/>
 
@@ -310,13 +311,13 @@ function PasswordResetModal({ onClose }) {
           {step === 3 && (
             <>
               <div className="field">
-                <label className="field__label"><Icon name="lock" size={11}/> 새 비밀번호</label>
-                <input type="password" className="input" autoFocus placeholder="4자 이상"
+                <label className="field__label" htmlFor="au-new-pw"><Icon name="lock" size={11}/> 새 비밀번호</label>
+                <input id="au-new-pw" type="password" className="input" autoFocus placeholder="4자 이상"
                        value={newPw} onChange={(e) => { setNewPw(e.target.value); setErr(''); }}/>
               </div>
               <div className="field">
-                <label className="field__label"><Icon name="lock" size={11}/> 새 비밀번호 확인</label>
-                <input type="password" className="input" placeholder="다시 입력"
+                <label className="field__label" htmlFor="au-confirm-pw"><Icon name="lock" size={11}/> 새 비밀번호 확인</label>
+                <input id="au-confirm-pw" type="password" className="input" placeholder="다시 입력"
                        value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setErr(''); }}/>
               </div>
             </>

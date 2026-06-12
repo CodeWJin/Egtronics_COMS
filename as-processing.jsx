@@ -56,6 +56,7 @@ function AsProcessingScreen() {
             <input
               className="input"
               style={{ fontSize: 13 }}
+              aria-label="AS 검색 — 접수번호, 고객사, 충전소 ID"
               placeholder="접수번호, 고객사, 충전소 ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -144,7 +145,6 @@ function AsListCard({ r, active, onClick }) {
 
 // ── 처리 상세 패널 ───────────────────────────────────────────────
 function AsDetailPanel({ reception: r }) {
-  const s = window.useStore();
   const [tab, setTab] = useStateAP('process'); // 'process' | 'info' | 'log'
 
   const [form, setForm] = useStateAP({
@@ -215,7 +215,7 @@ function AsDetailPanel({ reception: r }) {
           <AsPriorityBadge priority={r.priority}/>
           <AsStatusBadge status={r.status}/>
           <div style={{ flex: 1 }} />
-          <button className="btn btn--ghost btn--sm" onClick={() => window.actions.selectAs(null)} title="패널 닫기">
+          <button className="btn btn--ghost btn--sm" aria-label="패널 닫기" onClick={() => window.actions.selectAs(null)}>
             <Icon name="x" size={14}/>
           </button>
         </div>
@@ -227,7 +227,7 @@ function AsDetailPanel({ reception: r }) {
               style={{
                 padding: '6px 14px', fontSize: 13, border: 'none', background: 'none', cursor: 'pointer',
                 color: tab === t.key ? 'var(--primary)' : 'var(--ink-3)',
-                fontWeight: tab === t.key ? 700 : 400,
+                fontWeight: tab === t.key ? 600 : 400,
                 borderBottom: tab === t.key ? '2px solid var(--primary)' : '2px solid transparent',
                 marginBottom: -1, transition: 'all 0.14s',
               }}>
@@ -285,7 +285,7 @@ function AsDetailPanel({ reception: r }) {
 
             {/* 상태 변경 */}
             <div className="field">
-              <label className="field__label">처리 상태</label>
+              <div className="field__label">처리 상태</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {window.AS_STATUS_LIST.map(st => (
                   <button
@@ -481,7 +481,7 @@ function getUserDisplayNameAP(userId) {
 function InfoSection({ title, children }) {
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-4)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', letterSpacing: '-0.12px', marginBottom: 8 }}>
         {title}
       </div>
       <div style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>

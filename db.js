@@ -272,12 +272,24 @@
         cache.production = cache.production.filter(x => x.order_id !== order_id);
         cache.production.push({ order_id, ...p });
         const o = cache.orders.find(x => x.order_id === order_id);
-        if (o) o.status = 'COMPLETED';
-        dbLog('INFO', 'write:tb_sales_order', `주문 완료 처리 — order_id=${order_id}`);
+        if (o) o.status = 'AWAIT_PICKUP';
+        dbLog('INFO', 'write:tb_sales_order', `생산 완료 — 출하대기 전환, order_id=${order_id}`);
         dbWrite('tb_sales_order', 'complete', async () => {
           await client.from('tb_production_info').upsert({ order_id, ...p }, { onConflict: 'order_id' });
-          return client.from('tb_sales_order').update({ status: 'COMPLETED' }).eq('order_id', order_id);
+          return client.from('tb_sales_order').update({ status: 'AWAIT_PICKUP' }).eq('order_id', order_id);
         });
+      },
+
+      shipOrder(order_id) {
+        const o = cache.orders.find(x => x.order_id === order_id);
+        if (!o || o.status !== 'AWAIT_PICKUP') {
+          dbLog('WARN', 'write:tb_sales_order', `출하 처리 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
+        o.status = 'COMPLETED';
+        dbLog('INFO', 'write:tb_sales_order', `출하 완료 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'ship', () => client.from('tb_sales_order').update({ status: 'COMPLETED' }).eq('order_id', order_id));
+        return true;
       },
 
       revertOrder(order_id) {
@@ -843,6 +855,7 @@
     updateOrder(id, f)       { return this.backend.updateOrder(id, f); },
     saveProduction(id, p)    { return this.backend.saveProduction(id, p); },
     completeOrder(id, p)     { return this.backend.completeOrder(id, p); },
+    shipOrder(id)            { return this.backend.shipOrder(id); },
     revertOrder(id)          { return this.backend.revertOrder(id); },
     startProduction(id)      { return this.backend.startProduction(id); },
     serialExists(s)          { return this.backend.serialExists(s); },
