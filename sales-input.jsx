@@ -215,6 +215,11 @@ function SalesInputScreen() {
     }
   }, [form.customer_name]);
 
+  const isDirty = isEdit && React.useMemo(() => {
+    if (!editing) return false;
+    return Object.keys(empty).some(k => (form[k] || '') !== (editing[k] || ''));
+  }, [form, editing]);
+
   const errors = {
     customer_name: !form.customer_name && '고객사를 입력해 주세요',
     customer_manager: form.customer_name && !form.customer_manager && '고객사 담당자를 선택해 주세요',
@@ -227,7 +232,7 @@ function SalesInputScreen() {
     install_address: false,
   };
   const hasErr = Object.values(errors).some(Boolean);
-  const filled = Object.entries(form).filter(([k, v]) => v).length;
+  const filled = Object.entries(form).filter(([, v]) => v).length;
   const completionPct = Math.round((filled / 9) * 100);
 
   const submit = () => {
@@ -246,14 +251,15 @@ function SalesInputScreen() {
   };
 
   const showErr = (k) => (showAll || touched[k]) && errors[k];
-  const selectedMgr = managers.find(mgr => mgr.display === form.customer_manager || mgr.name === form.customer_manager) || null;
-
   return (
     <div className="screen">
       <div className="screen__head">
         <div>
           <div className="screen__crumbs">영업 부서 · {isEdit ? `오더 #${editing.order_id} 수정` : '신규 오더 등록'}</div>
-          <h1 className="screen__title">{isEdit ? '오더 정보 수정' : '신규 오더 입력'}</h1>
+          <h1 className="screen__title">
+            {isEdit ? '오더 정보 수정' : '신규 오더 입력'}
+            {isDirty && <span className="badge badge--info" style={{ marginLeft: 10, verticalAlign: 'middle', fontSize: 12, fontWeight: 500 }}>수정됨</span>}
+          </h1>
           <p className="screen__sub">
             {isEdit
               ? <>생산대기 상태의 오더만 수정할 수 있습니다. 변경 후 <strong>수정 저장</strong>을 누르세요.</>
@@ -264,7 +270,7 @@ function SalesInputScreen() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--ink-3)' }}>
             <span>입력 진행률</span>
             <div style={{ width: 100, height: 6, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: `${completionPct}%`, height: '100%', background: 'var(--primary)', transition: 'width 240ms' }}/>
+              <div style={{ width: '100%', height: '100%', background: 'var(--primary)', transformOrigin: 'left', transform: `scaleX(${completionPct / 100})`, transition: 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1)' }}/>
             </div>
             <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--ink-1)', fontWeight: 500 }}>{completionPct}%</span>
           </div>

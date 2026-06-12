@@ -16,7 +16,7 @@ function App() {
     accent: '#2563EB',
     density: 'regular',
     cornerStyle: 'soft',
-    defaultView: 'table',
+    defaultView: 'kanban',
   });
 
   // Apply tweak side-effects
@@ -84,12 +84,14 @@ function App() {
     <div className="app-shell">
       <TopNav/>
       <main style={{ flex: 1, overflow: 'auto' }}>
-        {s.view === 'sales'   && <SalesInputScreen/>}
-        {s.view === 'waiting' && <ProductionWaitingScreen/>}
-        {s.view === 'mapping' && <ProductionMappingScreen/>}
-        {s.view === 'completed' && <ProductionCompleteScreen/>}
-        {s.view === 'lookup'  && <OrderLookupScreen/>}
-        {s.view === 'admin'   && <AdminUsersScreen/>}
+        <div key={s.view} className="screen-enter" style={{ height: '100%' }}>
+          {s.view === 'sales'     && <SalesInputScreen/>}
+          {s.view === 'waiting'   && <ProductionWaitingScreen/>}
+          {s.view === 'mapping'   && <ProductionMappingScreen/>}
+          {s.view === 'completed' && <ProductionCompleteScreen/>}
+          {s.view === 'lookup'    && <OrderLookupScreen/>}
+          {s.view === 'admin'     && <AdminUsersScreen/>}
+        </div>
       </main>
       <Toast/>
 

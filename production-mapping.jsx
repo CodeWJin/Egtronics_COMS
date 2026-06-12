@@ -127,37 +127,111 @@ function KvCell({ k, v, mono, icon }) {
 }
 
 function SalesReadOnly({ order }) {
+  const [prevMap, setPrevMap] = React.useState({});
+  const [history, setHistory] = React.useState([]);
+  const [showHist, setShowHist] = React.useState(false);
+
+  React.useEffect(() => {
+    const hist = window.PMDB.getHistory(order.order_id) || [];
+    const map = {};
+    hist.filter(h => h.action !== 'create').forEach(h => {
+      (h.changed_fields || []).forEach(f => {
+        if (!(f.field in map)) map[f.field] = f.before;
+      });
+    });
+    setPrevMap(map);
+    setHistory(hist.filter(h => h.action !== 'create'));
+  }, [order.order_id]);
+
+  const changedCount = Object.keys(prevMap).length;
+
   return (
     <div className="readonly-strip">
       <div className="readonly-strip__hd">
         <div className="readonly-strip__lbl">
           <Icon name="cart" size={12}/> 영업 입력 정보 · 읽기 전용
+          {changedCount > 0 && (
+            <span className="badge badge--info" style={{ marginLeft: 8 }}>{changedCount}개 수정됨</span>
+          )}
         </div>
+        {history.length > 0 && (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => setShowHist(v => !v)}
+            style={{ marginLeft: 'auto', fontSize: 12 }}>
+            <Icon name="clock" size={12}/> 수정이력 {history.length}건 {showHist ? '▲' : '▼'}
+          </button>
+        )}
       </div>
+
       <div className="readonly-strip__grid">
-        <Cell k="고객사" v={order.customer_name}/>
-        <Cell k="충전기 용도" v={order.usage_type || '공용'}/>
-        {order.cpo_name && <Cell k="CPO 운영사" v={order.cpo_name}/>}
-        <Cell k="모델" v={order.model_name}/>
-        <Cell k="케이블 길이" v={order.cable_length}/>
-        <Cell k="납품일자" v={order.delivery_date} mono/>
-        <Cell k="충전소 ID" v={order.station_id} mono/>
-        <Cell k="라우터 S/N" v={order.router_no} mono/>
-        <Cell k="USIM (ICCID)" v={order.usim_no} mono/>
+        <Cell k="고객사" v={order.customer_name} prev={prevMap.customer_name}/>
+        <Cell k="충전기 용도" v={order.usage_type || '공용'} prev={prevMap.usage_type}/>
+        {order.cpo_name && <Cell k="CPO 운영사" v={order.cpo_name} prev={prevMap.cpo_name}/>}
+        <Cell k="모델" v={order.model_name} prev={prevMap.model_name}/>
+        <Cell k="케이블 길이" v={order.cable_length} prev={prevMap.cable_length}/>
+        <Cell k="납품일자" v={order.delivery_date} mono prev={prevMap.delivery_date}/>
+        <Cell k="충전소 ID" v={order.station_id} mono prev={prevMap.station_id}/>
+        <Cell k="라우터 S/N" v={order.router_no} mono prev={prevMap.router_no}/>
+        <Cell k="USIM (ICCID)" v={order.usim_no} mono prev={prevMap.usim_no}/>
         <div className="readonly-strip__cell" style={{ gridColumn: 'span 2' }}>
           <div className="readonly-strip__cell__k">설치주소</div>
-          <div className="readonly-strip__cell__v">{order.install_address}</div>
+          <div className="readonly-strip__cell__v">
+            {prevMap.install_address && prevMap.install_address !== order.install_address ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <span style={{ textDecoration: 'line-through', color: 'var(--ink-4)', fontSize: '0.88em' }}>{prevMap.install_address}</span>
+                <span style={{ color: 'var(--primary-600)' }}>{order.install_address}</span>
+              </div>
+            ) : order.install_address}
+          </div>
         </div>
       </div>
+
+      {showHist && (
+        <div style={{ borderTop: '1px solid var(--border-1)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {history.map((h, i) => (
+            <div key={h.history_id || i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="badge badge--pending" style={{ fontSize: 11 }}>
+                  <span className="badge__dot"/>수정
+                </span>
+                <span style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--ink-1)' }}>{h.changed_by}</span>
+                <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{h.changed_at}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 4 }}>
+                {(h.changed_fields || []).map(f => (
+                  <div key={f.field} style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8, fontSize: 12, alignItems: 'start' }}>
+                    <span style={{ color: 'var(--ink-3)' }}>{f.label}</span>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ color: 'var(--danger-700)', textDecoration: 'line-through', fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{f.before || '—'}</span>
+                      <span style={{ color: 'var(--ink-4)' }}>→</span>
+                      <span style={{ color: 'var(--success-700)', fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{f.after || '—'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function Cell({ k, v, mono }) {
+function Cell({ k, v, mono, prev }) {
+  const changed = prev !== undefined && prev !== null && prev !== '' && prev !== (v || '');
   return (
     <div className="readonly-strip__cell">
       <div className="readonly-strip__cell__k">{k}</div>
-      <div className={`readonly-strip__cell__v ${mono ? 'readonly-strip__cell__v--mono' : ''}`}>{v}</div>
+      <div className={`readonly-strip__cell__v ${mono ? 'readonly-strip__cell__v--mono' : ''}`}>
+        {changed ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span style={{ textDecoration: 'line-through', color: 'var(--ink-4)', fontSize: '0.88em' }}>{prev || '—'}</span>
+            <span style={{ color: 'var(--primary-600)' }}>{v}</span>
+          </div>
+        ) : v}
+      </div>
     </div>
   );
 }
@@ -413,7 +487,7 @@ function MappingForm({ order }) {
 
             {/* 문서번호 */}
             <div className="field col-span-2">
-              <label className="field__label"><Icon name="doc" size={11}/>문서번호 (출하 검사 성적서) <span className="field__req">*</span></label>
+              <label className="field__label"><Icon name="doc" size={11}/>문서번호 (기능 검사 성적서) <span className="field__req">*</span></label>
               <input className={`input ${showErr('doc_no') ? 'input--error' : ''}`}
                      style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                      placeholder="예: QC-26-0528-A"

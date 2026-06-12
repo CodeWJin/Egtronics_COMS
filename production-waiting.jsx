@@ -36,6 +36,7 @@ function ProductionWaitingScreen() {
 
   const filtered = useMemoPW(() => {
     return s.orders.filter(o => {
+      if (o.status === 'COMPLETED') return false;
       if (filterModel !== 'all' && o.model_name !== filterModel) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -47,6 +48,15 @@ function ProductionWaitingScreen() {
       return true;
     });
   }, [s.orders, search, filterModel]);
+
+  const editedIds = useMemoPW(() => {
+    const set = new Set();
+    filtered.forEach(o => {
+      const hist = window.PMDB.getHistory(o.order_id) || [];
+      if (hist.some(h => h.action !== 'create')) set.add(o.order_id);
+    });
+    return set;
+  }, [filtered]);
 
   const onPick = (id) => {
     const u = s.currentUser;
@@ -113,28 +123,30 @@ function ProductionWaitingScreen() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="table-wrap">
-          <div className="emptystate">
-            <Icon name="package" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
-            <div className="emptystate__title">조건에 맞는 오더가 없습니다</div>
-            <div className="emptystate__sub">검색어 또는 필터를 변경해 보세요</div>
+      <div key={s.waitingView} className="view-enter">
+        {filtered.length === 0 ? (
+          <div className="table-wrap">
+            <div className="emptystate">
+              <Icon name="package" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
+              <div className="emptystate__title">조건에 맞는 오더가 없습니다</div>
+              <div className="emptystate__sub">검색어 또는 필터를 변경해 보세요</div>
+            </div>
           </div>
-        </div>
-      ) : (
-        <>
-          {s.waitingView === 'table' && <ViewTable orders={filtered} onPick={onPick} completingId={s.completingOrderId}/>}
-          {s.waitingView === 'card' && <ViewCards orders={filtered} onPick={onPick} completingId={s.completingOrderId}/>}
-          {s.waitingView === 'kanban' && <ViewKanban orders={filtered} onPick={onPick} completingId={s.completingOrderId}/>}
-          {s.waitingView === 'timeline' && <ViewTimeline orders={filtered} onPick={onPick} completingId={s.completingOrderId}/>}
-        </>
-      )}
+        ) : (
+          <>
+            {s.waitingView === 'table' && <ViewTable orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
+            {s.waitingView === 'card' && <ViewCards orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
+            {s.waitingView === 'kanban' && <ViewKanban orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
+            {s.waitingView === 'timeline' && <ViewTimeline orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ────────── Table view ────────── */
-function ViewTable({ orders, onPick, completingId }) {
+function ViewTable({ orders, onPick, completingId, editedIds }) {
   return (
     <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
@@ -170,7 +182,10 @@ function ViewTable({ orders, onPick, completingId }) {
                   onClick={() => onPick(o.order_id)}>
                 <td className="cell-mono">#{o.order_id}</td>
                 <td>
-                  <div className="cell-strong">{o.customer_name}</div>
+                  <div className="cell-strong">
+                    {o.customer_name}
+                    {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ marginLeft: 6, fontSize: 10.5, verticalAlign: 'middle' }}>수정됨</span>}
+                  </div>
                   <div className="cell-muted">접수 {o.created}</div>
                 </td>
                 <td><span className="badge badge--neutral">{o.model_name}</span></td>
@@ -200,7 +215,7 @@ function ViewTable({ orders, onPick, completingId }) {
 }
 
 /* ────────── Card view ────────── */
-function ViewCards({ orders, onPick, completingId }) {
+function ViewCards({ orders, onPick, completingId, editedIds }) {
   return (
     <div style={{ marginTop: 16 }}>
       <div className="gridcards">
@@ -210,10 +225,15 @@ function ViewCards({ orders, onPick, completingId }) {
           return (
             <div key={o.order_id}
                  className={`ordercard ${completing ? 'row--completing' : ''}`}
-                 onClick={() => onPick(o.order_id)}>
+                 role="button" tabIndex={0}
+                 onClick={() => onPick(o.order_id)}
+                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onPick(o.order_id)}>
               <div className="ordercard__top">
                 <span className="ordercard__id">#{o.order_id} · {o.created}</span>
-                {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
+                  {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal')}
+                </div>
               </div>
               <div>
                 <div className="ordercard__model">{o.model_name}</div>
@@ -246,7 +266,7 @@ function ViewCards({ orders, onPick, completingId }) {
 }
 
 /* ────────── Kanban view ────────── */
-function ViewKanban({ orders, onPick, completingId }) {
+function ViewKanban({ orders, onPick, completingId, editedIds }) {
   const cols = [
     { id: 'fresh',      title: '신규 접수',      dot: 'var(--ink-4)',  filter: (o) => o.status === 'PENDING' && daysUntil(o.delivery_date) > 7 },
     { id: 'urgent',     title: '긴급 (D-7 이내)', dot: 'var(--danger)', filter: (o) => o.status === 'PENDING' && daysUntil(o.delivery_date) <= 7 },
@@ -285,10 +305,15 @@ function ViewKanban({ orders, onPick, completingId }) {
               return (
                 <div key={o.order_id}
                      className={`kanban__card ${completing ? 'row--completing' : ''}`}
-                     onClick={() => onPick(o.order_id)}>
+                     role="button" tabIndex={0}
+                     onClick={() => onPick(o.order_id)}
+                     onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onPick(o.order_id)}>
                   <div className="kanban__card__top">
                     <span className="kanban__card__id">#{o.order_id}</span>
-                    {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal')}
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
+                      {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal')}
+                    </div>
                   </div>
                   <div className="kanban__card__title">{o.model_name}</div>
                   <div className="kanban__card__sub">{o.customer_name}</div>
@@ -310,7 +335,7 @@ function ViewKanban({ orders, onPick, completingId }) {
 }
 
 /* ────────── Timeline view ────────── */
-function ViewTimeline({ orders, onPick, completingId }) {
+function ViewTimeline({ orders, onPick, completingId, editedIds }) {
   // Group by delivery date
   const groups = useMemoPW(() => {
     const g = {};
@@ -344,7 +369,9 @@ function ViewTimeline({ orders, onPick, completingId }) {
                 return (
                   <div key={o.order_id}
                        className={`timeline__item ${completing ? 'row--completing' : ''}`}
-                       onClick={() => onPick(o.order_id)}>
+                       role="button" tabIndex={0}
+                       onClick={() => onPick(o.order_id)}
+                       onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onPick(o.order_id)}>
                     <div className="timeline__item__main">
                       <div className="timeline__item__title">{o.customer_name} · {o.model_name}</div>
                       <div className="timeline__item__sub">
@@ -354,6 +381,7 @@ function ViewTimeline({ orders, onPick, completingId }) {
                       </div>
                     </div>
                     <span className="cell-mono" style={{ color: 'var(--ink-4)' }}>#{o.order_id}</span>
+                    {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
                     {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal') || <span style={{ width: 36 }}/>}
                     {o.status === 'PENDING' ? (
                       <span className={`badge badge--pending ${completing ? 'badge--statusswap' : ''}`}><span className="badge__dot"/>대기</span>

@@ -13,7 +13,7 @@
   "author": "Egtronics",
   "license": "PRIVATE",
   "scripts": {
-    "dev": "vercel dev",
+    "dev": "npx serve . -p 3000",
     "test": "node tests/role-permissions.test.js"
   },
   "dependencies": {

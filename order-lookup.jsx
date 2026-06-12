@@ -11,7 +11,7 @@ function statusBadge(o) {
 function OrderLookupScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStateOL('');
-  const [fStatus, setFStatus] = useStateOL('all');
+  const [fStatus, setFStatus] = useStateOL('COMPLETED');
   const [fModel, setFModel] = useStateOL('all');
   const [models, setModels] = useStateOL(() => window.PMDB.getModels());
 
@@ -223,7 +223,9 @@ function OrderLookupScreen() {
               {filtered.map(o => (
                 <tr key={o.order_id}
                     className={`row--clickable ${o.order_id === selId ? 'row--selected' : ''}`}
-                    onClick={() => setSelId(o.order_id)}>
+                    tabIndex={0}
+                    onClick={() => setSelId(o.order_id)}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelId(o.order_id)}>
                   <td className="cell-mono">#{o.order_id}</td>
                   <td>
                     <div className="cell-strong">{o.customer_name}</div>

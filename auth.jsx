@@ -38,15 +38,14 @@ function LoginScreen() {
     <div className="login">
       <div className="login__card">
         <div className="login__brand">
-          <img className="login__logo" src="logo.ico" alt="Egtronics" />
+          <img className="login__logo" src="logo_header_black.png" alt="Egtronics" />
           <div>
-            <div className="login__brand__name">Egtronics COMS</div>
+            <div className="login__brand__name">COMS</div>
             <div className="login__brand__sub">EV 충전기 영업 · 생산 통합 관리</div>
           </div>
         </div>
 
         <h1 className="login__title">로그인</h1>
-        <p className="login__lead">부서 계정으로 로그인하세요. 역할에 따라 접근 가능한 메뉴가 달라집니다.</p>
 
         <form onSubmit={submit} className="login__form">
           <div className="field">

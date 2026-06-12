@@ -183,7 +183,7 @@ function TopNav() {
     sales:     { label: '영업 입력' },
     waiting:   { label: '생산 대기', count: pendingCount + inProgressCount },
     mapping:   { label: '생산 입력' },
-    completed: { label: '생산 완료', count: completedCount },
+    completed: { label: '출하대기', count: completedCount },
     lookup:    { label: '조회' },
     admin:     { label: '사용자 관리' },
   };
@@ -191,8 +191,8 @@ function TopNav() {
   return (
     <header className="topnav">
       <div className="topnav__brand">
-        <img className="topnav__logo" src="logo.ico" alt="Egtronics" />
-        <span>COMS</span>
+        <img className="topnav__logo" src="logo_header.png" alt="Egtronics" />
+        <span style={{ display: 'inline-block' }}>COMS</span>
         <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500, marginLeft: 4, padding: '2px 6px', border: '1px solid var(--border-1)', borderRadius: 4, letterSpacing: '0.04em' }}>v1.0</span>
       </div>
       <nav className="topnav__tabs">

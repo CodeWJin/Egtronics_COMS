@@ -47,7 +47,7 @@ function ProductionCompleteScreen() {
   }, []);
 
   const completed = useMemoPC(
-    () => s.orders.filter(o => o.status === 'COMPLETED' && o.production),
+    () => s.orders.filter(o => o.status === 'COMPLETED' && o.production?.serial_no),
     [s.orders]
   );
 
@@ -82,7 +82,7 @@ function ProductionCompleteScreen() {
       o.production.inspection_date, o.production.sw_version, o.production.cable_length,
       o.production.doc_no, o.delivery_date,
     ]))];
-    downloadCSV(rows, `생산완료_${new Date().toISOString().slice(0, 10)}.csv`);
+    downloadCSV(rows, `출하대기_${new Date().toISOString().slice(0, 10)}.csv`);
     window.actions.flashToast?.(`${filtered.length}건 CSV 내보내기 완료`);
   };
 
@@ -90,9 +90,9 @@ function ProductionCompleteScreen() {
     <div className="screen">
       <div className="screen__head">
         <div>
-          <div className="screen__crumbs">생산 부서 · 출하/완료 관리</div>
-          <h1 className="screen__title">생산 완료 목록</h1>
-          <p className="screen__sub">생산·검정이 완료되어 출하 가능한 오더입니다. 출하 검사 성적서를 조회하거나 목록을 내보낼 수 있습니다.</p>
+          <div className="screen__crumbs">생산 부서 · 출하대기 관리</div>
+          <h1 className="screen__title">출하대기 목록</h1>
+          <p className="screen__sub">생산·검정이 완료되어 출하 대기 중인 오더입니다. 출하 검사 성적서를 조회하거나 목록을 내보낼 수 있습니다.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--secondary" onClick={exportCSV} disabled={filtered.length === 0}>
@@ -104,7 +104,7 @@ function ProductionCompleteScreen() {
       <div className="statrow">
         <div className="stat">
           <div className="stat__top">
-            <span className="stat__label">총 생산완료</span>
+            <span className="stat__label">총 출하대기</span>
             <span className="stat__icon stat__icon--success"><Icon name="check" size={15}/></span>
           </div>
           <div className="stat__value">{completed.length}<small>건</small></div>
@@ -161,7 +161,7 @@ function ProductionCompleteScreen() {
         <div className="table-wrap">
           <div className="emptystate">
             <Icon name="truck" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
-            <div className="emptystate__title">완료된 생산 오더가 없습니다</div>
+            <div className="emptystate__title">출하대기 오더가 없습니다</div>
             <div className="emptystate__sub">생산 입력에서 실적을 등록하면 이 목록에 표시됩니다</div>
           </div>
         </div>
@@ -175,8 +175,6 @@ function ProductionCompleteScreen() {
                 <th>시리얼 / 로트</th>
                 <th>생산일</th>
                 <th>검정일</th>
-                <th>S/W</th>
-                <th>리드타임</th>
                 <th>성적서</th>
               </tr>
             </thead>
@@ -196,8 +194,6 @@ function ProductionCompleteScreen() {
                     </td>
                     <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
                     <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-2)' }}>{o.production.inspection_date}</td>
-                    <td><span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{o.production.sw_version}</span></td>
-                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-3)' }}>{lead}일</td>
                     <td>
                       <button className="btn btn--secondary btn--sm" onClick={(e) => { e.stopPropagation(); setReport(o); }}>
                         <Icon name="doc" size={12}/> 성적서 보기

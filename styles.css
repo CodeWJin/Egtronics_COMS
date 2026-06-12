@@ -103,11 +103,11 @@ input, select, textarea { font-family: inherit; }
 .topnav {
   display: flex;
   align-items: center;
-  height: 44px;
   padding: 0 22px;
   background: #000000;
   gap: 28px;
   flex-shrink: 0;
+  height: 102px;
 }
 .topnav__brand {
   display: flex;
@@ -117,6 +117,7 @@ input, select, textarea { font-family: inherit; }
   font-size: 12px;
   letter-spacing: -0.12px;
   color: rgba(255, 255, 255, 0.92);
+  height: 102px; 
 }
 .topnav__logo {
   height: 26px;
@@ -137,7 +138,7 @@ input, select, textarea { font-family: inherit; }
   height: 44px;
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 400;
   letter-spacing: -0.12px;
   color: rgba(255, 255, 255, 0.62);
@@ -370,7 +371,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--border-1);
   border-left: 0;
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
@@ -493,7 +494,6 @@ input, select, textarea { font-family: inherit; }
   justify-content: center;
   gap: 6px;
   padding: 0 18px;
-  width: 71.34px;
   height: 36px;
   font-size: 14px;
   font-weight: 400;
@@ -501,7 +501,9 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--r-pill);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 140ms ease;
+  transition: background-color 120ms ease, border-color 120ms ease,
+              color 120ms ease, box-shadow 120ms ease, opacity 120ms ease,
+              transform 80ms cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -914,9 +916,8 @@ input, select, textarea { font-family: inherit; }
 .kv dd { margin: 0; color: var(--ink-1); }
 
 .readonly-strip {
-  background: var(--surface);
-  border: 1px solid var(--border-1);
-  border-left: 3px solid var(--primary);
+  background: var(--primary-50);
+  border: 1px solid var(--primary-100);
   border-radius: var(--r-lg);
   padding: 18px 22px;
   position: relative;
@@ -1006,7 +1007,7 @@ input, select, textarea { font-family: inherit; }
   0%   { transform: scale(0.9); opacity: 0; }
   100% { transform: scale(1);   opacity: 1; }
 }
-.badge--statusswap { animation: statusswap 280ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.badge--statusswap { animation: statusswap 280ms cubic-bezier(0.16, 1, 0.3, 1); }
 
 @keyframes burst {
   0%   { transform: scale(0); opacity: 1; }
@@ -1065,6 +1066,7 @@ input, select, textarea { font-family: inherit; }
     gap: 10px;
     flex-wrap: nowrap;
     overflow: visible;
+    height: 79px; 
   }
   .topnav__brand span:not(.topnav__logo) { display: none; }
   .topnav__spacer { display: none; }
@@ -1077,7 +1079,7 @@ input, select, textarea { font-family: inherit; }
     min-width: 0;
   }
   .topnav__tabs::-webkit-scrollbar { display: none; }
-  .topnav__tab { padding: 0 10px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .topnav__tab { padding: 0 10px; font-size: 14px; white-space: nowrap; flex-shrink: 0; }
 
   .screen { padding: 20px 18px 48px; }
   .screen__head { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
@@ -1108,14 +1110,14 @@ input, select, textarea { font-family: inherit; }
 }
 
 @media (max-width: 600px) {
-  .topnav { padding: 0 8px; gap: 4px; height: 44px; }
-  .topnav__brand { display: none; }
+  .topnav { padding: 0 8px; gap: 4px; height: 54px; }
+  /*.topnav__brand { display: none; }*/
   .topnav__tabs { flex: 1; justify-content: flex-start; }
   .topnav__tab { padding: 0 8px; font-size: 11px; }
   .topnav__count { display: none; }
 
   .usermenu__name { display: none; }
-  .usermenu__role { font-size: 10px; padding: 2px 6px !important; }
+  .usermenu__role{ font-size: 14px; padding: 2px 6px !important; }
 
   .screen { padding: 14px 14px 40px; }
   .screen__head { margin-bottom: 14px; }
@@ -1176,7 +1178,6 @@ input, select, textarea { font-family: inherit; }
   .timeline__day { padding: 12px 12px; }
   .toast { bottom: 16px; max-width: 90vw; font-size: 13px; padding: 10px 16px; }
   .btn--lg { height: 40px; padding: 0 18px; font-size: 15px; }
-  .btn { width: auto; }
 }
 
 /* Form grid */
@@ -1517,7 +1518,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--bg-canvas);
 }
 .login__card {
-  width: 400px;
+  width: 500px;
   max-width: 100%;
   background: var(--surface);
   border: 1px solid var(--border-1);
@@ -1538,20 +1539,20 @@ input, select, textarea { font-family: inherit; }
 }
 .login__brand__name {
   font-weight: 600;
-  font-size: 17px;
+  font-size: 18px;
   letter-spacing: -0.374px;
   color: var(--ink-1);
 }
-.login__brand__sub { font-size: 12px; color: var(--ink-4); margin-top: 2px; letter-spacing: -0.12px; }
+.login__brand__sub { font-size: 14px; color: var(--ink-4); margin-top: 2px; letter-spacing: -0.12px; }
 .login__title {
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.5px;
   line-height: 1.14;
-  margin: 0 0 6px;
+  margin: 0 0 30px;
   color: var(--ink-1);
 }
-.login__lead { font-size: 14px; color: var(--ink-3); margin: 0 0 24px; line-height: 1.5; letter-spacing: -0.224px; }
+
 .login__form { display: flex; flex-direction: column; gap: 14px; }
 .login__form .input { height: 44px; }
 .login__err {
@@ -1645,7 +1646,7 @@ input, select, textarea { font-family: inherit; }
 }
 .usermenu__head { padding: 10px 12px 8px; }
 .usermenu__head__name { font-size: 14px; font-weight: 600; color: var(--ink-1); letter-spacing: -0.224px; }
-.usermenu__head__sub { font-size: 12px; color: var(--ink-4); margin-top: 3px; }
+.usermenu__head__sub { font-size: 14px; color: var(--ink-4); margin-top: 3px; }
 .usermenu__divider { height: 1px; background: var(--border-1); margin: 4px 0; }
 .usermenu__item {
   display: flex; align-items: center; gap: 9px;
@@ -1773,3 +1774,117 @@ input, select, textarea { font-family: inherit; }
 }
 .reset-done__title { font-size: 17px; font-weight: 600; color: var(--ink-1); letter-spacing: -0.374px; }
 .reset-done__sub { font-size: 14px; color: var(--ink-3); line-height: 1.5; letter-spacing: -0.224px; }
+
+/* ============================================================
+   Focus indicators — keyboard navigation (WCAG 2.4.7)
+   ============================================================ */
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: none; /* box-shadow handles this */
+}
+.kanban__card:focus-visible,
+.ordercard:focus-visible,
+.timeline__item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.row--clickable:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.chip:focus-visible,
+.tagpicker__item:focus-visible,
+.toolbar__filter:focus-visible,
+.toolbar__view__btn:focus-visible,
+.toolbar__view__btn--active:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.login__demo__item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.usermenu__trigger:focus-visible,
+.usermenu__item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.combo__item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* ============================================================
+   Reduced motion — accessibility (prefers-reduced-motion)
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Motion — purposeful animations (state, feedback, transition)
+   ============================================================ */
+
+@keyframes screenin {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes statin {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes tabline {
+  from { transform: scaleX(0.3); opacity: 0.5; }
+  to   { transform: scaleX(1);   opacity: 1; }
+}
+
+@keyframes fieldshake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX( 4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX( 3px); }
+}
+
+/* Screen-level entrance — applied via key={view} wrapper in app.jsx */
+.screen-enter {
+  animation: screenin 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Sub-view entrance — kanban / card / table / timeline toggle */
+.view-enter {
+  animation: screenin 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* KPI stat tiles stagger (fires with screen-enter) */
+.screen-enter .stat {
+  animation: statin 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.screen-enter .stat:nth-child(1) { animation-delay:  60ms; }
+.screen-enter .stat:nth-child(2) { animation-delay:  90ms; }
+.screen-enter .stat:nth-child(3) { animation-delay: 120ms; }
+.screen-enter .stat:nth-child(4) { animation-delay: 150ms; }
+
+/* Tab active underline — scales in from left when tab activates */
+.topnav__tab--active::after {
+  animation: tabline 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left center;
+}
+
+/* Form field error shake — triggers once when .input--error first applied */
+.input--error {
+  animation: fieldshake 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
