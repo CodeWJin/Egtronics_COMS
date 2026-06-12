@@ -45,7 +45,10 @@ window.AsPriorityBadge = AsPriorityBadge;
 function ChargerSearchModal({ onSelect, onClose }) {
   const [query, setQuery] = useStateASC('');
 
-  const orders = window.PMDB.loadOrders().filter(o => o.status === 'COMPLETED');
+  const orders = useMemoASC(
+    () => window.PMDB.loadOrders().filter(o => o.status === 'COMPLETED'),
+    []
+  );
 
   const filtered = useMemoASC(() => {
     const q = query.trim().toLowerCase();
@@ -91,7 +94,10 @@ function ChargerSearchModal({ onSelect, onClose }) {
                     </td>
                   </tr>
                 ) : filtered.map(o => (
-                  <tr key={o.order_id} style={{ cursor: 'pointer' }} onClick={() => onSelect(o)}>
+                  <tr key={o.order_id} style={{ cursor: 'pointer' }}
+                    tabIndex={0}
+                    onClick={() => onSelect(o)}
+                    onKeyDown={(e) => e.key === 'Enter' && onSelect(o)}>
                     <td className="cell-mono">#{o.order_id}</td>
                     <td>{o.customer_name || '—'}</td>
                     <td className="cell-mono">{o.station_id || '—'}</td>

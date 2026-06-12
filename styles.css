@@ -22,9 +22,10 @@
   /* Apple Text */
   --ink-1: #1d1d1f;
   --ink-2: #333333;
-  --ink-3: #7a7a7a;
+  --ink-3: #6b6b6b;   /* 5.3:1 on white — WCAG AA */
   --ink-4: #999999;
   --ink-5: #cccccc;
+  --placeholder: #737373; /* 4.75:1 on white — WCAG AA for placeholder */
 
   /* Apple Borders */
   --border-1: #e0e0e0;
@@ -41,6 +42,8 @@
   --danger: #EF4444;
   --danger-50: #FEF2F2;
   --danger-700: #B91C1C;
+  --indigo-50: #EEF2FF;
+  --indigo-700: #4338CA;
 
   /* Apple Border Radius */
   --r-sm: 8px;
@@ -322,7 +325,7 @@ input, select, textarea { font-family: inherit; }
   transition: border-color 140ms, box-shadow 140ms;
   letter-spacing: -0.224px;
 }
-.input::placeholder { color: var(--ink-4); }
+.input::placeholder { color: var(--placeholder); }
 .input:hover, .select:hover { border-color: var(--border-2); }
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--primary);
@@ -573,7 +576,7 @@ input, select, textarea { font-family: inherit; }
 .badge--info { background: var(--primary-50); color: var(--primary); }
 .badge--neutral { background: var(--surface-3); color: var(--ink-2); }
 .badge--danger { background: var(--danger-50); color: var(--danger-700); }
-.badge--progress { background: #EEF2FF; color: #4338CA; }
+.badge--progress { background: var(--indigo-50); color: var(--indigo-700); }
 
 /* ── AS 모듈 ──────────────────────────────────────────────────── */
 .as-split { display: flex; gap: 16px; height: calc(100vh - 160px); min-height: 0; }
@@ -626,6 +629,98 @@ input, select, textarea { font-family: inherit; }
   border-radius: 50%;
   background: currentColor;
 }
+
+/* ── AS 사진 첨부 탭 ──────────────────────────────────────────── */
+.photo-thumb {
+  position: relative;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-2);
+  aspect-ratio: 1;
+  cursor: pointer;
+}
+.photo-thumb__name {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.55));
+  padding: 18px 6px 5px;
+  font-size: 11px;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.photo-thumb__del {
+  position: absolute;
+  top: 5px; right: 5px;
+  background: rgba(0,0,0,0.55);
+  border: none;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  font-size: 15px;
+  line-height: 1;
+  transition: background 120ms;
+}
+.photo-thumb__del:hover { background: rgba(0,0,0,0.8); }
+.photo-thumb__confirm {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: #fff;
+  font-size: 12px;
+  text-align: center;
+  border-radius: var(--r-md);
+  gap: 6px;
+}
+.photo-thumb__confirm-btns { display: flex; gap: 5px; width: 100%; }
+.photo-thumb__confirm-btns button {
+  flex: 1; height: 26px; border-radius: var(--r-sm);
+  border: 1px solid rgba(255,255,255,0.3); font-size: 12px; cursor: pointer;
+}
+.photo-thumb__confirm-btns .btn-ok { background: var(--danger); color: #fff; border-color: var(--danger); }
+.photo-thumb__confirm-btns .btn-cancel { background: transparent; color: #fff; }
+.photo-thumb__confirm-btns .btn-cancel:hover { background: rgba(255,255,255,0.15); }
+.photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.photo-lightbox__img {
+  max-width: 90vw;
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.photo-lightbox__name {
+  margin-top: 12px;
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+}
+.photo-lightbox__close {
+  position: absolute;
+  top: 18px; right: 22px;
+  background: none; border: none;
+  color: #fff; font-size: 28px;
+  cursor: pointer; line-height: 1;
+  opacity: 0.8;
+  transition: opacity 120ms;
+}
+.photo-lightbox__close:hover { opacity: 1; }
 
 /* Toolbar — Apple sub-nav inspired: parchment bg, hairline border */
 .toolbar {
@@ -1160,6 +1255,11 @@ input, select, textarea { font-family: inherit; }
 }
 
 @media (max-width: 600px) {
+  /* AS 처리 화면 — 모바일에서 수직 스택 */
+  .as-split { flex-direction: column; height: auto; min-height: 0; gap: 12px; }
+  .as-split__list { width: 100%; height: 240px; min-height: 0; overflow-y: auto; }
+  .as-split__panel { min-height: 400px; }
+
   .topnav { padding: 0 8px; gap: 4px; height: 54px; }
   /*.topnav__brand { display: none; }*/
   .topnav__tabs { flex: 1; justify-content: flex-start; }
@@ -1868,6 +1968,10 @@ input, select, textarea { font-family: inherit; }
 .combo__item:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
+}
+.as-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ============================================================

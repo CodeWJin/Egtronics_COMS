@@ -103,7 +103,7 @@ function AsProcessingScreen() {
             <AsDetailPanel key={selected.id} reception={selected}/>
           ) : (
             <div className="as-empty-panel">
-              <div className="as-empty-panel__icon">📋</div>
+              <div className="as-empty-panel__icon" aria-hidden="true">📋</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>접수 건을 선택하세요</div>
               <div style={{ fontSize: 13 }}>왼쪽 목록에서 AS 건을 클릭하면 처리 패널이 열립니다</div>
             </div>
@@ -117,7 +117,13 @@ function AsProcessingScreen() {
 // ── 목록 카드 ────────────────────────────────────────────────────
 function AsListCard({ r, active, onClick }) {
   return (
-    <div className={`as-card ${active ? 'as-card--active' : ''}`} onClick={onClick}>
+    <div
+      className={`as-card ${active ? 'as-card--active' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
+    >
       <div className="as-card__header">
         <span className="as-card__no">{r.reception_no}</span>
         <AsPriorityBadge priority={r.priority}/>
@@ -251,8 +257,9 @@ function AsDetailPanel({ reception: r }) {
             {/* 담당자 / 출동 예정일 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field">
-                <label className="field__label">담당자 배정</label>
+                <label className="field__label" htmlFor={`ap-${r.id}-assignee`}>담당자 배정</label>
                 <select
+                  id={`ap-${r.id}-assignee`}
                   className="select"
                   value={form.assignee}
                   onChange={(e) => set('assignee', e.target.value)}
@@ -264,8 +271,9 @@ function AsDetailPanel({ reception: r }) {
                 </select>
               </div>
               <div className="field">
-                <label className="field__label">출동 예정일</label>
+                <label className="field__label" htmlFor={`ap-${r.id}-dispatch-date`}>출동 예정일</label>
                 <input
+                  id={`ap-${r.id}-dispatch-date`}
                   className="input"
                   type="date"
                   value={form.dispatch_date}
@@ -296,8 +304,9 @@ function AsDetailPanel({ reception: r }) {
             {/* 조치 내용 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field">
-                <label className="field__label">조치 유형</label>
+                <label className="field__label" htmlFor={`ap-${r.id}-action-type`}>조치 유형</label>
                 <select
+                  id={`ap-${r.id}-action-type`}
                   className="select"
                   value={form.action_type}
                   onChange={(e) => set('action_type', e.target.value)}
@@ -307,8 +316,9 @@ function AsDetailPanel({ reception: r }) {
                 </select>
               </div>
               <div className="field">
-                <label className="field__label">발생 비용 (원)</label>
+                <label className="field__label" htmlFor={`ap-${r.id}-cost`}>발생 비용 (원)</label>
                 <input
+                  id={`ap-${r.id}-cost`}
                   className="input"
                   placeholder="예: 150000"
                   value={form.cost}
@@ -319,8 +329,9 @@ function AsDetailPanel({ reception: r }) {
             </div>
 
             <div className="field">
-              <label className="field__label">조치 상세 내용</label>
+              <label className="field__label" htmlFor={`ap-${r.id}-action-detail`}>조치 상세 내용</label>
               <textarea
+                id={`ap-${r.id}-action-detail`}
                 className="textarea"
                 rows={3}
                 placeholder="조치 내용을 상세히 입력하세요"
@@ -331,8 +342,9 @@ function AsDetailPanel({ reception: r }) {
             </div>
 
             <div className="field">
-              <label className="field__label">비고</label>
+              <label className="field__label" htmlFor={`ap-${r.id}-notes`}>비고</label>
               <textarea
+                id={`ap-${r.id}-notes`}
                 className="textarea"
                 rows={2}
                 placeholder="추가 메모"
@@ -344,8 +356,9 @@ function AsDetailPanel({ reception: r }) {
 
             {!isCompleted && (
               <div className="field">
-                <label className="field__label">변경 사유 / 메모</label>
+                <label className="field__label" htmlFor={`ap-${r.id}-memo`}>변경 사유 / 메모</label>
                 <input
+                  id={`ap-${r.id}-memo`}
                   className="input"
                   placeholder="상태 변경 시 기록할 메모 (선택)"
                   value={memo}
@@ -496,13 +509,14 @@ function InfoRow({ label, value, mono, multiline }) {
 
 // ── 사진 첨부 탭 ─────────────────────────────────────────────────
 function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
-  const s = window.useStore();
   const fileInputRef = useRefAP(null);
   const [uploading, setUploading] = useStateAP(false);
   const [uploadErr, setUploadErr] = useStateAP('');
-  const [lightbox, setLightbox] = useStateAP(null); // { url, filename }
+  const [lightbox, setLightbox] = useStateAP(null);    // { url, filename }
+  const [deleteConfirm, setDeleteConfirm] = useStateAP(null); // photo.id
 
-  const currentUser = s.user || {};
+  const currentUserId = (window.__pm_store__ && window.__pm_store__.user)
+    ? window.__pm_store__.user.user_id : '';
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -514,9 +528,8 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
       for (const file of files) {
         if (!file.type.startsWith('image/')) { setUploadErr('이미지 파일만 업로드할 수 있습니다'); continue; }
         if (file.size > 10 * 1024 * 1024) { setUploadErr(`${file.name}: 10MB 이하 파일만 가능합니다`); continue; }
-        const row = await window.PMDB.addAsPhoto(receptionId, file, currentUser.user_id || '');
+        await window.PMDB.addAsPhoto(receptionId, file, currentUserId);
         onPhotosChange(window.PMDB.getAsPhotos(receptionId));
-        void row;
       }
     } catch (err) {
       setUploadErr('업로드 실패: ' + (err.message || '알 수 없는 오류'));
@@ -526,79 +539,81 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
   };
 
   const handleDelete = async (photo) => {
-    if (!window.confirm(`'${photo.filename}' 사진을 삭제하시겠습니까?`)) return;
+    setDeleteConfirm(null);
     try {
       await window.PMDB.deleteAsPhoto(photo.id, photo.storage_path);
       onPhotosChange(window.PMDB.getAsPhotos(receptionId));
     } catch (err) {
-      alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
+      setUploadErr('삭제 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* 업로드 버튼 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
           multiple
           style={{ display: 'none' }}
+          aria-hidden="true"
           onChange={handleFileChange}
         />
         <button
           className="btn btn--secondary"
           disabled={uploading}
+          aria-label="사진 파일 선택하여 첨부"
           onClick={() => fileInputRef.current && fileInputRef.current.click()}>
           {uploading ? '업로드 중…' : <><Icon name="plus" size={13}/> 사진 첨부</>}
         </button>
-        <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
-          이미지 파일 (JPG, PNG 등) · 최대 10MB · 여러 장 선택 가능
+        <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+          JPG · PNG · GIF 등 · 최대 10MB · 여러 장 선택 가능
         </span>
       </div>
 
       {uploadErr && (
-        <div style={{ padding: '8px 12px', borderRadius: 'var(--r-sm)', background: 'var(--danger-50)', color: 'var(--danger-700)', fontSize: 13 }}>
+        <div role="alert" style={{ padding: '8px 12px', borderRadius: 'var(--r-sm)', background: 'var(--danger-50)', color: 'var(--danger-700)', fontSize: 13 }}>
           {uploadErr}
         </div>
       )}
 
       {/* 썸네일 그리드 */}
       {photos.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '48px 0', fontSize: 13 }}>
+        <div style={{ textAlign: 'center', color: 'var(--ink-3)', padding: '48px 0', fontSize: 13 }}>
           첨부된 사진이 없습니다
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
           {photos.map(ph => (
-            <div key={ph.id} style={{ position: 'relative', borderRadius: 'var(--r-md)', overflow: 'hidden', background: 'var(--surface-2)', aspectRatio: '1', cursor: 'pointer' }}
-              onClick={() => setLightbox({ url: ph.url, filename: ph.filename })}>
+            <div key={ph.id} className="photo-thumb"
+              onClick={() => deleteConfirm !== ph.id && setLightbox({ url: ph.url, filename: ph.filename })}>
               <img
                 src={ph.url}
-                alt={ph.filename}
+                alt={`AS 첨부 사진 — ${ph.filename}`}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
-              <div style={{
-                position: 'absolute', bottom: 0, left: 0, right: 0,
-                background: 'linear-gradient(transparent, rgba(0,0,0,0.55))',
-                padding: '18px 6px 5px', fontSize: 11, color: '#fff',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {ph.filename}
-              </div>
-              <button
-                style={{
-                  position: 'absolute', top: 5, right: 5,
-                  background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%',
-                  width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: '#fff', fontSize: 13, lineHeight: 1,
-                }}
-                title="삭제"
-                onClick={(e) => { e.stopPropagation(); handleDelete(ph); }}>
-                ×
-              </button>
+              <div className="photo-thumb__name">{ph.filename}</div>
+
+              {deleteConfirm === ph.id ? (
+                <div className="photo-thumb__confirm" onClick={(e) => e.stopPropagation()}>
+                  <span>삭제할까요?</span>
+                  <div className="photo-thumb__confirm-btns">
+                    <button className="btn-ok" onClick={() => handleDelete(ph)}>확인</button>
+                    <button className="btn-cancel" onClick={() => setDeleteConfirm(null)}>취소</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="photo-thumb__del"
+                  title="삭제"
+                  aria-label={`${ph.filename} 삭제`}
+                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(ph.id); }}>
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -607,24 +622,21 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
       {/* 라이트박스 */}
       {lightbox && (
         <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.88)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          }}
+          className="photo-lightbox"
+          role="dialog"
+          aria-label="사진 크게 보기"
+          aria-modal="true"
           onClick={() => setLightbox(null)}>
           <img
+            className="photo-lightbox__img"
             src={lightbox.url}
-            alt={lightbox.filename}
-            style={{ maxWidth: '90vw', maxHeight: '82vh', objectFit: 'contain', borderRadius: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+            alt={`확대 보기 — ${lightbox.filename}`}
             onClick={(e) => e.stopPropagation()}
           />
-          <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{lightbox.filename}</div>
+          <div className="photo-lightbox__name">{lightbox.filename}</div>
           <button
-            style={{
-              position: 'absolute', top: 18, right: 22,
-              background: 'none', border: 'none', color: '#fff', fontSize: 28, cursor: 'pointer', lineHeight: 1,
-            }}
+            className="photo-lightbox__close"
+            aria-label="닫기"
             onClick={() => setLightbox(null)}>×</button>
         </div>
       )}

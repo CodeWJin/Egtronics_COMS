@@ -221,8 +221,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
             {/* 고객 / 충전소 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field">
-                <label className="field__label">고객사 *</label>
+                <label className="field__label" htmlFor="ar-customer-name">고객사 *</label>
                 <input
+                  id="ar-customer-name"
                   className={`input ${err.customer_name ? 'input--error' : ''}`}
                   list="ar-customers"
                   placeholder="예: 카스"
@@ -235,8 +236,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 {err.customer_name && <div className="field__err">{err.customer_name}</div>}
               </div>
               <div className="field">
-                <label className="field__label">충전소명</label>
+                <label className="field__label" htmlFor="ar-station-name">충전소명</label>
                 <input
+                  id="ar-station-name"
                   className="input"
                   placeholder="예: 강남구청 EV충전소"
                   value={form.station_name}
@@ -248,9 +250,10 @@ function AsReceiptModal({ onClose, onSubmit }) {
             {/* 충전소 ID / 충전기 번호 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field">
-                <label className="field__label">충전소 ID</label>
+                <label className="field__label" htmlFor="ar-station-id">충전소 ID</label>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input
+                    id="ar-station-id"
                     className="input"
                     style={{ flex: 1 }}
                     placeholder="예: GN-001"
@@ -270,8 +273,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 )}
               </div>
               <div className="field">
-                <label className="field__label">충전기 번호</label>
+                <label className="field__label" htmlFor="ar-charger-no">충전기 번호</label>
                 <input
+                  id="ar-charger-no"
                   className="input"
                   placeholder="예: CH-01"
                   value={form.charger_no}
@@ -283,8 +287,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
             {/* 고장 유형 / 긴급도 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start' }}>
               <div className="field">
-                <label className="field__label">고장 유형 *</label>
+                <label className="field__label" htmlFor="ar-fault-type">고장 유형 *</label>
                 <select
+                  id="ar-fault-type"
                   className={`select ${err.fault_type ? 'input--error' : ''}`}
                   value={form.fault_type}
                   onChange={(e) => { set('fault_type', e.target.value); clrErr('fault_type'); }}>
@@ -314,8 +319,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
 
             {/* 상세 증상 */}
             <div className="field">
-              <label className="field__label">상세 증상 *</label>
+              <label className="field__label" htmlFor="ar-fault-detail">상세 증상 *</label>
               <textarea
+                id="ar-fault-detail"
                 className={`textarea ${err.fault_detail ? 'input--error' : ''}`}
                 rows={3}
                 placeholder="고장 증상을 구체적으로 입력하세요"
@@ -328,8 +334,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
             {/* 신고자 정보 */}
             <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <div className="field">
-                <label className="field__label">신고자</label>
+                <label className="field__label" htmlFor="ar-reporter-name">신고자</label>
                 <input
+                  id="ar-reporter-name"
                   className="input"
                   placeholder="신고자 이름"
                   value={form.reporter_name}
@@ -337,8 +344,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 />
               </div>
               <div className="field">
-                <label className="field__label">신고자 연락처</label>
+                <label className="field__label" htmlFor="ar-reporter-phone">신고자 연락처</label>
                 <input
+                  id="ar-reporter-phone"
                   className="input"
                   placeholder="010-0000-0000"
                   value={form.reporter_phone}
@@ -346,8 +354,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 />
               </div>
               <div className="field">
-                <label className="field__label">접수 일시</label>
+                <label className="field__label" htmlFor="ar-received-at">접수 일시</label>
                 <input
+                  id="ar-received-at"
                   className="input"
                   type="datetime-local"
                   value={form.received_at}
