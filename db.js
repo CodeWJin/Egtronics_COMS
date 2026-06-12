@@ -49,10 +49,11 @@
   };
 
   const SEED_USERS = [
-    { user_id: 'admin', password: '1234', name: '박우진', role: 'admin',      dept: '충전기개발실', phone: '010-2567-8418', email: 'wjpark@egtronics.com' },
-    { user_id: 'sales', password: '1234', name: '신정륜', role: 'sales',      dept: '영업부',       phone: '010-3000-4000', email: 'sales@egtrinocs.com' },
-    { user_id: 'prod',  password: '1234', name: '김태윤', role: 'production', dept: '생산부',       phone: '010-5000-6000', email: 'prod@egtrinocs.com' },
-    { user_id: 'as',    password: '1234', name: '민경선', role: 'as',         dept: '품질관리본부',       phone: '010-5000-6000', email: 'as@egtrinocs.com' },
+    { user_id: 'admin',   password: '1234', name: '박우진', role: 'admin',      dept: '충전기개발실', phone: '010-2567-8418', email: 'wjpark@egtronics.com' },
+    { user_id: 'sales',   password: '1234', name: '신정륜', role: 'sales',      dept: '영업부',       phone: '010-3000-4000', email: 'sales@egtrinocs.com' },
+    { user_id: 'prod',    password: '1234', name: '김태윤', role: 'production', dept: '생산부',       phone: '010-5000-6000', email: 'prod@egtrinocs.com' },
+    { user_id: 'qual',    password: '1234', name: '민경선', role: 'quality',    dept: '품질관리본부',  phone: '010-5000-6000', email: 'qual@egtrinocs.com' },
+    { user_id: 'as',      password: '1234', name: '민경선', role: 'as',         dept: '유지관리',      phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
   window.SEED_USERS = SEED_USERS;
 
@@ -81,10 +82,13 @@
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], cpos: [], sw_versions: [], models: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], cpos: [], sw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asHistSeq = 0;
+    let asRecSeq = 0;
+    let asLogSeq = 0;
+    let asPhotoSeq = 0;
 
     // 비동기 쓰기 — 로컬 캐시 업데이트 후 백그라운드에서 Supabase에 동기화
     function dbWrite(table, op, fn) {
@@ -146,6 +150,45 @@
           }
         } catch (e) {
           dbLog('WARN', 'loadAll', 'tb_as_history 로드 오류 — ' + e.message);
+        }
+
+        // AS 접수 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
+        try {
+          const { data: rData, error: rErr } = await client.from('tb_as_reception').select('*').order('id');
+          if (!rErr) {
+            cache.as_receptions = rData || [];
+            asRecSeq = cache.as_receptions.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
+          } else {
+            dbLog('WARN', 'loadAll', 'tb_as_reception 조회 실패 — ' + rErr.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', 'tb_as_reception 로드 오류 — ' + e.message);
+        }
+
+        // AS 처리 이력 로드
+        try {
+          const { data: lData, error: lErr } = await client.from('tb_as_log').select('*').order('id');
+          if (!lErr) {
+            cache.as_logs = lData || [];
+            asLogSeq = cache.as_logs.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
+          } else {
+            dbLog('WARN', 'loadAll', 'tb_as_log 조회 실패 — ' + lErr.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', 'tb_as_log 로드 오류 — ' + e.message);
+        }
+
+        // AS 첨부 사진 로드
+        try {
+          const { data: phData, error: phErr } = await client.from('tb_as_photo').select('*').order('id');
+          if (!phErr) {
+            cache.as_photos = phData || [];
+            asPhotoSeq = cache.as_photos.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
+          } else {
+            dbLog('WARN', 'loadAll', 'tb_as_photo 조회 실패 — ' + phErr.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', 'tb_as_photo 로드 오류 — ' + e.message);
         }
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
@@ -413,6 +456,128 @@
         cache.as_history = cache.as_history.filter(r => r.id !== id);
         dbLog('INFO', 'write:tb_as_history', `A/S 이력 삭제 — id=${id}`);
         dbWrite('tb_as_history', 'delete', () => client.from('tb_as_history').delete().eq('id', id));
+      },
+
+      // ── AS 접수 (tb_as_reception) ──────────────────────────────
+      _genReceptionNo() {
+        const year = new Date().getFullYear();
+        const prefix = `AS-${year}-`;
+        const nums = cache.as_receptions
+          .filter(r => r.reception_no && r.reception_no.startsWith(prefix))
+          .map(r => parseInt(r.reception_no.slice(prefix.length), 10))
+          .filter(n => !isNaN(n));
+        const next = nums.length ? Math.max(...nums) + 1 : 1;
+        return `${prefix}${String(next).padStart(3, '0')}`;
+      },
+
+      loadAsReceptions() {
+        return [...cache.as_receptions]
+          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+      },
+
+      getAsReception(id) {
+        return cache.as_receptions.find(x => x.id === id) || null;
+      },
+
+      addAsReception(form) {
+        const id = ++asRecSeq;
+        const reception_no = this._genReceptionNo();
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const row = {
+          id,
+          reception_no,
+          customer_name:  form.customer_name  || '',
+          station_name:   form.station_name   || '',
+          station_id:     form.station_id     || '',
+          charger_no:     form.charger_no     || '',
+          order_id:       form.order_id       || null,
+          fault_type:     form.fault_type     || '',
+          fault_detail:   form.fault_detail   || '',
+          status:         '접수대기',
+          priority:       form.priority       || '일반',
+          reporter_name:  form.reporter_name  || '',
+          reporter_phone: form.reporter_phone || '',
+          received_at:    form.received_at    || now,
+          received_by:    form.received_by    || '',
+          assignee:       '',
+          dispatch_date:  '',
+          action_type:    '',
+          action_detail:  '',
+          cost:           '',
+          completed_at:   '',
+          notes:          '',
+          created_at:     now,
+        };
+        cache.as_receptions.push(row);
+        dbLog('INFO', 'write:tb_as_reception', `AS 접수 등록 — id=${id}, no=${reception_no}`);
+        dbWrite('tb_as_reception', 'insert', () => client.from('tb_as_reception').insert(row));
+        return { id, reception_no };
+      },
+
+      updateAsReception(id, form) {
+        const r = cache.as_receptions.find(x => x.id === id);
+        if (!r) return false;
+        const upd = {};
+        const fields = ['customer_name','station_name','station_id','charger_no','fault_type','fault_detail',
+                        'priority','reporter_name','reporter_phone','received_at','assignee','dispatch_date',
+                        'status','action_type','action_detail','cost','completed_at','notes'];
+        fields.forEach(k => { if (form[k] !== undefined) upd[k] = form[k]; });
+        Object.assign(r, upd);
+        dbLog('INFO', 'write:tb_as_reception', `AS 접수 수정 — id=${id}`);
+        dbWrite('tb_as_reception', 'update', () => client.from('tb_as_reception').update(upd).eq('id', id));
+        return true;
+      },
+
+      // ── AS 처리 이력 (tb_as_log) ───────────────────────────────
+      addAsLog(reception_id, from_status, to_status, memo, by) {
+        const id = ++asLogSeq;
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const row = { id, reception_id, changed_at: now, changed_by: by || '', from_status: from_status || '', to_status: to_status || '', memo: memo || '' };
+        cache.as_logs.push(row);
+        dbLog('INFO', 'write:tb_as_log', `AS 이력 추가 — reception_id=${reception_id}, ${from_status} → ${to_status}`);
+        dbWrite('tb_as_log', 'insert', () => client.from('tb_as_log').insert(row));
+      },
+
+      getAsLogs(reception_id) {
+        return [...cache.as_logs.filter(x => x.reception_id === reception_id)]
+          .sort((a, b) => (b.changed_at || '').localeCompare(a.changed_at || ''));
+      },
+
+      // ── AS 첨부 사진 (tb_as_photo + Supabase Storage) ──────────────
+      getAsPhotos(reception_id) {
+        return [...cache.as_photos.filter(x => x.reception_id === reception_id)]
+          .sort((a, b) => (a.uploaded_at || '').localeCompare(b.uploaded_at || ''));
+      },
+
+      async addAsPhoto(reception_id, file, by) {
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const ext = file.name.split('.').pop();
+        const storagePath = `${reception_id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        let url = '';
+        try {
+          const { error: upErr } = await client.storage.from('as-photos').upload(storagePath, file, { upsert: false });
+          if (upErr) throw upErr;
+          const { data: urlData } = client.storage.from('as-photos').getPublicUrl(storagePath);
+          url = urlData.publicUrl || '';
+        } catch (e) {
+          dbLog('ERROR', 'addAsPhoto', 'Storage 업로드 실패 — ' + e.message);
+          throw e;
+        }
+        const id = ++asPhotoSeq;
+        const row = { id, reception_id, filename: file.name, url, storage_path: storagePath, uploaded_by: by || '', uploaded_at: now };
+        cache.as_photos.push(row);
+        dbLog('INFO', 'write:tb_as_photo', `사진 추가 — reception_id=${reception_id}, path=${storagePath}`);
+        dbWrite('tb_as_photo', 'insert', () => client.from('tb_as_photo').insert(row));
+        return row;
+      },
+
+      async deleteAsPhoto(id, storage_path) {
+        cache.as_photos = cache.as_photos.filter(x => x.id !== id);
+        dbLog('INFO', 'write:tb_as_photo', `사진 삭제 — id=${id}`);
+        if (storage_path) {
+          try { await client.storage.from('as-photos').remove([storage_path]); } catch (_) {}
+        }
+        dbWrite('tb_as_photo', 'delete', () => client.from('tb_as_photo').delete().eq('id', id));
       },
 
       getCustomers() {
@@ -700,6 +865,15 @@
     getAsHistory(orderId)        { return this.backend.getAsHistory(orderId); },
     addAsRecord(record)          { return this.backend.addAsRecord(record); },
     deleteAsRecord(id)           { return this.backend.deleteAsRecord(id); },
+    loadAsReceptions()           { return this.backend.loadAsReceptions(); },
+    getAsReception(id)           { return this.backend.getAsReception(id); },
+    addAsReception(form)         { return this.backend.addAsReception(form); },
+    updateAsReception(id, form)  { return this.backend.updateAsReception(id, form); },
+    addAsLog(rid, fs, ts, m, by)       { return this.backend.addAsLog(rid, fs, ts, m, by); },
+    getAsLogs(rid)                     { return this.backend.getAsLogs(rid); },
+    getAsPhotos(rid)                   { return this.backend.getAsPhotos(rid); },
+    addAsPhoto(rid, file, by)          { return this.backend.addAsPhoto(rid, file, by); },
+    deleteAsPhoto(id, storagePath)     { return this.backend.deleteAsPhoto(id, storagePath); },
     getCustomers()                   { return this.backend.getCustomers(); },
     addMasterCustomer(n, c)         { return this.backend.addMasterCustomer(n, c); },
     updateMasterCustomer(i, n, c)   { return this.backend.updateMasterCustomer(i, n, c); },

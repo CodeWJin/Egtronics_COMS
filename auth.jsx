@@ -2,10 +2,10 @@
 
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
-  admin:      ['sales', 'waiting', 'mapping', 'completed', 'lookup', 'admin'],
+  admin:      ['sales', 'waiting', 'mapping', 'completed', 'lookup', 'admin', 'as-receipt', 'as-processing'],
   sales:      ['sales', 'waiting', 'lookup'],
   production: ['waiting', 'mapping', 'completed', 'lookup'],
-  as:         ['lookup'],
+  as:         ['lookup', 'as-receipt', 'as-processing'],
 };
 window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', as: 'A/S' };
 

@@ -233,8 +233,8 @@ function OrderLookupScreen() {
                   </td>
                   <td><span className="badge badge--neutral">{o.model_name}</span></td>
                   <td className="cell-mono">{o.station_id}</td>
-                  <td style={{ textAlign: 'center', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
-                  <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
+                  <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
+                  <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
                     {o.production ? o.production.prod_date : <span style={{ color: 'var(--ink-5)' }}>—</span>}
                   </td>
                   <td>

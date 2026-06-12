@@ -9,6 +9,15 @@
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cable_length        TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_name  TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_phone TEXT DEFAULT '';
+ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cpo_name            TEXT DEFAULT '';
+ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS usage_type          TEXT DEFAULT '공용';
+
+CREATE TABLE IF NOT EXISTS tb_master_cpo (
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL,
+  code  TEXT NOT NULL
+);
+ALTER TABLE tb_master_cpo DISABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS tb_as_history (
   id             INTEGER PRIMARY KEY,
@@ -79,27 +88,28 @@ ON CONFLICT (manager_id) DO NOTHING;
 -- │  3. 영업 주문 (tb_sales_order)   │
 -- └──────────────────────────────────┘
 INSERT INTO tb_sales_order
-  (order_id, customer_name, customer_manager, model_name, delivery_date,
+  (order_id, customer_name, customer_manager, cpo_name, usage_type,
+   model_name, delivery_date,
    station_id, router_no, usim_no, install_address,
    cable_length, field_manager_name, field_manager_phone,
    status, created)
 VALUES
-  (26020801, '카스',     '이XX', '100kW 2ch',    '2026-06-12',
+  (26020801, '카스',     '이XX', '한국전력공사', '공용',   '100kW 2ch',    '2026-06-12',
    'CT9006_01',   'RTR-2024-08172', '8982001234567890123',
    '서울특별시 강남구 테헤란로 152, 강남파이낸스센터 지하 2층',
    '', '', '', 'PENDING',    '2026-05-22'),
 
-  (26020802, '카스',     '이XX', '50kW 1ch',     '2026-06-15',
+  (26020802, '카스',     '이XX', '환경부',       '공용',   '50kW 1ch',     '2026-06-15',
    'CR1006_01',   'RTR-2024-08183', '8982001234567890238',
    '인천광역시 연수구 컨벤시아대로 165',
    '', '', '', 'PENDING',    '2026-05-23'),
 
-  (26020803, '마이크로', '조XX', '11kW Wallbox', '2026-07-02',
+  (26020803, '마이크로', '조XX', '',             '비공용', '11kW Wallbox', '2026-07-02',
    'DYC-DGU-0301','RTR-2024-08246', '8982001234567890832',
    '대구광역시 수성구 동대구로 285',
    '', '', '', 'PENDING',    '2026-05-27'),
 
-  (26020901, '마이크로', '조XX', '100kW 2ch',    '2026-06-05',
+  (26020901, '마이크로', '조XX', '이지트로닉스', '공용',   '100kW 2ch',    '2026-06-05',
    'LOT-SEL-0188','RTR-2024-08105', '8982001234567889921',
    '서울특별시 송파구 올림픽로 300',
    '7m', '', '', 'COMPLETED', '2026-05-18')
@@ -115,7 +125,17 @@ VALUES
 ON CONFLICT (order_id) DO NOTHING;
 
 -- ┌──────────────────────────────────────────────────────┐
--- │  5. 마스터 — 고객사 (tb_master_customer)             │
+-- │  5. 마스터 — CPO 운영사 (tb_master_cpo)              │
+-- └──────────────────────────────────────────────────────┘
+INSERT INTO tb_master_cpo (name, code) VALUES
+  ('한국전력공사', 'KEPCO'),
+  ('환경부',       'ME'),
+  ('이지트로닉스', 'EGT'),
+  ('차지비',       'CHEVI')
+ON CONFLICT DO NOTHING;
+
+-- ┌──────────────────────────────────────────────────────┐
+-- │  6. 마스터 — 고객사 (tb_master_customer)             │
 -- └──────────────────────────────────────────────────────┘
 INSERT INTO tb_master_customer (name, code, last) VALUES
   ('카스',     'CAS',     '2026-05-18'),
@@ -125,7 +145,7 @@ INSERT INTO tb_master_customer (name, code, last) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ┌──────────────────────────────────────────────────────┐
--- │  6. 마스터 — 모델 (tb_master_model)                  │
+-- │  7. 마스터 — 모델 (tb_master_model)                  │
 -- └──────────────────────────────────────────────────────┘
 INSERT INTO tb_master_model (name, spec, power) VALUES
   ('7kW Wallbox',   '완속 · 벽부착',      '7kW'),
@@ -141,7 +161,7 @@ INSERT INTO tb_master_model (name, spec, power) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ┌──────────────────────────────────────────────────────┐
--- │  7. 마스터 — SW 버전 (tb_master_sw_version)          │
+-- │  8. 마스터 — SW 버전 (tb_master_sw_version)          │
 -- └──────────────────────────────────────────────────────┘
 INSERT INTO tb_master_sw_version (tag, released, stable) VALUES
   ('v1.6.2-core', '2026-05-14', true),
@@ -151,7 +171,7 @@ INSERT INTO tb_master_sw_version (tag, released, stable) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ┌──────────────────────────────────────────────────────┐
--- │  8. 마스터 — 케이블 길이 (tb_master_cable_length)    │
+-- │  9. 마스터 — 케이블 길이 (tb_master_cable_length)    │
 -- └──────────────────────────────────────────────────────┘
 INSERT INTO tb_master_cable_length (value) VALUES
   ('3m'), ('5m'), ('7m'), ('10m')

@@ -85,12 +85,14 @@ function App() {
       <TopNav/>
       <main style={{ flex: 1, overflow: 'auto' }}>
         <div key={s.view} className="screen-enter" style={{ height: '100%' }}>
-          {s.view === 'sales'     && <SalesInputScreen/>}
-          {s.view === 'waiting'   && <ProductionWaitingScreen/>}
-          {s.view === 'mapping'   && <ProductionMappingScreen/>}
-          {s.view === 'completed' && <ProductionCompleteScreen/>}
-          {s.view === 'lookup'    && <OrderLookupScreen/>}
-          {s.view === 'admin'     && <AdminUsersScreen/>}
+          {s.view === 'sales'          && <SalesInputScreen/>}
+          {s.view === 'waiting'        && <ProductionWaitingScreen/>}
+          {s.view === 'mapping'        && <ProductionMappingScreen/>}
+          {s.view === 'completed'      && <ProductionCompleteScreen/>}
+          {s.view === 'lookup'         && <OrderLookupScreen/>}
+          {s.view === 'admin'          && <AdminUsersScreen/>}
+          {s.view === 'as-receipt'     && <AsReceiptScreen/>}
+          {s.view === 'as-processing'  && <AsProcessingScreen/>}
         </div>
       </main>
       <Toast/>
@@ -177,6 +179,7 @@ function boot() {
       const store = window['__pm_store__'];
       store.dbReady = true;
       store.orders = window.PMDB.loadOrders();
+      store.asReceptions = window.PMDB.loadAsReceptions();
       console.log('[BOOT] Loaded', store.orders.length, 'orders');
       try {
         const sess = localStorage.getItem('pm_session');

@@ -11,10 +11,12 @@ window[STORE_KEY] = window[STORE_KEY] || {
   editingOrderId: null,
   currentUser: null,
   dbReady: false,
-  view: 'sales', // 'sales' | 'waiting' | 'mapping' | 'completed' | 'lookup'
+  view: 'sales', // 'sales' | 'waiting' | 'mapping' | 'completed' | 'lookup' | 'as-receipt' | 'as-processing'
   waitingView: 'kanban', // 'table' | 'card' | 'kanban' | 'timeline'
   toast: null,
   completingOrderId: null,
+  asReceptions: [],
+  selectedAsId: null,
 };
 
 function notify() {
@@ -169,6 +171,35 @@ window.actions = {
       setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2600);
     }, 900);
   },
+
+  // ── AS 접수 ────────────────────────────────────────────────────
+  addAsReception(form) {
+    const s = window[STORE_KEY];
+    const result = window.PMDB.addAsReception({ ...form, received_by: s.currentUser ? s.currentUser.user_id : '' });
+    window.PMDB.addAsLog(result.id, '', '접수대기', '접수 등록', s.currentUser ? s.currentUser.name : '');
+    s.asReceptions = window.PMDB.loadAsReceptions();
+    s.toast = { kind: 'success', text: `${result.reception_no} 접수 완료` };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+    return result;
+  },
+  updateAsReception(id, form, memo) {
+    const s = window[STORE_KEY];
+    const current = window.PMDB.getAsReception(id);
+    const prevStatus = current ? current.status : '';
+    window.PMDB.updateAsReception(id, form);
+    if (form.status && form.status !== prevStatus) {
+      window.PMDB.addAsLog(id, prevStatus, form.status, memo || '', s.currentUser ? s.currentUser.name : '');
+    }
+    s.asReceptions = window.PMDB.loadAsReceptions();
+    s.toast = { kind: 'success', text: 'AS 처리 내용 저장' };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+  },
+  selectAs(id) {
+    window[STORE_KEY].selectedAsId = id;
+    notify();
+  },
 };
 
 function TopNav() {
@@ -179,13 +210,17 @@ function TopNav() {
   const user = s.currentUser;
   const allowed = user ? (window.ROLE_TABS[user.role] || []) : [];
 
+  const asCount = (s.asReceptions || []).filter(r => r.status !== '처리완료').length;
+
   const TAB_META = {
-    sales:     { label: '영업 입력' },
-    waiting:   { label: '생산 대기', count: pendingCount + inProgressCount },
-    mapping:   { label: '생산 입력' },
-    completed: { label: '출하대기', count: completedCount },
-    lookup:    { label: '조회' },
-    admin:     { label: '사용자 관리' },
+    sales:           { label: '영업 입력' },
+    waiting:         { label: '생산 대기', count: pendingCount + inProgressCount },
+    mapping:         { label: '생산 입력' },
+    completed:       { label: '출하대기', count: completedCount },
+    lookup:          { label: '조회' },
+    admin:           { label: '사용자 관리' },
+    'as-receipt':    { label: 'AS 접수', count: asCount },
+    'as-processing': { label: 'AS 처리' },
   };
 
   return (
