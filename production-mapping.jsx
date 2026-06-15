@@ -94,7 +94,7 @@ function CompletedView({ order }) {
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card__head">
           <h3 className="card__title">
-            <Icon name="factory" size={14}/> 생산 실적 (tb_production_info)
+            <Icon name="factory" size={14}/> 생산 실적
           </h3>
           <span className="badge badge--complete"><Icon name="check" size={10}/>저장됨</span>
         </div>

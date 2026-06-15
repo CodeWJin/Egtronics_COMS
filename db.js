@@ -95,10 +95,14 @@
       fn().then(({ error }) => {
         if (error) {
           dbLog('ERROR', `write:${table}`, `${op} 실패 — ${error.message}`, { table, op, error });
+          window.actions?.flashToast?.(`DB 저장 실패 (${op}): ${error.message}`, 'error');
         } else {
           dbLog('SUCCESS', `write:${table}`, `${op} 완료`);
         }
-      }).catch(err => dbLog('ERROR', `write:${table}`, `네트워크 오류 — ${err.message}`, err));
+      }).catch(err => {
+        dbLog('ERROR', `write:${table}`, `네트워크 오류 — ${err.message}`, err);
+        window.actions?.flashToast?.(`네트워크 오류 (${op}): ${err.message}`, 'error');
+      });
     }
 
     return {

@@ -29,7 +29,6 @@
 - 고객사 드롭다운
 - 기간 기준(납품일/생산일) 드롭다운
 - 시작일 / 종료일 date 입력
-- A/S 이력 있는 오더만 체크박스
 
 ### 3. 테이블
 
@@ -42,7 +41,6 @@
 - 충전소 ID
 - 납품일 (sortable)
 - 생산일
-- A/S 카운트 배지
 - chevron (>)
 
 ### 4. 드로어 섹션 확장
@@ -53,7 +51,6 @@
 | 2 | 생산 실적 정보 | `order.production` | 기존 |
 | 3 | 오더 변경 이력 | `PMDB.getHistory(order_id)` | **신규** |
 | 4 | A/S 접수 현황 | `PMDB.loadAsReceptions()` → `order_id` 필터 | **신규** |
-| 5 | A/S 이력 (구형) | `PMDB.getAsHistory(order_id)` | 기존 유지 |
 
 #### 섹션 3 — 오더 변경 이력
 
@@ -70,12 +67,6 @@
   - 하단: 처리 이력 로그 (`PMDB.getAsLogs(reception_id)`) — 상태 변경 타임라인
 - 접수 없으면 "등록된 A/S 접수가 없습니다" 안내
 
-#### 섹션 5 — A/S 이력 (구형)
-
-- 기존 `AsHistorySection` 컴포넌트 유지 (add/delete 기능 포함)
-- `canEdit`: `role === 'as'` 인 경우만
-
----
 
 ## 컴포넌트 구조
 
@@ -85,8 +76,7 @@ OrderLookupScreen         ← 메인 화면 (필터 + 테이블)
        ├─ Section: 영업 입력 정보
        ├─ Section: 생산 실적 정보
        ├─ OrderHistorySection   ← 신규
-       ├─ AsReceptionSection    ← 신규
-       └─ AsHistorySection      ← 기존
+       └─ AsReceptionSection    ← 신규
 ```
 
 ### 신규 컴포넌트

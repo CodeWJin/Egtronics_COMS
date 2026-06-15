@@ -9,7 +9,7 @@ Egtronics COMS(Charger Operation Management System)는 이지트로닉스의 EV 
 - **영업 입력**: 신규 발주 등록 (고객사·모델·납품일·케이블 길이, 카카오 우편번호 실검색, 현장담당자)
 - **생산 대기**: 생산 상태별 테이블·카드·칸반·타임라인 뷰, 수정이력 표시
 - **생산 입력**: 생산 실적 입력 (시리얼·로트·SW 버전·검사일)
-- **출하대기**: 생산완료 오더의 출하 관리
+- **출하 대기**: 생산완료 오더의 출하 관리
 - **통합 조회**: 전체 오더 검색·필터·정렬 및 드로어 상세 조회, 구형 A/S 이력 조회
 - **A/S 접수**: 접수번호(`AS-{연도}-{3자리 순번}`) 자동 발번, 고장 유형·증상 등록
 - **A/S 처리**: 상태 흐름(접수대기 → 담당자배정 → 처리중 → 처리완료) 관리, 처리 이력 로그, 사진 첨부(Supabase Storage)
@@ -79,10 +79,11 @@ npx vercel dev       # → localhost:3000
 ├── db.js                        # 데이터 레이어 (window.PMDB — 캐시 + Supabase 동기화)
 │
 │  # 화면 (Views)
+├── DashBoard.jsx                # 대쉬보드
 ├── sales-input.jsx              # 영업 입력
 ├── production-waiting.jsx       # 생산 대기 (테이블·카드·칸반·타임라인)
 ├── production-mapping.jsx       # 생산 입력
-├── quality-AwaitPickup.jsx      # 출하대기
+├── quality-AwaitPickup.jsx      # 출하 대기
 ├── order-lookup.jsx             # 통합 조회 + 구형 A/S 이력
 ├── admin-users.jsx              # 사용자 관리 (관리자 전용)
 ├── as-components.jsx            # A/S 공용 컴포넌트·상수 (FAULT_TYPES, AS_STATUS_LIST 등)
@@ -113,8 +114,8 @@ npx vercel dev       # → localhost:3000
 |------|--------------|
 | `admin` (관리자) | 전체 화면 + 사용자 관리 |
 | `sales` (영업) | 영업 입력 · 생산 대기 · 통합 조회 |
-| `production` (생산) | 생산 대기 · 생산 입력 · 출하대기 · 통합 조회 |
-| `quality` (품질) | 출하대기 · 통합 조회 |
+| `production` (생산) | 생산 대기 · 생산 입력 · 출하 대기 · 통합 조회 |
+| `quality` (품질) | 출하 대기 · 통합 조회 |
 | `as` (A/S) | 통합 조회 · A/S 접수 · A/S 처리 |
 
 `ROLE_TABS`에 정의되지 않은 역할은 통합 조회만 접근 가능합니다.

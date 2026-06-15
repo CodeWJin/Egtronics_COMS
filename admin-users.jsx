@@ -210,8 +210,8 @@ function AdminUsersScreen() {
             <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
               {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회'}
-              {r.value === 'production' && '생산 대기 · 생산 입력 · 출하대기 · 조회'}
-              {r.value === 'quality' && '출하대기 · 조회'}
+              {r.value === 'production' && '생산 대기 · 생산 입력 · 출하 대기 · 조회'}
+              {r.value === 'quality' && '출하 대기 · 조회'}
               {r.value === 'as' && '조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
             </div>
             <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>
@@ -234,11 +234,11 @@ function AdminUsersScreen() {
           <table className="table">
             <thead>
               <tr>
-                <th style={{ width: 90 }}>이름</th>
-                <th style={{ width: 110 }}>아이디</th>
+                <th style={{ width: 200 }}>이름</th>
+                <th style={{ width: 150 }}>아이디</th>
                 <th style={{ width: 100 }}>역할</th>
-                <th style={{ width: 110 }}>부서</th>
-                <th style={{ width: 136 }}>전화번호</th>
+                <th style={{ width: 150 }}>부서</th>
+                <th style={{ width: 150 }}>전화번호</th>
                 <th>이메일</th>
                 <th style={{ width: 96 }}></th>
               </tr>
@@ -257,7 +257,7 @@ function AdminUsersScreen() {
                       {u.user_id === currentUserId && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, background: 'var(--primary-50)', color: 'var(--primary-600)', fontWeight: 600 }}>본인</span>}
                     </div>
                   </td>
-                  <td><span className="cell-mono">@{u.user_id}</span></td>
+                  <td><span>{u.user_id}</span></td>
                   <td>
                     <span className="usermenu__role" data-role={u.role} style={{ padding: '3px 8px', borderRadius: 999, fontSize: 12, fontWeight: 500 }}>
                       {window.ROLE_LABEL[u.role] || u.role}

@@ -36,7 +36,7 @@ function ProductionWaitingScreen() {
 
   const filtered = useMemoPW(() => {
     return s.orders.filter(o => {
-      if (o.status === 'AWAIT_PICKUP' || o.status === 'COMPLETED') return false;
+      if (o.status === 'COMPLETED') return false;
       if (filterModel !== 'all' && o.model_name !== filterModel) return false;
       if (search) {
         const q = search.toLowerCase();
