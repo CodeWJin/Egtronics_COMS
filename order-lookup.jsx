@@ -239,6 +239,34 @@ function OrderLookupScreen() {
   );
 }
 
+function OrderHistorySection({ orderId }) {
+  const list = React.useMemo(() => window.PMDB.getHistory(orderId), [orderId]);
+
+  return (
+    <section>
+      <div className="dsec__title"><Icon name="timeline" size={12}/> 오더 변경 이력</div>
+      {list.length === 0 ? (
+        <div className="emptystate" style={{ padding: '14px 0' }}>
+          <div className="emptystate__title" style={{ fontSize: 13 }}>변경 이력이 없습니다</div>
+        </div>
+      ) : list.map((r, i) => (
+        <div key={r.history_id} style={{ padding: '10px 0', borderBottom: i < list.length - 1 ? '1px solid var(--border-1)' : 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.changed_at}</span>
+            <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{r.changed_by}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12.5 }}>
+            <span className="badge badge--neutral">{r.action || 'update'}</span>
+            {Array.isArray(r.changed_fields) && r.changed_fields.length > 0 && (
+              <span style={{ color: 'var(--ink-3)' }}>{r.changed_fields.join(', ')}</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function AsHistorySection({ orderId, canEdit, onAsChange }) {
   const [list, setList] = useStateOL([]);
   const [showForm, setShowForm] = useStateOL(false);
