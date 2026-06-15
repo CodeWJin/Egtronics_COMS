@@ -474,6 +474,13 @@ function OrderDrawer({ order, onClose, onAsChange }) {
             )}
           </section>
 
+          {/* 섹션 3: 오더 변경 이력 (신규) */}
+          <OrderHistorySection orderId={order.order_id}/>
+
+          {/* 섹션 4: A/S 접수 현황 (신규) */}
+          <AsReceptionSection orderId={order.order_id}/>
+
+          {/* 섹션 5: A/S 이력 구형 (기존 유지) */}
           <AsHistorySection orderId={order.order_id} canEdit={isAs} onAsChange={onAsChange}/>
         </div>
 
