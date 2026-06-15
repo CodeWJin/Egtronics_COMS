@@ -189,14 +189,13 @@ function OrderLookupScreen() {
         <div className="table-wrap">
           <table className="table" style={{ tableLayout: 'fixed', width: '100%', textAlign: 'left', borderCollapse: 'collapse', }}>
             <colgroup>
-              <col style={{ textAlign: 'left', width: 76 }}/>
-              <col style={{ textAlign: 'left', width: 190 }}/>
-              <col style={{ textAlign: 'left', width: 150 }}/>
-              <col style={{ textAlign: 'left', width: 120 }}/>
-              <col style={{ textAlign: 'left', width: 140 }}/>
-              <col style={{ textAlign: 'left', width: 140 }}/>
-              <col style={{ textAlign: 'left', width: 110 }}/>
-              <col style={{ textAlign: 'left', width: 40 }}/>
+              <col style={{ width: 76 }}/>
+              <col style={{ width: 200 }}/>
+              <col style={{ width: 160 }}/>
+              <col style={{ width: 130 }}/>
+              <col style={{ width: 150 }}/>
+              <col style={{ width: 150 }}/>
+              <col style={{ width: 40 }}/>
             </colgroup>
             <thead>
               <tr>
@@ -206,7 +205,6 @@ function OrderLookupScreen() {
                 <th>충전소 ID</th>
                 <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
                 <th>생산일</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('status')}>상태{sortArrow('status')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -227,16 +225,6 @@ function OrderLookupScreen() {
                   <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
                   <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
                     {o.production ? o.production.prod_date : <span style={{ color: 'var(--ink-5)' }}>—</span>}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {statusBadge(o)}
-                      {(window.PMDB.getAsHistory(o.order_id) || []).length > 0 && (
-                        <span className="badge badge--pending" style={{ background: 'var(--warning-50)', color: 'var(--warning-700)', fontSize: 10.5 }}>
-                          A/S {(window.PMDB.getAsHistory(o.order_id) || []).length}
-                        </span>
-                      )}
-                    </div>
                   </td>
                   <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
                 </tr>
