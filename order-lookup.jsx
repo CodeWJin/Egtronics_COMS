@@ -267,6 +267,81 @@ function OrderHistorySection({ orderId }) {
   );
 }
 
+function AsReceptionCard({ reception: r }) {
+  const logs = React.useMemo(() => window.PMDB.getAsLogs(r.id), [r.id]);
+
+  const statusStyle = {
+    '접수대기':   { bg: 'var(--ink-6)',       fg: 'var(--ink-3)' },
+    '담당자배정': { bg: 'var(--primary-50)',   fg: 'var(--primary-600)' },
+    '처리중':     { bg: 'var(--warning-50)',   fg: 'var(--warning-700)' },
+    '처리완료':   { bg: 'var(--success-50)',   fg: 'var(--success-700)' },
+  }[r.status] || { bg: 'var(--ink-6)', fg: 'var(--ink-3)' };
+
+  return (
+    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border-1)', borderRadius: 'var(--r-lg)', padding: '12px 14px', marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 600 }}>{r.reception_no}</span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {r.priority && r.priority !== '일반' && (
+            <span className="badge badge--pending">{r.priority}</span>
+          )}
+          <span className="badge" style={{ background: statusStyle.bg, color: statusStyle.fg, border: 'none' }}>{r.status}</span>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12.5 }}>
+        {r.fault_type && <div><span style={{ color: 'var(--ink-3)' }}>고장유형 </span><span>{r.fault_type}</span></div>}
+        {r.received_at && <div><span style={{ color: 'var(--ink-3)' }}>접수일 </span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.received_at.slice(0, 10)}</span></div>}
+        {r.reporter_name && (
+          <div style={{ gridColumn: 'span 2' }}>
+            <span style={{ color: 'var(--ink-3)' }}>신고자 </span>
+            <span>{r.reporter_name}{r.reporter_phone ? ` (${r.reporter_phone})` : ''}</span>
+          </div>
+        )}
+        {r.assignee && <div><span style={{ color: 'var(--ink-3)' }}>담당자 </span><span>{r.assignee}</span></div>}
+        {r.dispatch_date && <div><span style={{ color: 'var(--ink-3)' }}>출동일 </span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.dispatch_date}</span></div>}
+        {r.action_type && <div><span style={{ color: 'var(--ink-3)' }}>처리유형 </span><span>{r.action_type}</span></div>}
+        {r.action_detail && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>처리내용 </span><span>{r.action_detail}</span></div>}
+        {r.cost && <div><span style={{ color: 'var(--ink-3)' }}>비용 </span><span>{r.cost}</span></div>}
+        {r.notes && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>비고 </span><span>{r.notes}</span></div>}
+      </div>
+      {logs.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 8, marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>처리 이력</div>
+          {logs.map(l => (
+            <div key={l.id} style={{ display: 'flex', gap: 8, fontSize: 11.5, padding: '3px 0', alignItems: 'flex-start' }}>
+              <span style={{ color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', flexShrink: 0, minWidth: 72 }}>{(l.changed_at || '').slice(0, 10)}</span>
+              <span style={{ color: 'var(--ink-3)', flexShrink: 0 }}>{l.from_status || '—'} → {l.to_status || '—'}</span>
+              {l.memo && <span style={{ color: 'var(--ink-2)' }}>{l.memo}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AsReceptionSection({ orderId }) {
+  const receptions = React.useMemo(
+    () => window.PMDB.loadAsReceptions().filter(r => r.order_id === orderId),
+    [orderId]
+  );
+
+  return (
+    <section>
+      <div className="dsec__title">
+        <Icon name="list" size={12}/> A/S 접수 현황{receptions.length > 0 && ` (${receptions.length}건)`}
+      </div>
+      {receptions.length === 0 ? (
+        <div className="emptystate" style={{ padding: '14px 0' }}>
+          <div className="emptystate__title" style={{ fontSize: 13 }}>등록된 A/S 접수가 없습니다</div>
+        </div>
+      ) : (
+        receptions.map(r => <AsReceptionCard key={r.id} reception={r}/>)
+      )}
+    </section>
+  );
+}
+
 function AsHistorySection({ orderId, canEdit, onAsChange }) {
   const [list, setList] = useStateOL([]);
   const [showForm, setShowForm] = useStateOL(false);
