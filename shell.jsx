@@ -214,7 +214,6 @@ window.actions = {
 function TopNav() {
   const s = useStore();
   const pendingCount = s.orders.filter(o => o.status === 'PENDING').length;
-  const inProgressCount = s.orders.filter(o => o.status === 'IN_PROGRESS').length;
   const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP').length;
   const user = s.currentUser;
   const allowed = user ? (window.ROLE_TABS[user.role] || []) : [];
@@ -223,7 +222,7 @@ function TopNav() {
 
   const TAB_META = {
     sales:           { label: '영업 입력' },
-    waiting:         { label: '생산 대기', count: pendingCount + inProgressCount },
+    waiting:         { label: '생산 대기', count: pendingCount },
     mapping:         { label: '생산 입력' },
     AwaitPickup:     { label: '출하대기', count: awaitPickupCount },
     lookup:          { label: '조회' },
@@ -246,7 +245,7 @@ function TopNav() {
                   aria-current={s.view === k ? 'page' : undefined}
                   onClick={() => window.actions.setView(k)}>
             {TAB_META[k].label}
-            {TAB_META[k].count != null && <span className="topnav__count" aria-label={`${TAB_META[k].count}건`}>{TAB_META[k].count}</span>}
+            {TAB_META[k].count > 0 && <span className="topnav__count" aria-label={`${TAB_META[k].count}건`}>{TAB_META[k].count}</span>}
           </button>
         ))}
       </nav>

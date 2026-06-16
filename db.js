@@ -77,12 +77,15 @@
   const SEED_MASTER_SW_VERSIONS = [
     { tag: 'v1.0.0', released: TODAY_ISO, stable: true },
   ];
+  const SEED_MASTER_FW_VERSIONS = [
+    { tag: 'v1.0.0', released: TODAY_ISO, stable: true },
+  ];
   window.MASTER = { CABLE_LENGTHS: [] };
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], cpos: [], sw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], cpos: [], sw_versions: [], fw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asHistSeq = 0;
@@ -198,21 +201,23 @@
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
           const mapResult = (r, fn) => r.error ? [] : (r.data || []).map(fn);
-          const [mc, mm, msw, mcl, mcpo] = await Promise.all([
+          const [mc, mm, msw, mfw, mcl, mcpo] = await Promise.all([
             client.from('tb_master_customer').select('*').order('id'),
             client.from('tb_master_model').select('*').order('id'),
             client.from('tb_master_sw_version').select('*').order('id'),
+            client.from('tb_master_fw_version').select('*').order('id'),
             client.from('tb_master_cable_length').select('*').order('id'),
             client.from('tb_master_cpo').select('*').order('id'),
           ]);
           cache.customers = mapResult(mc, c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
           cache.cpos = mapResult(mcpo, c => ({ id: c.id, name: c.name, code: c.code }));
-          cache.models = mapResult(mm, m => ({ name: m.name, spec: m.spec || '', power: m.power || '' }));
+          cache.models = mapResult(mm, m => ({ model: m.model || '', name: m.name || '', description: m.description || '', power: m.power || '' }));
           cache.sw_versions = mapResult(msw, r => ({ tag: r.tag, released: r.released, stable: r.stable }));
+          cache.fw_versions = mapResult(mfw, r => ({ tag: r.tag, released: r.released, stable: r.stable }));
           window.MASTER = {
             CABLE_LENGTHS: mapResult(mcl, c => c.value),
           };
-          const errs = [mc, mm, msw, mcl, mcpo].map(r => r.error).filter(Boolean);
+          const errs = [mc, mm, msw, mfw, mcl, mcpo].map(r => r.error).filter(Boolean);
           if (errs.length) {
             dbLog('WARN', 'loadAll', `마스터 테이블 일부 조회 실패 (${errs.length}개) — seed.sql 실행 필요: ` + errs.map(e => e.message).join('; '));
           } else {
@@ -684,39 +689,49 @@
         dbWrite('tb_master_sw_version', 'insert', () => client.from('tb_master_sw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
       },
 
+      getFwVersions() {
+        return [...cache.fw_versions];
+      },
+
+      addMasterFwVersion(ver) {
+        cache.fw_versions.unshift({ tag: ver.tag, released: ver.released, stable: ver.stable });
+        dbLog('INFO', 'write:tb_master_fw_version', `FW 버전 추가 — ${ver.tag}`);
+        dbWrite('tb_master_fw_version', 'insert', () => client.from('tb_master_fw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
+      },
+
       getModels() {
         return [...cache.models];
       },
 
-      addMasterModel(name, spec, power) {
-        if (cache.models.find(m => m.name === name))
-          return { ok: false, msg: '이미 등록된 모델명입니다' };
-        const row = { name, spec: spec || '', power: power || '' };
+      addMasterModel(model, description, name, power) {
+        if (cache.models.find(m => m.model === model))
+          return { ok: false, msg: '이미 등록된 모델 코드입니다' };
+        const row = { model, name: name || '', description: description || '', power: power || '' };
         cache.models.push(row);
-        dbLog('INFO', 'write:tb_master_model', `모델 추가 — ${name}`);
-        dbWrite('tb_master_model', 'insert', () => client.from('tb_master_model').insert(row));
+        dbLog('INFO', 'write:tb_master_model', `모델 추가 — ${model}`);
+        dbWrite('tb_master_model', 'insert', () => client.from('tb_master_model').insert({ model, name: name || '', description: description || '', power: power || '' }));
         return { ok: true };
       },
 
-      updateMasterModel(idx, name, spec, power) {
+      updateMasterModel(idx, model, description, name, power) {
         const m = cache.models[idx];
         if (!m) return { ok: false, msg: '모델을 찾을 수 없습니다' };
-        if (name !== m.name && cache.models.find(x => x.name === name))
-          return { ok: false, msg: '이미 등록된 모델명입니다' };
-        const oldName = m.name;
-        Object.assign(m, { name, spec: spec || '', power: power || '' });
-        dbLog('INFO', 'write:tb_master_model', `모델 수정 — ${name}`);
-        dbWrite('tb_master_model', 'update', () => client.from('tb_master_model').update({ name, spec: spec || '', power: power || '' }).eq('name', oldName));
+        if (model !== m.model && cache.models.find(x => x.model === model))
+          return { ok: false, msg: '이미 등록된 모델 코드입니다' };
+        const oldModel = m.model;
+        Object.assign(m, { model, name: name || '', description: description || '', power: power || '' });
+        dbLog('INFO', 'write:tb_master_model', `모델 수정 — ${model}`);
+        dbWrite('tb_master_model', 'update', () => client.from('tb_master_model').update({ model, name: name || '', description: description || '', power: power || '' }).eq('model', oldModel));
         return { ok: true };
       },
 
       deleteMasterModel(idx) {
         const m = cache.models[idx];
         if (!m) return;
-        const name = m.name;
+        const model = m.model;
         cache.models.splice(idx, 1);
-        dbLog('INFO', 'write:tb_master_model', `모델 삭제 — ${name}`);
-        dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('name', name));
+        dbLog('INFO', 'write:tb_master_model', `모델 삭제 — ${model}`);
+        dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('model', model));
       },
 
       addMasterCableLength(value) {
@@ -836,6 +851,15 @@
         backend.cache.sw_versions = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
         window.dispatchEvent(new CustomEvent('masterLoaded'));
       }
+      if (backend.cache.fw_versions.length === 0) {
+        try {
+          const { error } = await client.from('tb_master_fw_version').insert(SEED_MASTER_FW_VERSIONS);
+          if (error) dbLog('WARN', 'init', '초기 FW버전 삽입 실패 — ' + error.message);
+          else dbLog('INFO', 'init', '초기 FW버전 데이터 삽입 완료');
+        } catch (e) { dbLog('WARN', 'init', '초기 FW버전 삽입 오류 — ' + e.message); }
+        backend.cache.fw_versions = SEED_MASTER_FW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
+        window.dispatchEvent(new CustomEvent('masterLoaded'));
+      }
       if (window.MASTER.CABLE_LENGTHS.length === 0) {
         try {
           const { error } = await client.from('tb_master_cable_length').insert(SEED_MASTER_CABLE_LENGTHS.map(v => ({ value: v })));
@@ -907,6 +931,8 @@
     deleteMasterCableLength(v)      { return this.backend.deleteMasterCableLength(v); },
     getSwVersions()                 { return this.backend.getSwVersions(); },
     addMasterSwVersion(v)           { return this.backend.addMasterSwVersion(v); },
+    getFwVersions()                 { return this.backend.getFwVersions(); },
+    addMasterFwVersion(v)           { return this.backend.addMasterFwVersion(v); },
     reset()                      { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };
 

@@ -2,6 +2,40 @@
 
 const { useState: useStatePM, useMemo: useMemoPM } = React;
 
+const SERIAL_MODEL_CODES = {
+  'EGSW101101':    ['G00', '00S'],
+  'EGMI205001':    ['G01', '00P'],
+  'EGMI105001':    ['G01', '01P'],
+  'EGMI104001':    ['G01', '02P'],
+  'EGMI103001':    ['G01', '03P'],
+  'EGFA210001':    ['G02', '00P'],
+  'EGFA110001':    ['G02', '01P'],
+  'EGSW100701':    ['G03', '00S'],
+  'EGSW101102':    ['G04', '00H'],
+  'EGSW100702':    ['G05', '00H'],
+  'EGSW101103':    ['G07', '00P'],
+  'EGSW101103P':   ['G07', '01S'],
+  'EGSW101103I':   ['G07', '02P'],
+  'EGSW101103PI':  ['G07', '03P'],
+  'EGSW101103N':   ['G07', '04S'],
+  'EGSW100703':    ['G08', '00P'],
+  'EGSW100703P':   ['G08', '01S'],
+  'EGSW100703I':   ['G08', '02P'],
+  'EGSW100703PI':  ['G08', '03P'],
+  'EGSW100703N':   ['G08', '04S'],
+  'EGFA220001':    ['G09', '00P'],
+  'EGFA120001':    ['G09', '01P'],
+};
+
+function makeSerialDateCode(dateISO) {
+  const d = new Date(dateISO);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const yearCode = String.fromCharCode('A'.charCodeAt(0) + (year - 2023) % 20);
+  const monthCode = month <= 9 ? String(month) : String.fromCharCode('A'.charCodeAt(0) + month - 10);
+  return yearCode + monthCode;
+}
+
 function ProductionMappingScreen() {
   const s = window.useStore();
   const order = s.orders.find(o => o.order_id === s.selectedOrderId);
@@ -100,12 +134,13 @@ function CompletedView({ order }) {
         </div>
         <div className="card__body">
           <div className="form-grid form-grid--3">
-            <KvCell k="생산일자" v={order.production.prod_date} icon="calendar"/>
-            <KvCell k="로트" v={order.production.lot_no} mono icon="package"/>
-            <KvCell k="시리얼" v={order.production.serial_no} mono icon="cpu"/>
-            <KvCell k="검정일자" v={order.production.inspection_date} icon="shield"/>
-            <KvCell k="S/W 버전" v={order.production.sw_version} mono icon="bolt"/>
-            <KvCell k="문서번호" v={order.production.doc_no} mono icon="doc"/>
+            <KvCell k="생산일자" v={order.production?.prod_date} icon="calendar"/>
+            <KvCell k="로트" v={order.production?.lot_no} mono icon="package"/>
+            <KvCell k="시리얼" v={order.production?.serial_no} mono icon="cpu"/>
+            <KvCell k="검정일자" v={order.production?.inspection_date} icon="shield"/>
+            <KvCell k="S/W 버전" v={order.production?.sw_version} mono icon="bolt"/>
+            <KvCell k="F/W 버전" v={order.production?.fw_version} mono icon="bolt"/>
+            <KvCell k="문서번호" v={order.production?.doc_no} mono icon="doc"/>
           </div>
         </div>
       </div>
@@ -119,7 +154,7 @@ function KvCell({ k, v, mono, icon }) {
       <label className="field__label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {icon && <Icon name={icon} size={11}/>}{k}
       </label>
-      <div className="input input--readonly" style={{ display: 'flex', alignItems: 'center', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontSize: mono ? 12.5 : 13.5 }}>
+      <div className="input input--readonly" style={{ display: 'flex', alignItems: 'center', fontFamily: mono ? 'var(--font-mono)' : 'inherit', fontSize: mono ? 14 : 15 }}>
         {v}
       </div>
     </div>
@@ -196,17 +231,17 @@ function SalesReadOnly({ order }) {
                 <span className="badge badge--pending" style={{ fontSize: 11 }}>
                   <span className="badge__dot"/>수정
                 </span>
-                <span style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--ink-1)' }}>{h.changed_by}</span>
-                <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{h.changed_at}</span>
+                <span style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--ink-1)' }}>{h.changed_by}</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', marginLeft: 'auto' }}>{h.changed_at}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 4 }}>
                 {(h.changed_fields || []).map(f => (
-                  <div key={f.field} style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8, fontSize: 12, alignItems: 'start' }}>
+                  <div key={f.field} style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8, fontSize: 13, alignItems: 'start' }}>
                     <span style={{ color: 'var(--ink-3)' }}>{f.label}</span>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ color: 'var(--danger-700)', textDecoration: 'line-through', fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{f.before || '—'}</span>
+                      <span style={{ color: 'var(--danger-700)', textDecoration: 'line-through', fontFamily: 'var(--font-mono)', fontSize: 13.5 }}>{f.before || '—'}</span>
                       <span style={{ color: 'var(--ink-4)' }}>→</span>
-                      <span style={{ color: 'var(--success-700)', fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{f.after || '—'}</span>
+                      <span style={{ color: 'var(--success-700)', fontFamily: 'var(--font-mono)', fontSize: 13.5 }}>{f.after || '—'}</span>
                     </div>
                   </div>
                 ))}
@@ -239,12 +274,6 @@ function Cell({ k, v, mono, prev }) {
 function MappingForm({ order }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const isPublic = (order.usage_type || '공용') === '공용';
-  const suggestSerial = useMemoPM(() => {
-    // SGT + power code + YYMMDD + 2-digit seq + letter
-    const power = (order.model_name.match(/(\d+)kW/) || ['', '050'])[1].padStart(3, '0');
-    const ymd = todayISO.replace(/-/g, '').slice(2);
-    return `SGT${power}K-${ymd}01A`;
-  }, [order]);
 
   const [form, setForm] = useStatePM(() => {
     const ex = order.production || {};
@@ -254,6 +283,7 @@ function MappingForm({ order }) {
       serial_no: ex.serial_no || '',
       inspection_date: ex.inspection_date || '',
       sw_version: ex.sw_version || '',
+      fw_version: ex.fw_version || '',
       doc_no: ex.doc_no || '',
     };
   });
@@ -261,11 +291,32 @@ function MappingForm({ order }) {
   const [showAll, setShowAll] = useStatePM(false);
   const [dupState, setDupState] = useStatePM(order.production ? 'ok' : null); // null | 'checking' | 'ok' | 'dup'
   const [swVersions, setSwVersions] = useStatePM(() => window.PMDB.getSwVersions());
-  const [addingVer, setAddingVer] = useStatePM(false);
-  const [newVerTag, setNewVerTag] = useStatePM('');
-  const [newVerStable, setNewVerStable] = useStatePM(true);
+  const [addingSwVer, setAddingSwVer] = useStatePM(false);
+  const [newSwVerTag, setNewSwVerTag] = useStatePM('');
+  const [newSwVerStable, setNewSwVerStable] = useStatePM(true);
+  const [fwVersions, setFwVersions] = useStatePM(() => window.PMDB.getFwVersions());
+  const [addingFwVer, setAddingFwVer] = useStatePM(false);
+  const [newFwVerTag, setNewFwVerTag] = useStatePM('');
+  const [newFwVerStable, setNewFwVerStable] = useStatePM(true);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const suggestSerial = useMemoPM(() => {
+    const models = window.PMDB.getModels();
+    const entry = models.find(m => m.name === order.model_name);
+    const modelCode = entry ? entry.model : order.model_name;
+    const codes = SERIAL_MODEL_CODES[modelCode];
+    if (!codes) return 'G00-00S-D1-0001';
+    const dateCode = makeSerialDateCode(form.prod_date || todayISO);
+    const base = `${codes[0]}-${codes[1]}-${dateCode}`;
+    let idx = 1;
+    let candidate;
+    do {
+      candidate = `${base}-${String(idx).padStart(4, '0')}`;
+      idx++;
+    } while (window.PMDB.serialExists(candidate) && idx <= 9999);
+    return candidate;
+  }, [order.model_name, form.prod_date]);
 
   // Auto lot from prod_date
   React.useEffect(() => {
@@ -290,16 +341,28 @@ function MappingForm({ order }) {
     setDupState(null);
   };
 
-  const addVersion = () => {
-    const tag = newVerTag.trim();
+  const addVersionSW = () => {
+    const tag = newSwVerTag.trim();
     if (!tag) return;
-    const ver = { tag, released: todayISO, stable: newVerStable };
+    const ver = { tag, released: todayISO, stable: newSwVerStable };
     window.PMDB.addMasterSwVersion(ver);
     setSwVersions(prev => [ver, ...prev]);
     update('sw_version', tag);
     setTouched(t => ({ ...t, sw_version: 1 }));
-    setAddingVer(false);
-    setNewVerTag('');
+    setAddingSwVer(false);
+    setNewSwVerTag('');
+  };
+
+  const addVersionFW = () => {
+    const tag = newFwVerTag.trim();
+    if (!tag) return;
+    const ver = { tag, released: todayISO, stable: newFwVerStable };
+    window.PMDB.addMasterFwVersion(ver);
+    setFwVersions(prev => [ver, ...prev]);
+    update('fw_version', tag);
+    setTouched(t => ({ ...t, fw_version: 1 }));
+    setAddingFwVer(false);
+    setNewFwVerTag('');
   };
 
   const errors = {
@@ -308,6 +371,7 @@ function MappingForm({ order }) {
     serial_no: !form.serial_no ? '시리얼을 입력하세요' : (dupState === 'dup' ? '이미 사용된 시리얼입니다' : null),
     inspection_date: isPublic && !form.inspection_date && '검정일자를 선택하세요',
     sw_version: !form.sw_version && 'S/W 버전을 선택하세요',
+    fw_version: !form.fw_version && 'F/W 버전을 선택하세요',
     doc_no: !form.doc_no && '문서번호를 입력하세요',
   };
   const hasErr = Object.values(errors).some(Boolean);
@@ -315,7 +379,7 @@ function MappingForm({ order }) {
 
   const submit = () => {
     setShowAll(true);
-    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, doc_no: 1 });
+    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1, doc_no: 1 });
     if (hasErr) return;
     if (dupState === null && form.serial_no) {
       if (window.PMDB.serialExists(form.serial_no)) {
@@ -339,11 +403,10 @@ function MappingForm({ order }) {
               <span className="badge__dot"/>생산진행중
             </span>
           </h1>
-          <p className="screen__sub">상단의 영업 정보를 확인 후 하단 6개 항목을 채워주세요. 완료 시 자동으로 <strong>생산완료</strong> 상태로 전환됩니다.</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
-            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/6 항목 입력
+          <span style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>
+            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/7 항목 입력
           </span>
           <button className="btn btn--ghost btn--sm" onClick={() => {
             if (confirm(`오더 #${order.order_id}을(를) 생산대기로 되돌릴까요?\n입력 중인 내용은 저장되지 않습니다.`)) {
@@ -373,7 +436,7 @@ function MappingForm({ order }) {
           <h3 className="card__title">
             <Icon name="factory" size={14}/> 생산 실적 입력
           </h3>
-          <span className="card__sub">tb_production_info · 6 columns</span>
+          <span className="card__sub">tb_production_info · 7 columns</span>
         </div>
         <div className="card__body">
           <div className="form-grid form-grid--3">
@@ -393,7 +456,7 @@ function MappingForm({ order }) {
               <label className="field__label" htmlFor="pm-lot-no"><Icon name="package" size={11}/>로트번호 <span className="field__req">*</span></label>
               <input id="pm-lot-no"
                      className={`input ${showErr('lot_no') ? 'input--error' : ''}`}
-                     style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
+                     style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
                      placeholder="예: L26-W22-A"
                      value={form.lot_no}
                      onChange={(e) => { update('lot_no', e.target.value); setTouched(t => ({ ...t, lot_no: 1 })); }}/>
@@ -407,8 +470,8 @@ function MappingForm({ order }) {
               <div className="input-group">
                 <input id="pm-serial-no"
                        className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
-                       placeholder="예: SGT100K-26052801A"
+                       style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
+                       placeholder="예: G00-00S-D6-0001"
                        value={form.serial_no}
                        onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
                 <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no || dupState === 'checking'}>
@@ -421,7 +484,7 @@ function MappingForm({ order }) {
                 {!dupState && <span>외함/메인보드 고유 식별자 · </span>}
                 <button type="button"
                         onClick={useSuggestion}
-                        style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', padding: 0, fontSize: 11.5, fontWeight: 500, textDecoration: 'underline' }}>
+                        style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 500, textDecoration: 'underline' }}>
                   추천: {suggestSerial}
                 </button>
               </div>
@@ -441,7 +504,7 @@ function MappingForm({ order }) {
               </div>
             )}
 
-            {/* S/W 버전 */}
+            {/* S/W 버전 */}  
             <div className="field col-span-2">
               <div className="field__label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
               <div className="tagpicker">
@@ -451,40 +514,86 @@ function MappingForm({ order }) {
                           className={`tagpicker__item ${form.sw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.sw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
                           onClick={() => { update('sw_version', v.tag); setTouched(t => ({ ...t, sw_version: 1 })); }}>
                     <Icon name="tag" size={10}/>{v.tag}
-                    {!v.stable && <span style={{ fontSize: 9.5, opacity: 0.8 }}>BETA</span>}
+                    {!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
                   </button>
                 ))}
                 <button type="button"
-                        className={`tagpicker__item tagpicker__item--add ${addingVer ? 'tagpicker__item--active' : ''}`}
-                        onClick={() => { setAddingVer(v => !v); setNewVerTag(''); }}>
+                        className={`tagpicker__item tagpicker__item--add ${addingSwVer ? 'tagpicker__item--active' : ''}`}
+                        onClick={() => { setAddingSwVer(v => !v); setNewSwVerTag(''); }}>
                   <Icon name="plus" size={10}/> 버전 추가
                 </button>
               </div>
-              {addingVer && (
+              {addingSwVer && (
                 <div className="ver-add-row">
                   <input
                     className="input"
-                    style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
                     placeholder="예: v1.8.0-core"
-                    value={newVerTag}
-                    onChange={e => setNewVerTag(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') addVersion(); if (e.key === 'Escape') setAddingVer(false); }}
+                    value={newSwVerTag}
+                    onChange={e => setNewSwVerTag(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addVersionSW(); if (e.key === 'Escape') setAddingSwVer(false); }}
                     autoFocus
                   />
                   <label className="ver-add-row__toggle">
-                    <input type="checkbox" checked={newVerStable} onChange={e => setNewVerStable(e.target.checked)}/>
+                    <input type="checkbox" checked={newSwVerStable} onChange={e => setNewSwVerStable(e.target.checked)}/>
                     정식(stable)
                   </label>
-                  <button type="button" className="btn btn--primary btn--sm" onClick={addVersion} disabled={!newVerTag.trim()}>
+                  <button type="button" className="btn btn--primary btn--sm" onClick={addVersionSW} disabled={!newSwVerTag.trim()}>
                     <Icon name="plus" size={12}/> 추가
                   </button>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingVer(false); setNewVerTag(''); }}>
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingSwVer(false); setNewSwVerTag(''); }}>
                     취소
                   </button>
                 </div>
               )}
-              <div className="field__hint">목록에서 선택하거나 <strong>버전 추가</strong>로 직접 등록 (localStorage 저장)</div>
+              <div className="field__hint">목록에서 선택하거나 <strong>버전 추가</strong>로 직접 등록 </div>
               {showErr('sw_version') && <div className="field__err"><Icon name="alert" size={12}/>{errors.sw_version}</div>}
+            </div>
+
+            {/* F/W 버전 */}  
+            <div className="field col-span-2">
+              <div className="field__label"><Icon name="bolt" size={11}/>F/W 버전 <span className="field__req">*</span></div>
+              <div className="tagpicker">
+                {fwVersions.map(v => (
+                  <button key={v.tag}
+                          type="button"
+                          className={`tagpicker__item ${form.fw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.fw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
+                          onClick={() => { update('fw_version', v.tag); setTouched(t => ({ ...t, fw_version: 1 })); }}>
+                    <Icon name="tag" size={10}/>{v.tag}
+                    {!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+                  </button>
+                ))}
+                <button type="button"
+                        className={`tagpicker__item tagpicker__item--add ${addingFwVer ? 'tagpicker__item--active' : ''}`}
+                        onClick={() => { setAddingFwVer(v => !v); setNewFwVerTag(''); }}>
+                  <Icon name="plus" size={10}/> 버전 추가
+                </button>
+              </div>
+              {addingFwVer && (
+                <div className="ver-add-row">
+                  <input
+                    className="input"
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
+                    placeholder="예: v1.8.0-core"
+                    value={newFwVerTag}
+                    onChange={e => setNewFwVerTag(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addVersionFW(); if (e.key === 'Escape') setAddingFwVer(false); }}
+                    autoFocus
+                  />
+                  <label className="ver-add-row__toggle">
+                    <input type="checkbox" checked={newFwVerStable} onChange={e => setNewFwVerStable(e.target.checked)}/>
+                    정식(stable)
+                  </label>
+                  <button type="button" className="btn btn--primary btn--sm" onClick={addVersionFW} disabled={!newFwVerTag.trim()}>
+                    <Icon name="plus" size={12}/> 추가
+                  </button>
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingFwVer(false); setNewFwVerTag(''); }}>
+                    취소
+                  </button>
+                </div>
+              )}
+              <div className="field__hint">목록에서 선택하거나 <strong>버전 추가</strong>로 직접 등록 </div>
+              {showErr('fw_version') && <div className="field__err"><Icon name="alert" size={12}/>{errors.fw_version}</div>}
             </div>
 
             {/* 문서번호 */}
@@ -492,7 +601,7 @@ function MappingForm({ order }) {
               <label className="field__label" htmlFor="pm-doc-no"><Icon name="doc" size={11}/>문서번호 (기능 검사 성적서) <span className="field__req">*</span></label>
               <input id="pm-doc-no"
                      className={`input ${showErr('doc_no') ? 'input--error' : ''}`}
-                     style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
+                     style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
                      placeholder="예: QC-26-0528-A"
                      value={form.doc_no}
                      onChange={(e) => { update('doc_no', e.target.value); setTouched(t => ({ ...t, doc_no: 1 })); }}/>
@@ -502,7 +611,7 @@ function MappingForm({ order }) {
           </div>
 
           <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--ink-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, color: 'var(--ink-3)' }}>
               <Icon name="lock" size={13}/>
               저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산
             </div>

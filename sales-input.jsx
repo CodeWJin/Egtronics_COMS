@@ -1,7 +1,7 @@
 // 영업 부서 입력 화면 (Sales Input Dashboard)
 const { useState: useStateSI, useRef: useRefSI, useEffect: useEffectSI } = React;
 
-function ComboField({ value, onChange, options, placeholder, error, displayKey = 'name', metaKey = 'spec', ariaLabel }) {
+function ComboField({ value, onChange, options, placeholder, error, displayKey = 'name', metaKey = 'description', ariaLabel }) {
   const [open, setOpen] = useStateSI(false);
   const [highlight, setHighlight] = useStateSI(0);
   const [showAll, setShowAll] = useStateSI(false);
@@ -53,38 +53,6 @@ function ComboField({ value, onChange, options, placeholder, error, displayKey =
   );
 }
 
-function ScannerInput({ value, onChange, placeholder, error, maxLength, format }) {
-  const [scanning, setScanning] = useStateSI(false);
-  const ref = useRefSI(null);
-  const onFocus = () => {
-    setScanning(true);
-    setTimeout(() => setScanning(false), 1800);
-  };
-  // Simulate barcode scan
-  const simulate = () => {
-    setScanning(true);
-    setTimeout(() => {
-      onChange(format ? format() : `RTR-2026-${Math.floor(Math.random() * 90000 + 10000)}`);
-      setScanning(false);
-      if (ref.current) ref.current.blur();
-    }, 1200);
-  };
-  return (
-    <div className="input-group">
-      <input ref={ref}
-             className={`input ${error ? 'input--error' : ''} ${scanning ? 'input--scanning' : ''}`}
-             placeholder={scanning ? '스캐너 대기 중…' : placeholder}
-             maxLength={maxLength}
-             value={value || ''}
-             onFocus={onFocus}
-             onChange={(e) => onChange(e.target.value)}/>
-      <button type="button" className="input-group__btn" onClick={simulate} title="바코드 스캔 시뮬레이션">
-        <Icon name="barcode" size={14} />
-      </button>
-    </div>
-  );
-}
-
 function AddressField({ value, onChange, error, id }) {
   const openPostcode = () => {
     const open = () => new window.daum.Postcode({
@@ -106,9 +74,11 @@ function AddressField({ value, onChange, error, id }) {
   return (
     <div className="input-group">
       <input id={id} className={`input ${error ? 'input--error' : ''}`}
-             placeholder="우편번호 검색 후 상세주소 입력"
+             placeholder="우편번호 검색 버튼을 눌러 주소를 선택하세요"
+             readOnly
              value={value || ''}
-             onChange={(e) => onChange(e.target.value)}/>
+             onChange={(e) => onChange(e.target.value)}
+             style={{ background: 'var(--surface-2)', cursor: 'default' }}/>
       <button type="button" className="input-group__btn" onClick={openPostcode}>
         <Icon name="search" size={12} style={{ marginRight: 4 }}/> 우편번호
       </button>
@@ -133,6 +103,7 @@ function SalesInputScreen() {
     router_no: '',
     usim_no: '',
     install_address: '',
+    install_address_detail: '',
     field_manager_name: '',
     field_manager_phone: '',
   };
@@ -185,6 +156,7 @@ function SalesInputScreen() {
         router_no: editing.router_no || '',
         usim_no: editing.usim_no || '',
         install_address: editing.install_address || '',
+        install_address_detail: '',
         field_manager_name: editing.field_manager_name || '',
         field_manager_phone: editing.field_manager_phone || '',
       });
@@ -240,12 +212,14 @@ function SalesInputScreen() {
     setTouched({ customer_name: 1, customer_manager: 1, model_name: 1, delivery_date: 1, cable_length: 1, station_id: 1, router_no: 1, usim_no: 1, install_address: 1 });
     setShowAll(true);
     if (hasErr) return;
+    const { install_address_detail, ...payload } = form;
+    payload.install_address = [form.install_address.trim(), install_address_detail.trim()].filter(Boolean).join(' ');
     if (isEdit) {
-      const ok = window.actions.updateOrder(editing.order_id, form);
+      const ok = window.actions.updateOrder(editing.order_id, payload);
       if (ok) window.actions.setView('waiting');
       return;
     }
-    window.actions.addOrder(form);
+    window.actions.addOrder(payload);
     setForm(empty);
     setTouched({});
     setShowAll(false);
@@ -524,7 +498,12 @@ function SalesInputScreen() {
                   <AddressField id="si-install-addr" value={form.install_address}
                                 onChange={(v) => { update('install_address', v); setTouched((t) => ({ ...t, install_address: 1 })); }}
                                 error={showErr('install_address')}/>
-                  <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 검색하세요</div>
+                  <input className="input"
+                         style={{ marginTop: 6 }}
+                         placeholder="상세주소 입력 (동·호수, 층수 등)"
+                         value={form.install_address_detail}
+                         onChange={(e) => update('install_address_detail', e.target.value)}/>
+                  <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 선택하세요</div>
                   {showErr('install_address') && <div className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
                 </div>
                 <div className="field">
@@ -591,7 +570,11 @@ function SalesInputScreen() {
                 <dt>USIM</dt>
                 <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, wordBreak: 'break-all' }}>{form.usim_no || <span style={{ color: 'var(--ink-4)', fontFamily: 'inherit' }}>—</span>}</dd>
                 <dt>설치주소</dt>
-                <dd style={{ fontSize: 12.5 }}>{form.install_address || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
+                <dd style={{ fontSize: 12.5 }}>
+                  {(form.install_address || form.install_address_detail)
+                    ? [form.install_address, form.install_address_detail].filter(Boolean).join(' ')
+                    : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                </dd>
                 <dt>현장담당자</dt>
                 <dd style={{ fontSize: 12.5 }}>
                   {form.field_manager_name
@@ -1020,17 +1003,18 @@ function CustomerManageModal({ onClose, onChanged }) {
 
 /* ────────── 모델 추가 모달 ────────── */
 function AddModelModal({ onClose, onAdded }) {
+  const [model, setModel] = useStateSI('');
   const [name, setName] = useStateSI('');
-  const [spec, setSpec] = useStateSI('');
+  const [description, setDescription] = useStateSI('');
   const [power, setPower] = useStateSI('');
   const [err, setErr] = useStateSI('');
 
   const save = () => {
-    const n = name.trim();
-    if (!n) { setErr('모델명을 입력하세요'); return; }
-    const result = window.PMDB.addMasterModel(n, spec.trim(), power.trim());
+    const m = model.trim();
+    if (!m) { setErr('모델 코드를 입력하세요'); return; }
+    const result = window.PMDB.addMasterModel(m, description.trim(), name.trim(), power.trim());
     if (!result.ok) { setErr(result.msg); return; }
-    onAdded && onAdded(n);
+    onAdded && onAdded(name.trim() || m);
   };
 
   return (
@@ -1042,16 +1026,22 @@ function AddModelModal({ onClose, onAdded }) {
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="field">
-            <label className="field__label" htmlFor="si-add-model-name">모델명 <span className="field__req">*</span></label>
-            <input id="si-add-model-name" className="input" autoFocus value={name}
+            <label className="field__label" htmlFor="si-add-model-code">모델 코드 <span className="field__req">*</span></label>
+            <input id="si-add-model-code" className="input" autoFocus value={model}
+                   onChange={(e) => { setModel(e.target.value); setErr(''); }}
+                   placeholder="예: EGMI105001"/>
+          </div>
+          <div className="field">
+            <label className="field__label" htmlFor="si-add-model-name">모델명</label>
+            <input id="si-add-model-name" className="input" value={name}
                    onChange={(e) => { setName(e.target.value); setErr(''); }}
                    placeholder="예: 50kW 1ch"/>
           </div>
           <div className="field">
-            <label className="field__label" htmlFor="si-add-model-spec">사양</label>
-            <input id="si-add-model-spec" className="input" value={spec}
-                   onChange={(e) => { setSpec(e.target.value); setErr(''); }}
-                   placeholder="예: DC 콤보 · 단일포트"/>
+            <label className="field__label" htmlFor="si-add-model-desc">설명</label>
+            <input id="si-add-model-desc" className="input" value={description}
+                   onChange={(e) => { setDescription(e.target.value); setErr(''); }}
+                   placeholder="예: 중속 · 1채널 · CCS1 단일"/>
           </div>
           <div className="field">
             <label className="field__label" htmlFor="si-add-model-power">출력</label>
@@ -1074,17 +1064,17 @@ function AddModelModal({ onClose, onAdded }) {
 /* ────────── 모델 관리 모달 ────────── */
 function ModelManageModal({ onClose, onChanged }) {
   const [list, setList] = useStateSI(() => window.PMDB.getModels());
-  const [draft, setDraft] = useStateSI(null); // { idx, name, spec, power }
+  const [draft, setDraft] = useStateSI(null); // { idx, model, description, name, power }
   const [err, setErr] = useStateSI('');
 
   const reload = () => setList(window.PMDB.getModels());
 
-  const startEdit = (m, idx) => { setErr(''); setDraft({ idx, name: m.name, spec: m.spec || '', power: m.power || '' }); };
+  const startEdit = (m, idx) => { setErr(''); setDraft({ idx, model: m.model || '', description: m.description || '', name: m.name || '', power: m.power || '' }); };
 
   const saveDraft = () => {
-    const n = draft.name.trim();
-    if (!n) { setErr('모델명을 입력하세요'); return; }
-    const result = window.PMDB.updateMasterModel(draft.idx, n, draft.spec.trim(), draft.power.trim());
+    const mc = draft.model.trim();
+    if (!mc) { setErr('모델 코드를 입력하세요'); return; }
+    const result = window.PMDB.updateMasterModel(draft.idx, mc, draft.description.trim(), draft.name.trim(), draft.power.trim());
     if (!result.ok) { setErr(result.msg); return; }
     reload();
     onChanged && onChanged();
@@ -1102,7 +1092,6 @@ function ModelManageModal({ onClose, onChanged }) {
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-model-title" style={{ width: 560, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-manage-model-title" className="modal__title">모델 관리</h3>
-          <p className="modal__sub">tb_master_model</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="mgr-list">
@@ -1112,11 +1101,14 @@ function ModelManageModal({ onClose, onChanged }) {
               </div>
             )}
             {list.map((m, idx) => (
-              <div key={m.name + idx} className="mgr-row">
+              <div key={m.model + idx} className="mgr-row">
                 <div className="mgr-row__main">
-                  <div className="mgr-row__name">{m.name}</div>
+                  <div className="mgr-row__name">
+                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{m.model}</span>
+                    {m.name && <span style={{ marginLeft: 8, color: 'var(--ink-3)', fontSize: 12 }}>{m.name}</span>}
+                  </div>
                   <div className="mgr-row__meta">
-                    <span>{m.spec || '—'}</span>
+                    <span>{m.description || '—'}</span>
                     {m.power && <span style={{ color: 'var(--ink-4)' }}> · {m.power}</span>}
                   </div>
                 </div>
@@ -1132,19 +1124,24 @@ function ModelManageModal({ onClose, onChanged }) {
               <div className="mgr-edit__title">모델 수정</div>
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label" htmlFor="si-edit-model-name">모델명 <span className="field__req">*</span></label>
-                  <input id="si-edit-model-name" className="input" autoFocus value={draft.name}
-                         onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
+                  <label className="field__label" htmlFor="si-edit-model-code">모델 코드 <span className="field__req">*</span></label>
+                  <input id="si-edit-model-code" className="input" autoFocus value={draft.model}
+                         onChange={(e) => { setDraft(d => ({ ...d, model: e.target.value })); setErr(''); }}/>
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="si-edit-model-power">출력</label>
                   <input id="si-edit-model-power" className="input" value={draft.power}
                          onChange={(e) => { setDraft(d => ({ ...d, power: e.target.value })); setErr(''); }}/>
                 </div>
-                <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="field__label" htmlFor="si-edit-model-spec">사양</label>
-                  <input id="si-edit-model-spec" className="input" value={draft.spec}
-                         onChange={(e) => { setDraft(d => ({ ...d, spec: e.target.value })); setErr(''); }}/>
+                <div className="field">
+                  <label className="field__label" htmlFor="si-edit-model-name">모델명</label>
+                  <input id="si-edit-model-name" className="input" value={draft.name}
+                         onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="si-edit-model-desc">설명</label>
+                  <input id="si-edit-model-desc" className="input" value={draft.description}
+                         onChange={(e) => { setDraft(d => ({ ...d, description: e.target.value })); setErr(''); }}/>
                 </div>
               </div>
               {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}

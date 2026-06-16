@@ -388,6 +388,7 @@ git commit -m "feat: AsReceptionSection, AsReceptionCard 컴포넌트 추가"
         <Field k="로트번호" v={p.lot_no} mono/>
         <Field k="시리얼" v={p.serial_no} mono/>
         <Field k="S/W 버전" v={p.sw_version} mono/>
+        <Field k="F/W 버전" v={p.fw_version} mono/>
         <Field k="문서번호 (성적서)" v={p.doc_no} mono full/>
       </div>
     ) : (

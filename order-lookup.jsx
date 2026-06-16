@@ -29,25 +29,24 @@ function OrderLookupScreen() {
   const [sortKey, setSortKey] = useStateOL('order_id');
   const [sortDir, setSortDir] = useStateOL('desc');
   const [fAsOnly, setFAsOnly] = useStateOL(false);
-  const [asVer, setAsVer] = useStateOL(0);
-
-  const refreshAsStats = () => setAsVer(v => v + 1);
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
 
   const asStats = useMemoOL(() => {
+    const allReceptions = window.PMDB.loadAsReceptions() || [];
     let totalRecords = 0;
     let ordersWithAs = 0;
     s.orders.forEach(o => {
-      const hist = window.PMDB.getAsHistory(o.order_id) || [];
-      if (hist.length > 0) { ordersWithAs++; totalRecords += hist.length; }
+      const recs = allReceptions.filter(r => r.order_id === o.order_id);
+      if (recs.length > 0) { ordersWithAs++; totalRecords += recs.length; }
     });
     return { totalRecords, ordersWithAs };
-  }, [s.orders, asVer]);
+  }, [s.orders]);
 
   const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
 
   const filtered = useMemoOL(() => {
+    const allReceptions = fAsOnly ? (window.PMDB.loadAsReceptions() || []) : [];
     let list = s.orders.filter(o => {
       if (fStatus !== 'all' && o.status !== fStatus) return false;
       if (fModel !== 'all' && o.model_name !== fModel) return false;
@@ -55,7 +54,7 @@ function OrderLookupScreen() {
       const dv = dateField === 'prod' ? (o.production && o.production.prod_date) : o.delivery_date;
       if (dateFrom && (!dv || dv < dateFrom)) return false;
       if (dateTo && (!dv || dv > dateTo)) return false;
-      if (fAsOnly && (window.PMDB.getAsHistory(o.order_id) || []).length === 0) return false;
+      if (fAsOnly && !allReceptions.some(r => r.order_id === o.order_id)) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = [o.customer_name, o.model_name, o.station_id, o.router_no, o.usim_no, o.install_address, String(o.order_id),
@@ -75,7 +74,7 @@ function OrderLookupScreen() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [s.orders, search, fStatus, fModel, fCustomer, dateField, dateFrom, dateTo, sortKey, sortDir, fAsOnly, asVer]);
+  }, [s.orders, search, fStatus, fModel, fCustomer, dateField, dateFrom, dateTo, sortKey, sortDir, fAsOnly]);
 
   const reset = () => {
     setSearch(''); setFModel('all'); setFCustomer('all');
@@ -234,7 +233,7 @@ function OrderLookupScreen() {
         </div>
       )}
 
-      {selected && <OrderDrawer order={selected} onClose={() => setSelId(null)} onAsChange={refreshAsStats}/>}
+      {selected && <OrderDrawer order={selected} onClose={() => setSelId(null)}/>}
     </div>
   );
 }
@@ -243,22 +242,51 @@ function OrderHistorySection({ orderId }) {
   const list = React.useMemo(() => window.PMDB.getHistory(orderId), [orderId]);
 
   return (
-    <section>
-      <div className="dsec__title"><Icon name="timeline" size={12}/> 오더 변경 이력</div>
+    <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+          <Icon name="timeline" size={16} style={{ color: 'var(--ink-2)' }}/>
+        </div>
+        <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>오더 변경 이력</span>
+        {list.length > 0 && <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{list.length}건</span>}
+      </div>
       {list.length === 0 ? (
         <div className="emptystate" style={{ padding: '14px 0' }}>
           <div className="emptystate__title" style={{ fontSize: 13 }}>변경 이력이 없습니다</div>
         </div>
       ) : list.map((r, i) => (
-        <div key={r.history_id} style={{ padding: '10px 0', borderBottom: i < list.length - 1 ? '1px solid var(--border-1)' : 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.changed_at}</span>
-            <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{r.changed_by}</span>
+        <div key={r.history_id} style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, paddingTop: 4 }}>
+            <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--primary-600)', flexShrink: 0 }}/>
+            {i < list.length - 1 && (
+              <div style={{ width: 1, flex: 1, minHeight: 18, background: 'var(--border-1)', margin: '4px 0' }}/>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 12.5 }}>
-            <span className="badge badge--neutral">{r.action || 'update'}</span>
+          <div style={{ flex: 1, paddingBottom: i < list.length - 1 ? 10 : 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span className="badge badge--info" style={{ fontSize: 11 }}>{r.action || 'update'}</span>
+                <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.changed_at}</span>
+              </div>
+              <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{r.changed_by}</span>
+            </div>
             {Array.isArray(r.changed_fields) && r.changed_fields.length > 0 && (
-              <span style={{ color: 'var(--ink-3)' }}>{r.changed_fields.join(', ')}</span>
+              <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-sm)', padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border-1)' }}>
+                {r.changed_fields.map((f, fi) => (
+                  <div key={fi} style={{ display: 'flex', alignItems: 'baseline', gap: 6, fontSize: 12, flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--ink-3)', flexShrink: 0, minWidth: 80 }}>{f.label || f.field}</span>
+                    {r.action === 'create' ? (
+                      <span style={{ color: 'var(--ink-1)', fontWeight: 500 }}>{f.after || '—'}</span>
+                    ) : (
+                      <>
+                        <span style={{ color: 'var(--ink-4)', textDecoration: 'line-through', fontVariantNumeric: 'tabular-nums' }}>{f.before || '—'}</span>
+                        <span style={{ color: 'var(--ink-4)' }}>→</span>
+                        <span style={{ color: 'var(--ink-1)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{f.after || '—'}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -271,51 +299,93 @@ function AsReceptionCard({ reception: r }) {
   const logs = React.useMemo(() => window.PMDB.getAsLogs(r.id), [r.id]);
 
   const statusStyle = {
-    '접수대기':   { bg: 'var(--ink-6)',       fg: 'var(--ink-3)' },
-    '담당자배정': { bg: 'var(--primary-50)',   fg: 'var(--primary-600)' },
-    '처리중':     { bg: 'var(--warning-50)',   fg: 'var(--warning-700)' },
-    '처리완료':   { bg: 'var(--success-50)',   fg: 'var(--success-700)' },
-  }[r.status] || { bg: 'var(--ink-6)', fg: 'var(--ink-3)' };
+    '접수대기':   { bg: 'var(--surface-2)',  fg: 'var(--ink-3)',       cls: 'badge--neutral' },
+    '담당자배정': { bg: 'var(--primary-50)', fg: 'var(--primary-600)', cls: 'badge--info' },
+    '처리중':     { bg: 'var(--warning-50)', fg: 'var(--warning-700)', cls: 'badge--pending' },
+    '처리완료':   { bg: 'var(--success-50)', fg: 'var(--success-700)', cls: 'badge--complete' },
+  }[r.status] || { bg: 'var(--surface-2)', fg: 'var(--ink-3)', cls: 'badge--neutral' };
 
   return (
-    <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border-1)', borderRadius: 'var(--r-lg)', padding: '12px 14px', marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 600 }}>{r.reception_no}</span>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border-1)', borderRadius: 'var(--r-lg)', overflow: 'hidden', marginBottom: 10 }}>
+      <div style={{ background: statusStyle.bg, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--ink-1)', letterSpacing: '-0.2px' }}>{r.reception_no}</span>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {r.priority && r.priority !== '일반' && (
             <span className="badge badge--pending">{r.priority}</span>
           )}
-          <span className="badge" style={{ background: statusStyle.bg, color: statusStyle.fg, border: 'none' }}>{r.status}</span>
+          <span className={`badge ${statusStyle.cls}`}>{r.status}</span>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12.5 }}>
-        {r.fault_type && <div><span style={{ color: 'var(--ink-3)' }}>고장유형 </span><span>{r.fault_type}</span></div>}
-        {r.received_at && <div><span style={{ color: 'var(--ink-3)' }}>접수일 </span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.received_at.slice(0, 10)}</span></div>}
-        {r.reporter_name && (
-          <div style={{ gridColumn: 'span 2' }}>
-            <span style={{ color: 'var(--ink-3)' }}>신고자 </span>
-            <span>{r.reporter_name}{r.reporter_phone ? ` (${r.reporter_phone})` : ''}</span>
+      <div style={{ padding: '12px 14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
+          {r.fault_type && (
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>고장유형</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.fault_type}</div>
+            </div>
+          )}
+          {r.received_at && (
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>접수일</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{r.received_at.slice(0, 10)}</div>
+            </div>
+          )}
+          {r.reporter_name && (
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>신고자</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.reporter_name}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
+            </div>
+          )}
+          {r.assignee && (
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>담당자</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.assignee}</div>
+            </div>
+          )}
+          {r.dispatch_date && (
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>출동일</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{r.dispatch_date}</div>
+            </div>
+          )}
+          {r.action_type && (
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>처리유형</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.action_type}</div>
+            </div>
+          )}
+          {r.cost && (
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>비용</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.cost}</div>
+            </div>
+          )}
+          {r.action_detail && (
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>처리내용</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-1)' }}>{r.action_detail}</div>
+            </div>
+          )}
+          {r.notes && (
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>비고</div>
+              <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>{r.notes}</div>
+            </div>
+          )}
+        </div>
+        {logs.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 8, marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginBottom: 6 }}>처리 이력</div>
+            {logs.map(l => (
+              <div key={l.id} style={{ display: 'flex', gap: 8, fontSize: 11.5, padding: '3px 0', alignItems: 'flex-start' }}>
+                <span style={{ color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', flexShrink: 0, minWidth: 72 }}>{(l.changed_at || '').slice(0, 10)}</span>
+                <span style={{ color: 'var(--ink-3)', flexShrink: 0 }}>{l.from_status || '—'} → {l.to_status || '—'}</span>
+                {l.memo && <span style={{ color: 'var(--ink-2)' }}>{l.memo}</span>}
+              </div>
+            ))}
           </div>
         )}
-        {r.assignee && <div><span style={{ color: 'var(--ink-3)' }}>담당자 </span><span>{r.assignee}</span></div>}
-        {r.dispatch_date && <div><span style={{ color: 'var(--ink-3)' }}>출동일 </span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.dispatch_date}</span></div>}
-        {r.action_type && <div><span style={{ color: 'var(--ink-3)' }}>처리유형 </span><span>{r.action_type}</span></div>}
-        {r.action_detail && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>처리내용 </span><span>{r.action_detail}</span></div>}
-        {r.cost && <div><span style={{ color: 'var(--ink-3)' }}>비용 </span><span>{r.cost}</span></div>}
-        {r.notes && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>비고 </span><span>{r.notes}</span></div>}
       </div>
-      {logs.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 8, marginTop: 10 }}>
-          <div style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>처리 이력</div>
-          {logs.map(l => (
-            <div key={l.id} style={{ display: 'flex', gap: 8, fontSize: 11.5, padding: '3px 0', alignItems: 'flex-start' }}>
-              <span style={{ color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', flexShrink: 0, minWidth: 72 }}>{(l.changed_at || '').slice(0, 10)}</span>
-              <span style={{ color: 'var(--ink-3)', flexShrink: 0 }}>{l.from_status || '—'} → {l.to_status || '—'}</span>
-              {l.memo && <span style={{ color: 'var(--ink-2)' }}>{l.memo}</span>}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -327,9 +397,13 @@ function AsReceptionSection({ orderId }) {
   );
 
   return (
-    <section>
-      <div className="dsec__title">
-        <Icon name="list" size={12}/> A/S 접수 현황{receptions.length > 0 && ` (${receptions.length}건)`}
+    <section style={{ background: 'var(--warning-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+          <Icon name="list" size={16} style={{ color: 'var(--warning-700)' }}/>
+        </div>
+        <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>A/S 접수 현황</span>
+        {receptions.length > 0 && <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{receptions.length}건</span>}
       </div>
       {receptions.length === 0 ? (
         <div className="emptystate" style={{ padding: '14px 0' }}>
@@ -342,58 +416,8 @@ function AsReceptionSection({ orderId }) {
   );
 }
 
-function AsHistorySection({ orderId, canEdit, onAsChange }) {
-  const [list, setList] = useStateOL([]);
-  const [showForm, setShowForm] = useStateOL(false);
-  const [draft, setDraft] = useStateOL(null);
-
-  const reload = () => setList(window.PMDB.getAsHistory(orderId));
-  React.useEffect(() => { reload(); }, [orderId]);
-
-  const save = () => {
-    const today = new Date().toISOString().slice(0, 10);
-    window.PMDB.addAsRecord({ order_id: orderId, ...draft, created_at: today });
-    reload();
-    onAsChange?.();
-    setShowForm(false);
-    setDraft(null);
-  };
-
-  const remove = (id) => { window.PMDB.deleteAsRecord(id); reload(); onAsChange?.(); };
-
-  return (
-    <section>
-      <div className="dsec__title"><Icon name="clock" size={12}/> A/S 이력</div>
-      {list.length === 0 && !showForm && (
-        <div className="emptystate" style={{ padding: '14px 0' }}>
-          <div className="emptystate__title" style={{ fontSize: 13 }}>등록된 A/S 이력이 없습니다</div>
-        </div>
-      )}
-      {list.map((r, i) => (
-        <div key={r.id} style={{ padding: '12px 0', borderBottom: i < list.length - 1 ? '1px solid var(--border-1)' : 'none' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.created_at}</span>
-            {canEdit && (
-              <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(r.id)}>
-                <Icon name="x" size={12}/>
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12.5 }}>
-            {r.reception_date && <div><span style={{ color: 'var(--ink-3)' }}>접수</span> <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.reception_date}</span></div>}
-            {r.dispatch_date && <div><span style={{ color: 'var(--ink-3)' }}>출동</span> <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.dispatch_date}</span></div>}
-            {r.field_manager && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>현장 담당자 </span><span>{r.field_manager}</span></div>}
-            {r.action && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>조치내용 </span><span>{r.action}</span></div>}
-            {r.notes && <div style={{ gridColumn: 'span 2' }}><span style={{ color: 'var(--ink-3)' }}>비고 </span><span>{r.notes}</span></div>}
-          </div>
-        </div>
-      ))}
-    </section>
-  );
-}
-
 /* ────────── Right detail drawer ────────── */
-function OrderDrawer({ order, onClose, onAsChange }) {
+function OrderDrawer({ order, onClose }) {
   React.useEffect(() => {
     const fn = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', fn);
@@ -412,7 +436,6 @@ function OrderDrawer({ order, onClose, onAsChange }) {
     const mgr = mgrs.find(m => m.name === name);
     return mgr && mgr.phone ? `${mgr.name} (${mgr.phone})` : name;
   }, [order.customer_manager, order.customer_name]);
-  const isAs = role === 'as';
   const canMap = role === 'production' || role === 'admin';
   const canEditSales = (role === 'sales' || role === 'admin') && order.status === 'PENDING';
   const goMapping = () => { window.actions.selectOrder(order.order_id); window.actions.setView('mapping'); };
@@ -424,17 +447,22 @@ function OrderDrawer({ order, onClose, onAsChange }) {
       <div className="drawer-backdrop" onClick={onClose}/>
       <aside className="drawer">
         <div className="drawer__head">
-          <div>
-            <div className="drawer__eyebrow">order_id #{order.order_id} · 접수 {order.created}</div>
-            <div style={{ marginTop: 8 }}>{statusBadge(order)}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="drawer__eyebrow">{order.customer_name} · 접수 {order.created}</div>
+            <div className="drawer__title" style={{ margin: '5px 0 10px' }}>오더 #{order.order_id}</div>
+            {statusBadge(order)}
           </div>
           <button className="drawer__close" onClick={onClose} aria-label="닫기"><Icon name="x" size={16}/></button>
         </div>
 
         <div className="drawer__body">
-          {/* Sales section */}
-          <section>
-            <div className="dsec__title"><Icon name="cart" size={12}/> 영업 입력 정보</div>
+          <section style={{ background: 'var(--primary-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+                <Icon name="cart" size={16} style={{ color: 'var(--primary-600)' }}/>
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>영업 입력 정보</span>
+            </div>
             <div className="dgrid">
               <Field k="모델" v={order.model_name}/>
               <Field k="케이블 길이" v={order.cable_length}/>
@@ -452,9 +480,13 @@ function OrderDrawer({ order, onClose, onAsChange }) {
             </div>
           </section>
 
-          {/* Production section */}
-          <section>
-            <div className="dsec__title"><Icon name="factory" size={12}/> 생산 실적 정보</div>
+          <section style={{ background: 'var(--success-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+                <Icon name="factory" size={16} style={{ color: 'var(--success-700)' }}/>
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>생산 실적 정보</span>
+            </div>
             {p ? (
               <div className="dgrid">
                 <Field k="생산일자" v={p.prod_date}/>
@@ -462,26 +494,21 @@ function OrderDrawer({ order, onClose, onAsChange }) {
                 <Field k="로트번호" v={p.lot_no} mono/>
                 <Field k="시리얼" v={p.serial_no} mono/>
                 <Field k="S/W 버전" v={p.sw_version} mono/>
+                <Field k="F/W 버전" v={p.fw_version} mono/>
                 <Field k="문서번호 (성적서)" v={p.doc_no} mono full/>
               </div>
             ) : (
-              <div style={{ padding: '20px 18px', background: 'var(--warning-50)', border: '1px solid var(--warning)', borderRadius: 'var(--r-lg)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                <Icon name="clock" size={16} style={{ color: 'var(--warning-700)', flexShrink: 0, marginTop: 1 }}/>
-                <div style={{ fontSize: 12.5, color: 'var(--warning-700)', lineHeight: 1.55 }}>
+              <div style={{ padding: '16px', background: 'var(--warning-50)', border: '1px solid var(--warning)', borderRadius: 'var(--r-lg)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <Icon name="clock" size={15} style={{ color: 'var(--warning-700)', flexShrink: 0, marginTop: 2 }}/>
+                <div style={{ fontSize: 13, color: 'var(--warning-700)', lineHeight: 1.5 }}>
                   아직 생산이 완료되지 않은 오더입니다. 생산 입력 화면에서 실적을 입력하면 이 영역이 채워집니다.
                 </div>
               </div>
             )}
           </section>
 
-          {/* 섹션 3: 오더 변경 이력 (신규) */}
           <OrderHistorySection orderId={order.order_id}/>
-
-          {/* 섹션 4: A/S 접수 현황 (신규) */}
           <AsReceptionSection orderId={order.order_id}/>
-
-          {/* 섹션 5: A/S 이력 구형 (기존 유지) */}
-          <AsHistorySection orderId={order.order_id} canEdit={isAs} onAsChange={onAsChange}/>
         </div>
 
         <div className="drawer__foot">

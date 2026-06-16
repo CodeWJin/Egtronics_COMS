@@ -40,10 +40,11 @@ CREATE TABLE IF NOT EXISTS tb_master_customer (
 ALTER TABLE tb_master_customer DISABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS tb_master_model (
-  id    SERIAL PRIMARY KEY,
-  name  TEXT NOT NULL,
-  spec  TEXT DEFAULT '',
-  power TEXT DEFAULT ''
+  id          SERIAL PRIMARY KEY,
+  model       TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  name        TEXT DEFAULT '',
+  power       TEXT DEFAULT ''
 );
 ALTER TABLE tb_master_model DISABLE ROW LEVEL SECURITY;
 
@@ -54,6 +55,14 @@ CREATE TABLE IF NOT EXISTS tb_master_sw_version (
   stable   BOOLEAN DEFAULT true
 );
 ALTER TABLE tb_master_sw_version DISABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS tb_master_fw_version (
+  id       SERIAL PRIMARY KEY,
+  tag      TEXT NOT NULL,
+  released TEXT DEFAULT '',
+  stable   BOOLEAN DEFAULT true
+);
+ALTER TABLE tb_master_fw_version DISABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS tb_master_cable_length (
   id    SERIAL PRIMARY KEY,
@@ -147,17 +156,29 @@ ON CONFLICT DO NOTHING;
 -- ┌──────────────────────────────────────────────────────┐
 -- │  7. 마스터 — 모델 (tb_master_model)                  │
 -- └──────────────────────────────────────────────────────┘
-INSERT INTO tb_master_model (name, spec, power) VALUES
-  ('7kW Wallbox',   '완속 · 벽부착',      '7kW'),
-  ('7kW Pedestal',  '완속 · 스탠드형',    '7kW'),
-  ('11kW Wallbox',  '완속 · 벽부착',      '11kW'),
-  ('11kW Pedestal', '완속 · 스탠드형',    '11kW'),
-  ('50kW 1ch',      'DC 콤보 · 단일포트', '50kW'),
-  ('50kW 2ch',      'DC 콤보 · 듀얼포트', '50kW'),
-  ('100kW 1ch',     'DC 콤보 · 단일포트', '100kW'),
-  ('100kW 2ch',     'DC 콤보 · 듀얼포트', '100kW'),
-  ('200kW 1ch',     'DC 콤보 · 단일포트', '200kW'),
-  ('200kW 2ch',     'DC 콤보 · 단일포트', '100kW')
+INSERT INTO tb_master_model (model, description, name, power) VALUES
+  ('EGSW100703',   '완속 · 공용 · IC · PLC · OBD',   '7kW 공용 (스마트) : ALL',       '7kW'),
+  ('EGSW100703I',  '완속 · 공용 · IC',                '7kW 공용 (스마트) : IC',         '7kW'),
+  ('EGSW100703PI', '완속 · 공용 · IC · PLC',          '7kW 공용 (스마트) : IC, PLC',    '7kW'),
+  ('EGSW100701',   '완속 · 부분공용',                  '7kW 부분공용',                   '7kW'),
+  ('EGSW100703P',  '완속 · 부분공용 · PLC',            '7kW 부분공용 (스마트) : PLC',    '7kW'),
+  ('EGSW100703N',  '완속 · 부분공용',                  '7kW 부분공용 (스마트)',           '7kW'),
+  ('EGSW100702',   '완속 · 비공용',                    '7kW 비공용',                     '7kW'),
+  ('EGSW101103I',  '완속 · 공용 · IC',                '11kW 공용 (스마트) : IC',        '11kW'),
+  ('EGSW101103PI', '완속 · 공용 · IC · PLC',          '11kW 공용 (스마트) : IC, PLC',   '11kW'),
+  ('EGSW101103',   '완속 · 공용 · IC · PLC · OBD',   '11kW 공용 (스마트) : ALL',       '11kW'),
+  ('EGSW101101',   '완속 · 부분공용',                  '11kW 부분공용',                  '11kW'),
+  ('EGSW101103P',  '완속 · 부분공용 · PLC',            '11kW 부분공용 (스마트) : PLC',   '11kW'),
+  ('EGSW101103N',  '완속 · 부분공용',                  '11kW 부분공용 (스마트)',          '11kW'),
+  ('EGSW101102',   '완속 · 비공용',                    '11kW 비공용',                    '11kW'),
+  ('EGMI103001',   '중속 · 1채널 · CCS1 단일',         '30kW 1ch',                      '30kW'),
+  ('EGMI104001',   '중속 · 1채널 · CCS1 단일',         '40kW 1ch',                      '40kW'),
+  ('EGMI105001',   '중속 · 1채널 · CCS1 단일',         '50kW 1ch',                      '50kW'),
+  ('EGMI205001',   '중속 · 2채널 · CCS1 듀얼',         '50kW 2ch',                      '50kW'),
+  ('EGFA110001',   '급속 · 1채널 · CCS1 단일',         '100kW 1ch',                     '100kW'),
+  ('EGFA210001',   '급속 · 2채널 · CCS1 듀얼',         '100kW 2ch',                     '100kW'),
+  ('EGFA120001',   '급속 · 1채널 · CCS1 단일',         '200kW 1ch',                     '200kW'),
+  ('EGFA220001',   '급속 · 2채널 · CCS1 듀얼',         '200kW 2ch',                     '200kW')
 ON CONFLICT DO NOTHING;
 
 -- ┌──────────────────────────────────────────────────────┐
@@ -171,7 +192,17 @@ INSERT INTO tb_master_sw_version (tag, released, stable) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ┌──────────────────────────────────────────────────────┐
--- │  9. 마스터 — 케이블 길이 (tb_master_cable_length)    │
+-- │  9. 마스터 — FW 버전 (tb_master_fw_version)          │
+-- └──────────────────────────────────────────────────────┘
+INSERT INTO tb_master_fw_version (tag, released, stable) VALUES
+  ('v1.6.2-fw', '2026-05-14', true),
+  ('v1.6.1-fw', '2026-04-02', true),
+  ('v1.5.8-fw', '2026-02-18', true),
+  ('v1.7.0-fw-beta', '2026-05-22', false)
+ON CONFLICT DO NOTHING;
+
+-- ┌──────────────────────────────────────────────────────┐
+-- │  10. 마스터 — 케이블 길이 (tb_master_cable_length)   │
 -- └──────────────────────────────────────────────────────┘
 INSERT INTO tb_master_cable_length (value) VALUES
   ('3m'), ('5m'), ('7m'), ('10m')

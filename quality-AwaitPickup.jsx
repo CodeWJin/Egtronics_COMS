@@ -76,12 +76,12 @@ function ProductionCompleteScreen() {
     : 0;
 
   const exportCSV = () => {
-    const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '로트', '시리얼', '검정일자', 'S/W버전', '케이블', '문서번호', '납품일자'];
+    const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '로트', '시리얼', '검정일자', 'S/W버전', 'F/W버전', '케이블', '문서번호', '납품일자'];
     const rows = [header, ...filtered.map(o => ([
       o.order_id, o.customer_name, o.model_name, o.station_id,
       o.production.prod_date, o.production.lot_no, o.production.serial_no,
-      o.production.inspection_date, o.production.sw_version, o.production.cable_length,
-      o.production.doc_no, o.delivery_date,
+      o.production.inspection_date, o.production.sw_version, o.production.fw_version,
+      o.production.cable_length, o.production.doc_no, o.delivery_date,
     ]))];
     downloadCSV(rows, `출하대기_${new Date().toISOString().slice(0, 10)}.csv`);
     window.actions.flashToast?.(`${filtered.length}건 CSV 내보내기 완료`);
@@ -297,6 +297,10 @@ function InspectionReport({ order, onClose }) {
                 <tr>
                   <th>S/W 버전</th>
                   <td className="report__mono">{p.sw_version}</td>
+                  <th>F/W 버전</th>
+                  <td className="report__mono">{p.fw_version}</td>
+                </tr>
+                <tr>
                   <th>케이블 길이</th>
                   <td>{p.cable_length}</td>
                 </tr>

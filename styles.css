@@ -59,7 +59,7 @@
   /* Typography */
   --font: 'Pretendard Variable', 'Pretendard', system-ui, -apple-system,
           BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
-  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'D2Coding', ui-monospace, monospace;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', ui-monospace, monospace;
 }
 
 @font-face {
