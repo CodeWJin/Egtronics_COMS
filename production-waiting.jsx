@@ -201,7 +201,7 @@ function ViewTable({ orders, onPick, completingId, editedIds }) {
                   ) : o.status === 'IN_PROGRESS' ? (
                     <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>
                   ) : (
-                    <span className="badge badge--complete badge--statusswap"><Icon name="check" size={10}/>생산완료</span>
+                    <span className="badge badge--complete badge--statusswap"><Icon name="check" size={10}/>출하대기</span>
                   )}
                 </td>
                 <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
@@ -254,7 +254,7 @@ function ViewCards({ orders, onPick, completingId, editedIds }) {
                 ) : o.status === 'IN_PROGRESS' ? (
                   <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>
                 ) : (
-                  <span className="badge badge--complete badge--statusswap"><Icon name="check" size={10}/>생산완료</span>
+                  <span className="badge badge--complete badge--statusswap"><Icon name="check" size={10}/>출하대기</span>
                 )}
               </div>
             </div>
