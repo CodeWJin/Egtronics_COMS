@@ -394,15 +394,21 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
 function InspectionReport({ order, inspectionData, onClose }) {
   const p = order.production;
 
+  // inspectionData prop이 없으면 DB / localStorage 캐시에서 로드
+  const funcData = inspectionData || window.getFuncInspection?.(order.order_id) || null;
+
   window.useLockScroll();
 
   const validUntil = React.useMemo(() => {
-    if (!p.inspection_date) return null;
-    const d = new Date(p.inspection_date);
+    const dateStr = funcData?.insp_date || p.inspection_date;
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
     if (isNaN(d.getTime())) return null;
     d.setFullYear(d.getFullYear() + 7);
     return d.toISOString().slice(0, 10);
-  }, [order]);
+  }, [order, funcData]);
+
+  const inspDateDisplay = funcData?.insp_date || p.inspection_date || '—';
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -453,7 +459,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                   <th>생산일자</th>
                   <td>{p.prod_date}</td>
                   <th>검정일자</th>
-                  <td>{p.inspection_date}</td>
+                  <td>{inspDateDisplay}</td>
                 </tr>
                 <tr>
                   <th>S/W 버전</th>
@@ -464,6 +470,8 @@ function InspectionReport({ order, inspectionData, onClose }) {
                 <tr>
                   <th>케이블 길이</th>
                   <td>{p.cable_length}</td>
+                  <th>검사자</th>
+                  <td>{funcData?.inspector || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
                 </tr>
                 <tr>
                   <th>라우터 S/N</th>
@@ -484,32 +492,32 @@ function InspectionReport({ order, inspectionData, onClose }) {
               </tbody>
             </table>
 
-            {inspectionData && (
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 14, fontSize: 13 }}>
-                <tbody>
-                  <tr style={{ background: 'var(--indigo-50,#eef2ff)' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 32, textAlign: 'center' }}>#</td>
-                    <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)' }}>검사 항목</td>
-                    <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 64, textAlign: 'center' }}>결과</td>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 14, fontSize: 13 }}>
+              <tbody>
+                <tr style={{ background: 'var(--indigo-50,#eef2ff)' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 32, textAlign: 'center' }}>#</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)' }}>검사 항목</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 64, textAlign: 'center' }}>결과</td>
+                </tr>
+                {FUNC_CHECKLIST.map((item, idx) => (
+                  <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
+                    <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700,
+                      color: funcData?.checks?.[item.key] ? 'var(--success-700)' : (funcData ? '#dc2626' : 'var(--ink-4)') }}>
+                      {funcData ? (funcData.checks?.[item.key] ? '합격' : '불합격') : '—'}
+                    </td>
                   </tr>
-                  {FUNC_CHECKLIST.map((item, idx) => (
-                    <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
-                      <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
-                      <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: inspectionData.checks?.[item.key] ? 'var(--success-700)' : '#dc2626' }}>
-                        {inspectionData.checks?.[item.key] ? '합격' : '불합격'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {inspectionData?.notes && (
+                ))}
+              </tbody>
+            </table>
+
+            {funcData?.notes && (
               <table className="report__table" style={{ marginTop: 14 }}>
                 <tbody>
                   <tr>
                     <th>비고</th>
-                    <td colSpan={3}>{inspectionData.notes}</td>
+                    <td colSpan={3}>{funcData.notes}</td>
                   </tr>
                 </tbody>
               </table>
