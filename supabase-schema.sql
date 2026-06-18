@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS tb_ship_inspection (
 );
 ALTER TABLE tb_ship_inspection DISABLE ROW LEVEL SECURITY;
 
+-- 출하 검사 사진 컬럼 (ship-photos 버킷 연동)
+ALTER TABLE tb_ship_inspection ADD COLUMN IF NOT EXISTS photos TEXT DEFAULT '[]';
+
 -- tb_master_model 스키마 변경 (model 코드 컬럼 추가, spec → description 전환)
 ALTER TABLE tb_master_model ADD COLUMN IF NOT EXISTS model       TEXT DEFAULT '';
 ALTER TABLE tb_master_model ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
@@ -68,7 +71,7 @@ ALTER TABLE tb_sales_order
 ALTER TABLE users
   DROP CONSTRAINT IF EXISTS chk_role,
   ADD  CONSTRAINT chk_role
-    CHECK (role IN ('admin', 'sales', 'production', 'quality', 'as'));
+    CHECK (role IN ('admin', 'sales', 'production', 'quality'));
 
 
 
@@ -191,3 +194,28 @@ CREATE POLICY "as_photos_select" ON storage.objects
 CREATE POLICY "as_photos_delete" ON storage.objects
   FOR DELETE TO anon
   USING (bucket_id = 'as-photos');
+
+-- ┌─────────────────────────────────────────────────────────┐
+-- │  Supabase Storage — ship-photos 버킷 RLS 정책            │
+-- │  anon key로 업로드·조회·삭제 허용                         │
+-- └─────────────────────────────────────────────────────────┘
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('ship-photos', 'ship-photos', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "ship_photos_insert" ON storage.objects;
+DROP POLICY IF EXISTS "ship_photos_select" ON storage.objects;
+DROP POLICY IF EXISTS "ship_photos_delete" ON storage.objects;
+
+CREATE POLICY "ship_photos_insert" ON storage.objects
+  FOR INSERT TO anon
+  WITH CHECK (bucket_id = 'ship-photos');
+
+CREATE POLICY "ship_photos_select" ON storage.objects
+  FOR SELECT TO anon
+  USING (bucket_id = 'ship-photos');
+
+CREATE POLICY "ship_photos_delete" ON storage.objects
+  FOR DELETE TO anon
+  USING (bucket_id = 'ship-photos');
