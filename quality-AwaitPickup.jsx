@@ -39,21 +39,17 @@ function ProductionCompleteScreen() {
   const [filterModel, setFilterModel] = useStatePC('all');
   const [report, setReport] = useStatePC(null);
   const [shipInspections, setShipInspections] = useStatePC(() => {
-    // tb_ship_inspection DB 캐시 우선 — 기존 pm_ship_inspections(기능검사 혼용)와 분리
+    // tb_ship_inspection DB 캐시만 사용 — localStorage(pm_ship_inspections) 무시
+    const m = new Map();
     try {
-      const dbRows = window.PMDB?.backend?.cache?.ship_inspections || [];
-      if (dbRows.length > 0) {
-        const m = new Map();
-        dbRows.forEach(r => m.set(r.order_id, {
+      (window.PMDB?.backend?.cache?.ship_inspections || []).forEach(r => {
+        m.set(r.order_id, {
           insp_date: r.insp_date, inspector: r.inspector,
           checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at,
-        }));
-        return m;
-      }
+        });
+      });
     } catch(_) {}
-    // DB 데이터 없을 때만 localStorage 폴백
-    try { return new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]')); }
-    catch(_) { return new Map(); }
+    return m;
   });
   const [shipInspectOrder, setShipInspectOrder] = useStatePC(null);
   const [shipReport, setShipReport] = useStatePC(null);
