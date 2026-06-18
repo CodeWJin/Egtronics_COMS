@@ -69,8 +69,6 @@ function ProductionCompleteScreen() {
   const handleShipComplete = React.useCallback((orderId) => {
     if (confirm(`오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`)) {
       window.actions.shipOrder(orderId);
-      window.setShipInspection(orderId, null);
-      setShipInspections(prev => { const next = new Map(prev); next.delete(orderId); return next; });
     }
   }, []);
 

@@ -424,8 +424,20 @@ function AsReceptionSection({ orderId }) {
 /* ────────── Right detail drawer ────────── */
 function OrderDrawer({ order, onClose }) {
   const [closing, setClosing] = React.useState(false);
-  const [funcInspection, setFuncInspectionState] = React.useState(() => window.getFuncInspection(order.order_id));
-  const [shipInspection, setShipInspectionState] = React.useState(() => window.getShipInspection(order.order_id));
+  const [funcInspection, setFuncInspectionState] = React.useState(() => window.getFuncInspection?.(order.order_id) ?? null);
+  const [shipInspection, setShipInspectionState] = React.useState(() => window.getShipInspection?.(order.order_id) ?? null);
+
+  // DB 로드 완료 후 검사 데이터 재조회 (loadAll 비동기 완료 전 마운트 시 초기값이 null일 수 있음)
+  React.useEffect(() => {
+    const sync = () => {
+      setFuncInspectionState(window.getFuncInspection?.(order.order_id) ?? null);
+      setShipInspectionState(window.getShipInspection?.(order.order_id) ?? null);
+    };
+    sync();
+    window.addEventListener('masterLoaded', sync);
+    return () => window.removeEventListener('masterLoaded', sync);
+  }, [order.order_id]);
+
   const [funcDrawerOpen, setFuncDrawerOpen] = React.useState(false);
   const [funcReportVisible, setFuncReportVisible] = React.useState(false);
   const [shipDrawerOpen, setShipDrawerOpen] = React.useState(false);
@@ -532,13 +544,13 @@ function OrderDrawer({ order, onClose }) {
 
         <div className="drawer__foot">
           {p && (
-            <button className="btn btn--secondary" onClick={() => funcInspection ? setFuncReportVisible(true) : setFuncDrawerOpen(true)}>
-              <Icon name="doc" size={13}/> 기능검사성적서{!funcInspection && ' 입력'}
+            <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}>
+              <Icon name="doc" size={13}/> 기능검사성적서
             </button>
           )}
           {p && (
-            <button className="btn btn--secondary" onClick={() => shipInspection ? setShipReportVisible(true) : setShipDrawerOpen(true)}>
-              <Icon name="doc" size={13}/> 출하검사성적서{!shipInspection && ' 입력'}
+            <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}>
+              <Icon name="doc" size={13}/> 출하검사성적서
             </button>
           )}
           {canEditSales && (
@@ -595,7 +607,12 @@ function OrderDrawer({ order, onClose }) {
         />
       )}
       {shipReportVisible && shipInspection && (
-        <ShipInspectionReport order={order} inspectionData={shipInspection} onClose={() => setShipReportVisible(false)}/>
+        <ShipInspectionReport 
+        order={order} 
+        inspectionData={shipInspection} 
+        onClose={() => setShipReportVisible(false)}
+        onEdit={() => { setShipReportVisible(false); setShipDrawerOpen(true); }}
+        />
       )}
     </>,
     document.body

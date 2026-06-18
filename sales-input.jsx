@@ -205,8 +205,9 @@ function SalesInputScreen() {
     install_address: false,
   };
   const hasErr = Object.values(errors).some(Boolean);
-  const filled = Object.entries(form).filter(([, v]) => v).length;
-  const completionPct = Math.round((filled / 9) * 100);
+  const PROGRESS_FIELDS = ['customer_name', 'customer_manager', 'model_name', 'delivery_date', 'cable_length', 'station_id', 'router_no', 'usim_no', 'install_address'];
+  const filled = PROGRESS_FIELDS.filter(k => !!form[k]).length;
+  const completionPct = Math.round((filled / PROGRESS_FIELDS.length) * 100);
 
   const submit = () => {
     setTouched({ customer_name: 1, customer_manager: 1, model_name: 1, delivery_date: 1, cable_length: 1, station_id: 1, router_no: 1, usim_no: 1, install_address: 1 });

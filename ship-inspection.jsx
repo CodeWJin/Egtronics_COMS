@@ -183,7 +183,10 @@ window.getFuncInspection = function(orderId) {
 };
 window.setFuncInspection = function(orderId, data) {
   try {
-    if (window.PMDB?.backend) window.PMDB.saveFuncInspection(orderId, data);
+    if (window.PMDB?.backend) {
+      if (data == null) window.PMDB.deleteFuncInspection(orderId);
+      else window.PMDB.saveFuncInspection(orderId, data);
+    }
     const m = new Map(JSON.parse(localStorage.getItem('pm_func_inspections') || '[]'));
     if (data == null) m.delete(orderId); else m.set(orderId, data);
     localStorage.setItem('pm_func_inspections', JSON.stringify([...m]));

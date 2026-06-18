@@ -145,68 +145,33 @@
         mgrSeq  = cache.managers.reduce((mx, x) => Math.max(mx, x.manager_id || 0), 0);
         histSeq = cache.history.reduce((mx, x) => Math.max(mx, x.history_id || 0), 0);
 
-        // AS 접수 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
-        try {
-          const { data: rData, error: rErr } = await client.from('tb_as_reception').select('*').order('id');
-          if (!rErr) {
-            cache.as_receptions = rData || [];
-            asRecSeq = cache.as_receptions.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
-          } else {
-            dbLog('WARN', 'loadAll', 'tb_as_reception 조회 실패 — ' + rErr.message);
-          }
-        } catch (e) {
-          dbLog('WARN', 'loadAll', 'tb_as_reception 로드 오류 — ' + e.message);
-        }
+        // 부속 테이블 병렬 로드 (테이블 미존재 시에도 앱 정상 동작)
+        await Promise.allSettled([
+          client.from('tb_as_reception').select('*').order('id').then(({ data, error }) => {
+            if (!error) { cache.as_receptions = data || []; asRecSeq = cache.as_receptions.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
+            else dbLog('WARN', 'loadAll', 'tb_as_reception 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_as_reception 로드 오류 — ' + e.message)),
 
-        // AS 처리 이력 로드
-        try {
-          const { data: lData, error: lErr } = await client.from('tb_as_log').select('*').order('id');
-          if (!lErr) {
-            cache.as_logs = lData || [];
-            asLogSeq = cache.as_logs.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
-          } else {
-            dbLog('WARN', 'loadAll', 'tb_as_log 조회 실패 — ' + lErr.message);
-          }
-        } catch (e) {
-          dbLog('WARN', 'loadAll', 'tb_as_log 로드 오류 — ' + e.message);
-        }
+          client.from('tb_as_log').select('*').order('id').then(({ data, error }) => {
+            if (!error) { cache.as_logs = data || []; asLogSeq = cache.as_logs.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
+            else dbLog('WARN', 'loadAll', 'tb_as_log 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_as_log 로드 오류 — ' + e.message)),
 
-        // AS 첨부 사진 로드
-        try {
-          const { data: phData, error: phErr } = await client.from('tb_as_photo').select('*').order('id');
-          if (!phErr) {
-            cache.as_photos = phData || [];
-            asPhotoSeq = cache.as_photos.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
-          } else {
-            dbLog('WARN', 'loadAll', 'tb_as_photo 조회 실패 — ' + phErr.message);
-          }
-        } catch (e) {
-          dbLog('WARN', 'loadAll', 'tb_as_photo 로드 오류 — ' + e.message);
-        }
+          client.from('tb_as_photo').select('*').order('id').then(({ data, error }) => {
+            if (!error) { cache.as_photos = data || []; asPhotoSeq = cache.as_photos.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
+            else dbLog('WARN', 'loadAll', 'tb_as_photo 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_as_photo 로드 오류 — ' + e.message)),
 
-        // 기능 검사 성적서 로드
-        try {
-          const { data: fiData, error: fiErr } = await client.from('tb_func_inspection').select('*').order('order_id');
-          if (!fiErr) {
-            cache.func_inspections = fiData || [];
-          } else {
-            dbLog('WARN', 'loadAll', 'tb_func_inspection 조회 실패 — ' + fiErr.message);
-          }
-        } catch (e) {
-          dbLog('WARN', 'loadAll', 'tb_func_inspection 로드 오류 — ' + e.message);
-        }
+          client.from('tb_func_inspection').select('*').order('order_id').then(({ data, error }) => {
+            if (!error) cache.func_inspections = data || [];
+            else dbLog('WARN', 'loadAll', 'tb_func_inspection 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_func_inspection 로드 오류 — ' + e.message)),
 
-        // 출하 검사 성적서 로드
-        try {
-          const { data: siData, error: siErr } = await client.from('tb_ship_inspection').select('*').order('order_id');
-          if (!siErr) {
-            cache.ship_inspections = siData || [];
-          } else {
-            dbLog('WARN', 'loadAll', 'tb_ship_inspection 조회 실패 — ' + siErr.message);
-          }
-        } catch (e) {
-          dbLog('WARN', 'loadAll', 'tb_ship_inspection 로드 오류 — ' + e.message);
-        }
+          client.from('tb_ship_inspection').select('*').order('order_id').then(({ data, error }) => {
+            if (!error) cache.ship_inspections = data || [];
+            else dbLog('WARN', 'loadAll', 'tb_ship_inspection 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_ship_inspection 로드 오류 — ' + e.message)),
+        ]);
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
@@ -313,8 +278,17 @@
       revertOrder(order_id) {
         const o = cache.orders.find(x => x.order_id === order_id);
         if (o) o.status = 'PENDING';
-        dbLog('INFO', 'write:tb_sales_order', `주문 되돌리기 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'revert', () => client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id));
+        const prod = cache.production.find(x => x.order_id === order_id);
+        if (prod) prod.serial_no = null;
+        cache.func_inspections = cache.func_inspections.filter(x => x.order_id !== order_id);
+        cache.ship_inspections = cache.ship_inspections.filter(x => x.order_id !== order_id);
+        dbLog('INFO', 'write:revert', `생산대기로 변경 — serial 초기화·검사 삭제, order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'revert', async () => {
+          await client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id);
+          await client.from('tb_production_info').update({ serial_no: null }).eq('order_id', order_id);
+          await client.from('tb_func_inspection').delete().eq('order_id', order_id);
+          return client.from('tb_ship_inspection').delete().eq('order_id', order_id);
+        });
       },
 
       startProduction(order_id) {
@@ -329,8 +303,8 @@
         return true;
       },
 
-      serialExists(serial) {
-        return cache.production.some(p => p.serial_no === serial);
+      serialExists(serial, excludeOrderId) {
+        return cache.production.some(p => p.serial_no === serial && p.order_id !== excludeOrderId);
       },
 
       getManagers(customer_name) {
@@ -736,6 +710,12 @@
         ));
       },
 
+      deleteFuncInspection(order_id) {
+        cache.func_inspections = cache.func_inspections.filter(x => x.order_id !== order_id);
+        dbLog('INFO', 'write:tb_func_inspection', `기능 검사 성적서 삭제 — order_id=${order_id}`);
+        dbWrite('tb_func_inspection', 'delete', () => client.from('tb_func_inspection').delete().eq('order_id', order_id));
+      },
+
       getShipInspectionDB(order_id) {
         const r = cache.ship_inspections.find(x => x.order_id === order_id);
         if (!r) return null;
@@ -915,7 +895,7 @@
     shipOrder(id)            { return this.backend.shipOrder(id); },
     revertOrder(id)          { return this.backend.revertOrder(id); },
     startProduction(id)      { return this.backend.startProduction(id); },
-    serialExists(s)          { return this.backend.serialExists(s); },
+    serialExists(s, excl)    { return this.backend.serialExists(s, excl); },
     getManagers(c)           { return this.backend.getManagers(c); },
     addManager(m)            { return this.backend.addManager(m); },
     updateManager(id, m)     { return this.backend.updateManager(id, m); },
@@ -960,6 +940,7 @@
     deleteMasterCableLength(v)      { return this.backend.deleteMasterCableLength(v); },
     getFuncInspection(id)           { return this.backend.getFuncInspection(id); },
     saveFuncInspection(id, data)    { return this.backend.saveFuncInspection(id, data); },
+    deleteFuncInspection(id)        { return this.backend.deleteFuncInspection(id); },
     getShipInspectionDB(id)         { return this.backend.getShipInspectionDB(id); },
     saveShipInspection(id, data)    { return this.backend.saveShipInspection(id, data); },
     getSwVersions()                 { return this.backend.getSwVersions(); },

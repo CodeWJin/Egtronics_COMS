@@ -320,7 +320,7 @@ function MappingForm({ order }) {
     do {
       candidate = `${base}-${String(idx).padStart(4, '0')}`;
       idx++;
-    } while (window.PMDB.serialExists(candidate) && idx <= 9999);
+    } while (window.PMDB.serialExists(candidate, order.order_id) && idx <= 9999);
     return candidate;
   }, [order.model_name, form.prod_date]);
 
@@ -337,7 +337,7 @@ function MappingForm({ order }) {
     if (!form.serial_no) return;
     setDupState('checking');
     setTimeout(() => {
-      const dup = window.PMDB.serialExists(form.serial_no);
+      const dup = window.PMDB.serialExists(form.serial_no, order.order_id);
       setDupState(dup ? 'dup' : 'ok');
     }, 600);
   };
@@ -387,7 +387,7 @@ function MappingForm({ order }) {
     setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1 });
     if (hasErr) return;
     if (dupState === null && form.serial_no) {
-      if (window.PMDB.serialExists(form.serial_no)) {
+      if (window.PMDB.serialExists(form.serial_no, order.order_id)) {
         setDupState('dup');
         return;
       }
