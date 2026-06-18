@@ -39,16 +39,24 @@ function ProductionCompleteScreen() {
   const [filterModel, setFilterModel] = useStatePC('all');
   const [report, setReport] = useStatePC(null);
   const [shipInspections, setShipInspections] = useStatePC(() => {
+    // tb_ship_inspection DB 캐시 우선 — 기존 pm_ship_inspections(기능검사 혼용)와 분리
+    try {
+      const dbRows = window.PMDB?.backend?.cache?.ship_inspections || [];
+      if (dbRows.length > 0) {
+        const m = new Map();
+        dbRows.forEach(r => m.set(r.order_id, {
+          insp_date: r.insp_date, inspector: r.inspector,
+          checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at,
+        }));
+        return m;
+      }
+    } catch(_) {}
+    // DB 데이터 없을 때만 localStorage 폴백
     try { return new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]')); }
     catch(_) { return new Map(); }
   });
   const [shipInspectOrder, setShipInspectOrder] = useStatePC(null);
   const [shipReport, setShipReport] = useStatePC(null);
-  const [funcInspections, setFuncInspections] = useStatePC(() => {
-    try { return new Map(JSON.parse(localStorage.getItem('pm_func_inspections') || '[]')); }
-    catch(_) { return new Map(); }
-  });
-  const [funcInspectOrder, setFuncInspectOrder] = useStatePC(null);
   const [models, setModels] = useStatePC(() => window.PMDB.getModels());
 
   React.useEffect(() => {
@@ -60,11 +68,6 @@ function ProductionCompleteScreen() {
   const saveShipInspection = React.useCallback((orderId, data) => {
     window.setShipInspection(orderId, data);
     setShipInspections(prev => { const next = new Map(prev); next.set(orderId, data); return next; });
-  }, []);
-
-  const saveFuncInspection = React.useCallback((orderId, data) => {
-    window.setFuncInspection(orderId, data);
-    setFuncInspections(prev => { const next = new Map(prev); next.set(orderId, data); return next; });
   }, []);
 
   const handleShipComplete = React.useCallback((orderId) => {
@@ -233,9 +236,9 @@ function ProductionCompleteScreen() {
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <button
-                          className={`btn btn--sm ${funcInspections.has(o.order_id) ? 'btn--success' : 'btn--secondary'}`}
-                          onClick={(e) => { e.stopPropagation(); setFuncInspectOrder(o); }}>
-                          <Icon name={funcInspections.has(o.order_id) ? 'check' : 'shield'} size={12}/> 기능검사
+                          className="btn btn--sm btn--success"
+                          onClick={(e) => { e.stopPropagation(); setReport(o); }}>
+                          <Icon name="check" size={12}/> 기능검사성적서
                         </button>
                         <button
                           className={`btn btn--sm ${shipInspections.has(o.order_id) ? 'btn--success' : 'btn--secondary'}`}
@@ -255,13 +258,13 @@ function ProductionCompleteScreen() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <button
                           className="btn btn--primary btn--sm"
-                          disabled={!funcInspections.has(o.order_id) || !shipInspections.has(o.order_id)}
+                          disabled={!shipInspections.has(o.order_id)}
                           onClick={(e) => { e.stopPropagation(); handleShipComplete(o.order_id); }}>
                           <Icon name="truck" size={12}/> 출하 완료
                         </button>
-                        {(!funcInspections.has(o.order_id) || !shipInspections.has(o.order_id)) && (
+                        {!shipInspections.has(o.order_id) && (
                           <span style={{ fontSize: 10.5, color: 'var(--ink-4)', lineHeight: 1.3 }}>
-                            {!funcInspections.has(o.order_id) ? '기능검사 필요' : '출하검사 필요'}
+                            출하검사 필요
                           </span>
                         )}
                       </div>
@@ -294,14 +297,6 @@ function ProductionCompleteScreen() {
           inspectionData={shipReport.inspectionData}
           modelInfo={modelMap.get(shipReport.order.model_name)}
           onClose={() => setShipReport(null)}
-        />
-      )}
-      {funcInspectOrder && (
-        <FuncInspectionDrawer
-          order={funcInspectOrder}
-          existingData={funcInspections.get(funcInspectOrder.order_id)}
-          onSave={(data) => saveFuncInspection(funcInspectOrder.order_id, data)}
-          onClose={() => setFuncInspectOrder(null)}
         />
       )}
     </div>

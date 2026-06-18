@@ -424,10 +424,12 @@ function AsReceptionSection({ orderId }) {
 /* ────────── Right detail drawer ────────── */
 function OrderDrawer({ order, onClose }) {
   const [closing, setClosing] = React.useState(false);
-  const [reportOrder, setReportOrder] = React.useState(null);
+  const [funcInspection, setFuncInspectionState] = React.useState(() => window.getFuncInspection(order.order_id));
+  const [shipInspection, setShipInspectionState] = React.useState(() => window.getShipInspection(order.order_id));
+  const [funcDrawerOpen, setFuncDrawerOpen] = React.useState(false);
+  const [funcReportVisible, setFuncReportVisible] = React.useState(false);
+  const [shipDrawerOpen, setShipDrawerOpen] = React.useState(false);
   const [shipReportVisible, setShipReportVisible] = React.useState(false);
-
-  const shipInspection = React.useMemo(() => window.getShipInspection(order.order_id), [order.order_id]);
   const handleClose = React.useCallback(() => {
     setClosing(true);
     setTimeout(onClose, 200);
@@ -529,14 +531,14 @@ function OrderDrawer({ order, onClose }) {
         </div>
 
         <div className="drawer__foot">
-          {p && p.doc_no && (
-            <button className="btn btn--secondary" onClick={() => setReportOrder(order)}>
-              <Icon name="doc" size={13}/> 기능검사성적서
+          {p && (
+            <button className="btn btn--secondary" onClick={() => funcInspection ? setFuncReportVisible(true) : setFuncDrawerOpen(true)}>
+              <Icon name="doc" size={13}/> 기능검사성적서{!funcInspection && ' 입력'}
             </button>
           )}
-          {shipInspection && (
-            <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}>
-              <Icon name="doc" size={13}/> 출하검사성적서
+          {p && (
+            <button className="btn btn--secondary" onClick={() => shipInspection ? setShipReportVisible(true) : setShipDrawerOpen(true)}>
+              <Icon name="doc" size={13}/> 출하검사성적서{!shipInspection && ' 입력'}
             </button>
           )}
           {canEditSales && (
@@ -558,7 +560,40 @@ function OrderDrawer({ order, onClose }) {
           <button className="btn btn--ghost" onClick={handleClose}>닫기</button>
         </div>
       </aside>
-      {reportOrder && <InspectionReport order={reportOrder} onClose={() => setReportOrder(null)}/>}
+      {funcDrawerOpen && (
+        <FuncInspectionDrawer
+          order={order}
+          existingData={funcInspection}
+          onSave={(data) => {
+            window.setFuncInspection(order.order_id, data);
+            setFuncInspectionState(data);
+            setFuncDrawerOpen(false);
+            setFuncReportVisible(true);
+          }}
+          onClose={() => setFuncDrawerOpen(false)}
+        />
+      )}
+      {funcReportVisible && funcInspection && (
+        <FuncInspectionReport
+          order={order}
+          inspectionData={funcInspection}
+          onClose={() => setFuncReportVisible(false)}
+          onEdit={() => { setFuncReportVisible(false); setFuncDrawerOpen(true); }}
+        />
+      )}
+      {shipDrawerOpen && (
+        <ShipInspectionDrawer
+          order={order}
+          existingData={shipInspection}
+          onSave={(data) => {
+            window.setShipInspection(order.order_id, data);
+            setShipInspectionState(data);
+            setShipDrawerOpen(false);
+            setShipReportVisible(true);
+          }}
+          onClose={() => setShipDrawerOpen(false)}
+        />
+      )}
       {shipReportVisible && shipInspection && (
         <ShipInspectionReport order={order} inspectionData={shipInspection} onClose={() => setShipReportVisible(false)}/>
       )}

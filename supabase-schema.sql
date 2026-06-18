@@ -16,6 +16,30 @@ ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_phone TEXT DEF
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cpo_name            TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS usage_type          TEXT DEFAULT '공용';
 
+-- 기능 검사 성적서 저장
+CREATE TABLE IF NOT EXISTS tb_func_inspection (
+  id          SERIAL PRIMARY KEY,
+  order_id    INTEGER NOT NULL UNIQUE,
+  insp_date   TEXT NOT NULL,
+  inspector   TEXT DEFAULT '',
+  checks      TEXT DEFAULT '{}',
+  notes       TEXT DEFAULT '',
+  saved_at    TEXT NOT NULL
+);
+ALTER TABLE tb_func_inspection DISABLE ROW LEVEL SECURITY;
+
+-- 출하 검사 성적서 저장
+CREATE TABLE IF NOT EXISTS tb_ship_inspection (
+  id          SERIAL PRIMARY KEY,
+  order_id    INTEGER NOT NULL UNIQUE,
+  insp_date   TEXT NOT NULL,
+  inspector   TEXT DEFAULT '',
+  checks      TEXT DEFAULT '{}',
+  notes       TEXT DEFAULT '',
+  saved_at    TEXT NOT NULL
+);
+ALTER TABLE tb_ship_inspection DISABLE ROW LEVEL SECURITY;
+
 -- tb_master_model 스키마 변경 (model 코드 컬럼 추가, spec → description 전환)
 ALTER TABLE tb_master_model ADD COLUMN IF NOT EXISTS model       TEXT DEFAULT '';
 ALTER TABLE tb_master_model ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
@@ -46,11 +70,7 @@ ALTER TABLE users
   ADD  CONSTRAINT chk_role
     CHECK (role IN ('admin', 'sales', 'production', 'quality', 'as'));
 
--- ┌─────────────────────────────────────────────────────────┐
--- │  tb_as_history RLS 정책 수정                             │
--- │  (INSERT 차단 오류 해결 — 앱이 anon key로 직접 삽입)      │
--- └─────────────────────────────────────────────────────────┘
-ALTER TABLE tb_as_history DISABLE ROW LEVEL SECURITY;
+
 
 -- ┌─────────────────────────────────────────────────────────┐
 -- │  [선택] users 테이블 외부 직접 수정 차단                  │
@@ -92,19 +112,6 @@ CREATE TABLE IF NOT EXISTS tb_master_cable_length (
   value TEXT NOT NULL
 );
 ALTER TABLE tb_master_cable_length DISABLE ROW LEVEL SECURITY;
-
--- A/S 이력 테이블 (없을 때만 생성)
-CREATE TABLE IF NOT EXISTS tb_as_history (
-  id             INTEGER PRIMARY KEY,
-  order_id       INTEGER NOT NULL,
-  reception_date TEXT    DEFAULT '',
-  dispatch_date  TEXT    DEFAULT '',
-  action         TEXT    DEFAULT '',
-  notes          TEXT    DEFAULT '',
-  field_manager  TEXT    DEFAULT '',
-  created_at     TEXT    NOT NULL
-);
-ALTER TABLE tb_as_history DISABLE ROW LEVEL SECURITY;
 
 -- AS 접수 테이블 (독립 AS 관리 모듈)
 CREATE TABLE IF NOT EXISTS tb_as_reception (

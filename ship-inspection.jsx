@@ -171,17 +171,41 @@ const FUNC_CHECKLIST = [
   { key: 'fw_ok',           label: 'F/W·S/W 버전 확인 완료' },
 ];
 
-/* 기능 검사 데이터 localStorage 헬퍼 */
+/* 기능 검사 데이터 헬퍼 — DB 우선, localStorage 폴백 */
 window.getFuncInspection = function(orderId) {
   try {
+    if (window.PMDB?.backend) {
+      const dbData = window.PMDB.getFuncInspection(orderId);
+      if (dbData) return dbData;
+    }
     return new Map(JSON.parse(localStorage.getItem('pm_func_inspections') || '[]')).get(orderId) || null;
   } catch(_) { return null; }
 };
 window.setFuncInspection = function(orderId, data) {
   try {
+    if (window.PMDB?.backend) window.PMDB.saveFuncInspection(orderId, data);
     const m = new Map(JSON.parse(localStorage.getItem('pm_func_inspections') || '[]'));
     if (data == null) m.delete(orderId); else m.set(orderId, data);
     localStorage.setItem('pm_func_inspections', JSON.stringify([...m]));
+  } catch(_) {}
+};
+
+/* 출하 검사 데이터 헬퍼 — DB 우선, localStorage 폴백 */
+window.getShipInspection = function(orderId) {
+  try {
+    if (window.PMDB?.backend) {
+      const dbData = window.PMDB.getShipInspectionDB(orderId);
+      if (dbData) return dbData;
+    }
+    return new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]')).get(orderId) || null;
+  } catch(_) { return null; }
+};
+window.setShipInspection = function(orderId, data) {
+  try {
+    if (window.PMDB?.backend) window.PMDB.saveShipInspection(orderId, data);
+    const m = new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]'));
+    if (data == null) m.delete(orderId); else m.set(orderId, data);
+    localStorage.setItem('pm_ship_inspections', JSON.stringify([...m]));
   } catch(_) {}
 };
 
@@ -367,7 +391,7 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
 }
 
 /* ────────── 기능 검사 성적서 (printable document) ────────── */
-function InspectionReport({ order, onClose }) {
+function InspectionReport({ order, inspectionData, onClose }) {
   const p = order.production;
 
   window.useLockScroll();
@@ -459,6 +483,37 @@ function InspectionReport({ order, onClose }) {
                 </tr>
               </tbody>
             </table>
+
+            {inspectionData && (
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 14, fontSize: 13 }}>
+                <tbody>
+                  <tr style={{ background: 'var(--indigo-50,#eef2ff)' }}>
+                    <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 32, textAlign: 'center' }}>#</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)' }}>검사 항목</td>
+                    <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 64, textAlign: 'center' }}>결과</td>
+                  </tr>
+                  {FUNC_CHECKLIST.map((item, idx) => (
+                    <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: inspectionData.checks?.[item.key] ? 'var(--success-700)' : '#dc2626' }}>
+                        {inspectionData.checks?.[item.key] ? '합격' : '불합격'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {inspectionData?.notes && (
+              <table className="report__table" style={{ marginTop: 14 }}>
+                <tbody>
+                  <tr>
+                    <th>비고</th>
+                    <td colSpan={3}>{inspectionData.notes}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
 
             <div className="report__seal">
               <div className="report__seal__txt">
@@ -578,6 +633,130 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                 <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 품질관리본부</span>
               </div>
               <div className="report__stamp">출하<br/>합격</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────── 기능 검사 성적서 미리보기 ────────── */
+function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
+  const p = order.production;
+
+  window.useLockScroll();
+
+  return (
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="report" role="dialog" aria-modal="true" aria-label="기능 검사 성적서 미리보기">
+        <div className="report__bar">
+          <span className="report__bar__label"><Icon name="shield" size={14}/> 기능 검사 성적서 미리보기</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {onEdit && (
+              <button className="btn btn--secondary btn--sm" onClick={onEdit}>
+                <Icon name="pencil" size={13}/> 수정
+              </button>
+            )}
+            <button className="btn btn--secondary btn--sm" onClick={() => window.print()}>
+              <Icon name="printer" size={13}/> 인쇄 / PDF
+            </button>
+            <button className="btn btn--ghost btn--sm btn--icon" onClick={onClose} aria-label="닫기"><Icon name="x" size={15}/></button>
+          </div>
+        </div>
+        <div className="report__scroll">
+          <div className="report__doc">
+            <div className="report__hd">
+              <div>
+                <h2 className="report__hd__title">기능 검사 성적서</h2>
+                <div className="report__hd__sub">FUNCTIONAL TEST CERTIFICATE · EV CHARGER</div>
+              </div>
+              <div className="report__hd__no">
+                검사일자
+                <strong>{d.insp_date}</strong>
+              </div>
+            </div>
+
+            <table className="report__table">
+              <tbody>
+                <tr>
+                  <th>고객사</th>
+                  <td>{order.customer_name}</td>
+                  <th>오더번호</th>
+                  <td className="report__mono">#{order.order_id}</td>
+                </tr>
+                <tr>
+                  <th>모델명</th>
+                  <td>{order.model_name}</td>
+                  <th>충전소 ID</th>
+                  <td className="report__mono">{order.station_id || '—'}</td>
+                </tr>
+                {p && (
+                  <>
+                    <tr>
+                      <th>시리얼 번호</th>
+                      <td className="report__mono">{p.serial_no}</td>
+                      <th>로트 번호</th>
+                      <td className="report__mono">{p.lot_no}</td>
+                    </tr>
+                    <tr>
+                      <th>S/W 버전</th>
+                      <td className="report__mono">{p.sw_version || '—'}</td>
+                      <th>F/W 버전</th>
+                      <td className="report__mono">{p.fw_version || '—'}</td>
+                    </tr>
+                  </>
+                )}
+                <tr>
+                  <th>검사일자</th>
+                  <td>{d.insp_date}</td>
+                  <th>검사자</th>
+                  <td>{d.inspector}</td>
+                </tr>
+                <tr>
+                  <th>종합 판정</th>
+                  <td colSpan={3}><span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 14, fontSize: 13 }}>
+              <tbody>
+                <tr style={{ background: 'var(--indigo-50,#eef2ff)' }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 32, textAlign: 'center' }}>#</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)' }}>검사 항목</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 64, textAlign: 'center' }}>결과</td>
+                </tr>
+                {FUNC_CHECKLIST.map((item, idx) => (
+                  <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
+                    <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: d.checks?.[item.key] ? 'var(--success-700)' : '#dc2626' }}>
+                      {d.checks?.[item.key] ? '합격' : '불합격'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {d.notes && (
+              <table className="report__table" style={{ marginTop: 14 }}>
+                <tbody>
+                  <tr>
+                    <th>비고</th>
+                    <td colSpan={3}>{d.notes}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+
+            <div className="report__seal">
+              <div className="report__seal__txt">
+                위 충전기는 사내 기능 검사 규정에 따라 전 항목을 점검하였으며,<br/>
+                그 결과 <strong style={{ color: 'var(--ink-1)' }}>이상 없음</strong>을 확인합니다.<br/>
+                <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 제조생산팀</span>
+              </div>
+              <div className="report__stamp">기능<br/>합격</div>
             </div>
           </div>
         </div>

@@ -297,8 +297,8 @@ function MappingForm({ order }) {
   const [addingFwVer, setAddingFwVer] = useStatePM(false);
   const [newFwVerTag, setNewFwVerTag] = useStatePM('');
   const [newFwVerStable, setNewFwVerStable] = useStatePM(true);
-  const [shipInspectionData, setShipInspectionData] = useStatePM(null);
-  const [openShipInspect, setOpenShipInspect] = useStatePM(false);
+  const [funcInspectionData, setfuncInspectionData] = useStatePM(null);
+  const [openFuncInspect, setOpenFuncInspect] = useStatePM(false);
 
   const modelInfo = useMemoPM(
     () => window.PMDB.getModels().find(m => m.name === order.model_name),
@@ -380,7 +380,7 @@ function MappingForm({ order }) {
     fw_version: !form.fw_version && 'F/W 버전을 선택하세요',
   };
   const hasErr = Object.values(errors).some(Boolean);
-  const filled = Object.values(form).filter(Boolean).length + (shipInspectionData ? 1 : 0);
+  const filled = Object.values(form).filter(Boolean).length + (funcInspectionData ? 1 : 0);
 
   const submit = () => {
     setShowAll(true);
@@ -392,7 +392,7 @@ function MappingForm({ order }) {
         return;
       }
     }
-    window.setShipInspection(order.order_id, shipInspectionData);
+    window.setFuncInspection(order.order_id, funcInspectionData);
     window.actions.completeOrder(order.order_id, form);
   };
 
@@ -604,22 +604,22 @@ function MappingForm({ order }) {
               <div className="field__label"><Icon name="doc" size={11}/>기능 검사 성적서 <span className="field__req">*</span></div>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                background: shipInspectionData ? 'var(--success-50)' : 'var(--surface-2)',
-                border: `1px solid ${shipInspectionData ? 'var(--success)' : 'var(--border-1)'}`,
+                background: funcInspectionData ? 'var(--success-50)' : 'var(--surface-2)',
+                border: `1px solid ${funcInspectionData ? 'var(--success)' : 'var(--border-1)'}`,
                 borderRadius: 'var(--r-md)',
               }}>
-                <Icon name={shipInspectionData ? 'check' : 'doc'} size={16}
-                  style={{ color: shipInspectionData ? 'var(--success-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
+                <Icon name={funcInspectionData ? 'check' : 'doc'} size={16}
+                  style={{ color: funcInspectionData ? 'var(--success-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
                 <div style={{ flex: 1 }}>
-                  {shipInspectionData
-                    ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>작성 완료 · 검사자: {shipInspectionData.inspector} · {shipInspectionData.insp_date}</span>
+                  {funcInspectionData
+                    ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>작성 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                     : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>
                   }
                 </div>
                 <button type="button"
-                  className={`btn btn--sm ${shipInspectionData ? 'btn--secondary' : 'btn--primary'}`}
-                  onClick={() => setOpenShipInspect(true)}>
-                  <Icon name="doc" size={12}/> {shipInspectionData ? '수정' : '작성하기'}
+                  className={`btn btn--sm ${funcInspectionData ? 'btn--secondary' : 'btn--primary'}`}
+                  onClick={() => setOpenFuncInspect(true)}>
+                  <Icon name="doc" size={12}/> {funcInspectionData ? '수정' : '작성하기'}
                 </button>
               </div>
             </div>
@@ -631,20 +631,20 @@ function MappingForm({ order }) {
               저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산
             </div>
             <button className="btn btn--success btn--lg" onClick={submit}
-              disabled={!shipInspectionData}
-              title={!shipInspectionData ? '출하검사 성적서를 먼저 작성해 주세요' : ''}>
+              disabled={!funcInspectionData}
+              title={!funcInspectionData ? '기능검사 성적서를 먼저 작성해 주세요' : ''}>
               <Icon name="check" size={14}/> 출하대기 등록
             </button>
           </div>
         </div>
       </div>
-      {openShipInspect && (
+      {openFuncInspect && (
         <FuncInspectionDrawer
           order={order}
-          existingData={shipInspectionData}
+          existingData={funcInspectionData}
           modelInfo={modelInfo}
-          onSave={(data) => setShipInspectionData(data)}
-          onClose={() => setOpenShipInspect(false)}
+          onSave={(data) => setfuncInspectionData(data)}
+          onClose={() => setOpenFuncInspect(false)}
         />
       )}
     </div>

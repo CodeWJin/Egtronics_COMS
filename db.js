@@ -85,7 +85,7 @@
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], customers: [], cpos: [], sw_versions: [], fw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], customers: [], cpos: [], sw_versions: [], fw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asRecSeq = 0;
@@ -182,6 +182,30 @@
           }
         } catch (e) {
           dbLog('WARN', 'loadAll', 'tb_as_photo 로드 오류 — ' + e.message);
+        }
+
+        // 기능 검사 성적서 로드
+        try {
+          const { data: fiData, error: fiErr } = await client.from('tb_func_inspection').select('*').order('order_id');
+          if (!fiErr) {
+            cache.func_inspections = fiData || [];
+          } else {
+            dbLog('WARN', 'loadAll', 'tb_func_inspection 조회 실패 — ' + fiErr.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', 'tb_func_inspection 로드 오류 — ' + e.message);
+        }
+
+        // 출하 검사 성적서 로드
+        try {
+          const { data: siData, error: siErr } = await client.from('tb_ship_inspection').select('*').order('order_id');
+          if (!siErr) {
+            cache.ship_inspections = siData || [];
+          } else {
+            dbLog('WARN', 'loadAll', 'tb_ship_inspection 조회 실패 — ' + siErr.message);
+          }
+        } catch (e) {
+          dbLog('WARN', 'loadAll', 'tb_ship_inspection 로드 오류 — ' + e.message);
         }
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
@@ -691,6 +715,54 @@
         dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('model', model));
       },
 
+      getFuncInspection(order_id) {
+        const r = cache.func_inspections.find(x => x.order_id === order_id);
+        if (!r) return null;
+        return { insp_date: r.insp_date, inspector: r.inspector, checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at };
+      },
+
+      saveFuncInspection(order_id, data) {
+        const checks = JSON.stringify(data.checks || {});
+        const existing = cache.func_inspections.find(x => x.order_id === order_id);
+        if (existing) {
+          Object.assign(existing, { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+        } else {
+          cache.func_inspections.push({ order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+        }
+        dbLog('INFO', 'write:tb_func_inspection', `기능 검사 성적서 저장 — order_id=${order_id}`);
+        dbWrite('tb_func_inspection', 'upsert', () => client.from('tb_func_inspection').upsert(
+          { order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at },
+          { onConflict: 'order_id' }
+        ));
+      },
+
+      getShipInspectionDB(order_id) {
+        const r = cache.ship_inspections.find(x => x.order_id === order_id);
+        if (!r) return null;
+        return { insp_date: r.insp_date, inspector: r.inspector, checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at };
+      },
+
+      saveShipInspection(order_id, data) {
+        if (data == null) {
+          cache.ship_inspections = cache.ship_inspections.filter(x => x.order_id !== order_id);
+          dbLog('INFO', 'write:tb_ship_inspection', `출하 검사 성적서 삭제 — order_id=${order_id}`);
+          dbWrite('tb_ship_inspection', 'delete', () => client.from('tb_ship_inspection').delete().eq('order_id', order_id));
+          return;
+        }
+        const checks = JSON.stringify(data.checks || {});
+        const existing = cache.ship_inspections.find(x => x.order_id === order_id);
+        if (existing) {
+          Object.assign(existing, { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+        } else {
+          cache.ship_inspections.push({ order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+        }
+        dbLog('INFO', 'write:tb_ship_inspection', `출하 검사 성적서 저장 — order_id=${order_id}`);
+        dbWrite('tb_ship_inspection', 'upsert', () => client.from('tb_ship_inspection').upsert(
+          { order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at },
+          { onConflict: 'order_id' }
+        ));
+      },
+
       addMasterCableLength(value) {
         const v = (value || '').trim();
         if (!v) return { ok: false, msg: '값을 입력하세요' };
@@ -886,6 +958,10 @@
     deleteMasterModel(i)            { return this.backend.deleteMasterModel(i); },
     addMasterCableLength(v)         { return this.backend.addMasterCableLength(v); },
     deleteMasterCableLength(v)      { return this.backend.deleteMasterCableLength(v); },
+    getFuncInspection(id)           { return this.backend.getFuncInspection(id); },
+    saveFuncInspection(id, data)    { return this.backend.saveFuncInspection(id, data); },
+    getShipInspectionDB(id)         { return this.backend.getShipInspectionDB(id); },
+    saveShipInspection(id, data)    { return this.backend.saveShipInspection(id, data); },
     getSwVersions()                 { return this.backend.getSwVersions(); },
     addMasterSwVersion(v)           { return this.backend.addMasterSwVersion(v); },
     getFwVersions()                 { return this.backend.getFwVersions(); },
