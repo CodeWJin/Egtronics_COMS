@@ -71,7 +71,7 @@ ALTER TABLE tb_sales_order
 ALTER TABLE users
   DROP CONSTRAINT IF EXISTS chk_role,
   ADD  CONSTRAINT chk_role
-    CHECK (role IN ('admin', 'sales', 'production', 'quality'));
+    CHECK (role IN ('admin', 'sales', 'production', 'quality', 'as'));
 
 
 
