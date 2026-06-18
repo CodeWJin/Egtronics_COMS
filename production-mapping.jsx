@@ -284,7 +284,6 @@ function MappingForm({ order }) {
       inspection_date: ex.inspection_date || '',
       sw_version: ex.sw_version || '',
       fw_version: ex.fw_version || '',
-      doc_no: ex.doc_no || '',
     };
   });
   const [touched, setTouched] = useStatePM({});
@@ -298,6 +297,13 @@ function MappingForm({ order }) {
   const [addingFwVer, setAddingFwVer] = useStatePM(false);
   const [newFwVerTag, setNewFwVerTag] = useStatePM('');
   const [newFwVerStable, setNewFwVerStable] = useStatePM(true);
+  const [shipInspectionData, setShipInspectionData] = useStatePM(null);
+  const [openShipInspect, setOpenShipInspect] = useStatePM(false);
+
+  const modelInfo = useMemoPM(
+    () => window.PMDB.getModels().find(m => m.name === order.model_name),
+    [order.model_name]
+  );
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -372,14 +378,13 @@ function MappingForm({ order }) {
     inspection_date: isPublic && !form.inspection_date && '검정일자를 선택하세요',
     sw_version: !form.sw_version && 'S/W 버전을 선택하세요',
     fw_version: !form.fw_version && 'F/W 버전을 선택하세요',
-    doc_no: !form.doc_no && '문서번호를 입력하세요',
   };
   const hasErr = Object.values(errors).some(Boolean);
-  const filled = Object.values(form).filter(Boolean).length;
+  const filled = Object.values(form).filter(Boolean).length + (shipInspectionData ? 1 : 0);
 
   const submit = () => {
     setShowAll(true);
-    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1, doc_no: 1 });
+    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1 });
     if (hasErr) return;
     if (dupState === null && form.serial_no) {
       if (window.PMDB.serialExists(form.serial_no)) {
@@ -387,6 +392,7 @@ function MappingForm({ order }) {
         return;
       }
     }
+    window.setShipInspection(order.order_id, shipInspectionData);
     window.actions.completeOrder(order.order_id, form);
   };
 
@@ -406,7 +412,7 @@ function MappingForm({ order }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>
-            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/7 항목 입력
+            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/{isPublic ? 7 : 6} 항목 입력
           </span>
           <button className="btn btn--ghost btn--sm" onClick={() => {
             if (confirm(`오더 #${order.order_id}을(를) 생산대기로 되돌릴까요?\n입력 중인 내용은 저장되지 않습니다.`)) {
@@ -422,9 +428,6 @@ function MappingForm({ order }) {
             window.actions.setView('waiting');
           }}>
             <Icon name="arrow-left" size={13}/> 목록
-          </button>
-          <button className="btn btn--success btn--lg" onClick={submit}>
-            <Icon name="check" size={14}/> 생산완료 등록
           </button>
         </div>
       </div>
@@ -596,17 +599,29 @@ function MappingForm({ order }) {
               {showErr('fw_version') && <div className="field__err"><Icon name="alert" size={12}/>{errors.fw_version}</div>}
             </div>
 
-            {/* 문서번호 */}
+            {/* 기능 검사 성적서 */}
             <div className="field col-span-2">
-              <label className="field__label" htmlFor="pm-doc-no"><Icon name="doc" size={11}/>문서번호 (기능 검사 성적서) <span className="field__req">*</span></label>
-              <input id="pm-doc-no"
-                     className={`input ${showErr('doc_no') ? 'input--error' : ''}`}
-                     style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
-                     placeholder="예: QC-26-0528-A"
-                     value={form.doc_no}
-                     onChange={(e) => { update('doc_no', e.target.value); setTouched(t => ({ ...t, doc_no: 1 })); }}/>
-              <div className="field__hint">출하 검사 성적서 · 공장인도증서 관리 번호</div>
-              {showErr('doc_no') && <div className="field__err"><Icon name="alert" size={12}/>{errors.doc_no}</div>}
+              <div className="field__label"><Icon name="doc" size={11}/>기능 검사 성적서 <span className="field__req">*</span></div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                background: shipInspectionData ? 'var(--success-50)' : 'var(--surface-2)',
+                border: `1px solid ${shipInspectionData ? 'var(--success)' : 'var(--border-1)'}`,
+                borderRadius: 'var(--r-md)',
+              }}>
+                <Icon name={shipInspectionData ? 'check' : 'doc'} size={16}
+                  style={{ color: shipInspectionData ? 'var(--success-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
+                <div style={{ flex: 1 }}>
+                  {shipInspectionData
+                    ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>작성 완료 · 검사자: {shipInspectionData.inspector} · {shipInspectionData.insp_date}</span>
+                    : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>
+                  }
+                </div>
+                <button type="button"
+                  className={`btn btn--sm ${shipInspectionData ? 'btn--secondary' : 'btn--primary'}`}
+                  onClick={() => setOpenShipInspect(true)}>
+                  <Icon name="doc" size={12}/> {shipInspectionData ? '수정' : '작성하기'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -615,12 +630,23 @@ function MappingForm({ order }) {
               <Icon name="lock" size={13}/>
               저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산
             </div>
-            <button className="btn btn--success btn--lg" onClick={submit}>
-              <Icon name="check" size={14}/> 생산완료 등록 · 출하 큐로 이동
+            <button className="btn btn--success btn--lg" onClick={submit}
+              disabled={!shipInspectionData}
+              title={!shipInspectionData ? '출하검사 성적서를 먼저 작성해 주세요' : ''}>
+              <Icon name="check" size={14}/> 출하대기 등록
             </button>
           </div>
         </div>
       </div>
+      {openShipInspect && (
+        <FuncInspectionDrawer
+          order={order}
+          existingData={shipInspectionData}
+          modelInfo={modelInfo}
+          onSave={(data) => setShipInspectionData(data)}
+          onClose={() => setOpenShipInspect(false)}
+        />
+      )}
     </div>
   );
 }

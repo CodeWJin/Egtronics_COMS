@@ -43,6 +43,7 @@ window.AsPriorityBadge = AsPriorityBadge;
 
 // ── 주문 목록에서 충전소/충전기 검색 모달 ─────────────────────────
 function ChargerSearchModal({ onSelect, onClose }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [query, setQuery] = useStateASC('');
 
   const orders = useMemoASC(
@@ -61,7 +62,7 @@ function ChargerSearchModal({ onSelect, onClose }) {
   }, [query]);
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-charger-search-title" style={{ width: 620, maxWidth: '96vw' }}>
         <div className="modal__head">
           <h3 id="modal-charger-search-title" className="modal__title">충전소 검색</h3>

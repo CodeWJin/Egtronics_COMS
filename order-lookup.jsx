@@ -2,8 +2,12 @@
 
 const { useState: useStateOL, useMemo: useMemoOL } = React;
 
+function safeLoadAsReceptions() {
+  try { return window.PMDB.loadAsReceptions() || []; } catch(_) { return []; }
+}
+
 function statusBadge(o) {
-  if (o.status === 'COMPLETED')    return <span className="badge badge--complete"><Icon name="check" size={10}/>생산완료</span>;
+  if (o.status === 'COMPLETED')    return <span className="badge badge--complete"><Icon name="check" size={10}/>출하완료</span>;
   if (o.status === 'AWAIT_PICKUP') return <span className="badge badge--progress"><Icon name="truck" size={10}/>출하대기</span>;
   if (o.status === 'IN_PROGRESS')  return <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>;
   return <span className="badge badge--pending"><span className="badge__dot"/>생산대기</span>;
@@ -32,21 +36,11 @@ function OrderLookupScreen() {
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
 
-  const asStats = useMemoOL(() => {
-    const allReceptions = window.PMDB.loadAsReceptions() || [];
-    let totalRecords = 0;
-    let ordersWithAs = 0;
-    s.orders.forEach(o => {
-      const recs = allReceptions.filter(r => r.order_id === o.order_id);
-      if (recs.length > 0) { ordersWithAs++; totalRecords += recs.length; }
-    });
-    return { totalRecords, ordersWithAs };
-  }, [s.orders]);
-
+  const dateRangeErr = dateRangeErr;
   const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
 
   const filtered = useMemoOL(() => {
-    const allReceptions = fAsOnly ? (window.PMDB.loadAsReceptions() || []) : [];
+    const allReceptions = fAsOnly ? safeLoadAsReceptions() : [];
     let list = s.orders.filter(o => {
       if (fStatus !== 'all' && o.status !== fStatus) return false;
       if (fModel !== 'all' && o.model_name !== fModel) return false;
@@ -58,7 +52,9 @@ function OrderLookupScreen() {
       if (search) {
         const q = search.toLowerCase();
         const hay = [o.customer_name, o.model_name, o.station_id, o.router_no, o.usim_no, o.install_address, String(o.order_id),
-          o.production && o.production.serial_no, o.production && o.production.lot_no, o.production && o.production.doc_no]
+          o.production && o.production.serial_no, o.production && o.production.lot_no, o.production && o.production.doc_no,
+          o.production && o.production.doc_no && '기능검사성적서',
+          o.production && o.production.doc_no && '출하검사성적서']
           .filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -98,11 +94,11 @@ function OrderLookupScreen() {
           <h1 className="screen__title">오더 통합 조회</h1>
           <p className="screen__sub">영업·생산 전 과정의 오더를 한 곳에서 검색합니다. 행을 선택하면 우측에 전체 상세가 열립니다.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12.5, color: 'var(--ink-3)' }}>
-          생산완료 <strong style={{ color: 'var(--success-700)', fontWeight: 600 }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong>건 ·
-          검색결과 <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{filtered.length}</strong>건 ·
-          A/S <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.ordersWithAs}</strong>오더 ·
-          이력 <strong style={{ color: 'var(--primary-600)', fontWeight: 600 }}>{asStats.totalRecords}</strong>건
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <span className="badge badge--complete" style={{ fontSize: 11 }}><Icon name="check" size={10}/>출하완료 오더만 표시</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            총 <strong style={{ color: 'var(--success-700)' }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong>건
+          </span>
         </div>
       </div>
 
@@ -147,11 +143,18 @@ function OrderLookupScreen() {
             </div>
             <div className="field">
               <label className="field__label" htmlFor="ol-date-from">시작일</label>
-              <input id="ol-date-from" type="date" className="input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
+              <input id="ol-date-from" type="date" className="input"
+                     style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
+                     value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
             </div>
             <div className="field">
               <label className="field__label" htmlFor="ol-date-to">종료일</label>
-              <input id="ol-date-to" type="date" className="input" value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
+              <input id="ol-date-to" type="date" className="input"
+                     style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
+                     value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
+              {dateRangeErr && (
+                <span className="field__err"><Icon name="x" size={11}/>종료일이 시작일보다 앞입니다</span>
+              )}
             </div>
             <div className="field" style={{ justifyContent: 'flex-end' }}>
               <div className="field__label">A/S 필터</div>
@@ -186,14 +189,14 @@ function OrderLookupScreen() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table" style={{ tableLayout: 'fixed', width: '100%', textAlign: 'left', borderCollapse: 'collapse', }}>
+          <table className="table" style={{ tableLayout: 'fixed', width: '100%', minWidth: 860, textAlign: 'left', borderCollapse: 'collapse' }}>
             <colgroup>
               <col style={{ width: 76 }}/>
-              <col style={{ width: 200 }}/>
-              <col style={{ width: 160 }}/>
               <col style={{ width: 130 }}/>
+              <col style={{ width: 220 }}/>
               <col style={{ width: 150 }}/>
-              <col style={{ width: 150 }}/>
+              <col style={{ width: 100 }}/>
+              <col style={{ width: 100 }}/>
               <col style={{ width: 40 }}/>
             </colgroup>
             <thead>
@@ -239,7 +242,9 @@ function OrderLookupScreen() {
 }
 
 function OrderHistorySection({ orderId }) {
-  const list = React.useMemo(() => window.PMDB.getHistory(orderId), [orderId]);
+  const list = React.useMemo(() => {
+    try { return window.PMDB.getHistory(orderId) || []; } catch(_) { return []; }
+  }, [orderId]);
 
   return (
     <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
@@ -392,7 +397,7 @@ function AsReceptionCard({ reception: r }) {
 
 function AsReceptionSection({ orderId }) {
   const receptions = React.useMemo(
-    () => window.PMDB.loadAsReceptions().filter(r => r.order_id === orderId),
+    () => safeLoadAsReceptions().filter(r => r.order_id === orderId),
     [orderId]
   );
 
@@ -418,11 +423,23 @@ function AsReceptionSection({ orderId }) {
 
 /* ────────── Right detail drawer ────────── */
 function OrderDrawer({ order, onClose }) {
+  const [closing, setClosing] = React.useState(false);
+  const [reportOrder, setReportOrder] = React.useState(null);
+  const [shipReportVisible, setShipReportVisible] = React.useState(false);
+
+  const shipInspection = React.useMemo(() => window.getShipInspection(order.order_id), [order.order_id]);
+  const handleClose = React.useCallback(() => {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  }, [onClose]);
+
+  window.useLockScroll();
+
   React.useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape') onClose(); };
+    const fn = (e) => { if (e.key === 'Escape') handleClose(); };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
-  }, [order]);
+  }, [handleClose]);
 
   const p = order.production;
   const s = window.useStore();
@@ -439,20 +456,20 @@ function OrderDrawer({ order, onClose }) {
   const canMap = role === 'production' || role === 'admin';
   const canEditSales = (role === 'sales' || role === 'admin') && order.status === 'PENDING';
   const goMapping = () => { window.actions.selectOrder(order.order_id); window.actions.setView('mapping'); };
-  const goEdit = () => { window.actions.editOrder(order.order_id); onClose(); };
-  const revert = () => { if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 변경할까요?`)) { window.actions.revertOrder(order.order_id); onClose(); } };
+  const goEdit = () => { window.actions.editOrder(order.order_id); handleClose(); };
+  const revert = () => { if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 변경할까요?`)) { window.actions.revertOrder(order.order_id); handleClose(); } };
 
-  return (
+  return ReactDOM.createPortal(
     <>
-      <div className="drawer-backdrop" onClick={onClose}/>
-      <aside className="drawer">
+      <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
+      <aside className={`drawer${closing ? ' drawer--closing' : ''}`}>
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 접수 {order.created}</div>
             <div className="drawer__title" style={{ margin: '5px 0 10px' }}>오더 #{order.order_id}</div>
             {statusBadge(order)}
           </div>
-          <button className="drawer__close" onClick={onClose} aria-label="닫기"><Icon name="x" size={16}/></button>
+          <button className="drawer__close" onClick={handleClose} aria-label="닫기"><Icon name="x" size={16}/></button>
         </div>
 
         <div className="drawer__body">
@@ -512,14 +529,19 @@ function OrderDrawer({ order, onClose }) {
         </div>
 
         <div className="drawer__foot">
+          {p && p.doc_no && (
+            <button className="btn btn--secondary" onClick={() => setReportOrder(order)}>
+              <Icon name="doc" size={13}/> 기능검사성적서
+            </button>
+          )}
+          {shipInspection && (
+            <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}>
+              <Icon name="doc" size={13}/> 출하검사성적서
+            </button>
+          )}
           {canEditSales && (
             <button className="btn btn--primary" onClick={goEdit}>
               <Icon name="save" size={13}/> 영업 정보 수정
-            </button>
-          )}
-          {p && canMap && (
-            <button className="btn btn--secondary" onClick={revert}>
-              <Icon name="refresh" size={13}/> 생산대기로 변경
             </button>
           )}
           {canMap && (
@@ -533,10 +555,15 @@ function OrderDrawer({ order, onClose }) {
               </button>
             )
           )}
-          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+          <button className="btn btn--ghost" onClick={handleClose}>닫기</button>
         </div>
       </aside>
-    </>
+      {reportOrder && <InspectionReport order={reportOrder} onClose={() => setReportOrder(null)}/>}
+      {shipReportVisible && shipInspection && (
+        <ShipInspectionReport order={order} inspectionData={shipInspection} onClose={() => setShipReportVisible(false)}/>
+      )}
+    </>,
+    document.body
   );
 }
 

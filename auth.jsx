@@ -3,7 +3,7 @@
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
   admin:      ['sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
-  sales:      ['sales', 'waiting', 'lookup'],
+  sales:      ['sales', 'waiting', 'lookup','as-receipt','as-processing'],
   production: ['waiting', 'mapping', 'AwaitPickup', 'lookup'],
   quality:    ['AwaitPickup', 'lookup'],
   as:         ['lookup', 'as-receipt', 'as-processing'],
@@ -65,7 +65,7 @@ function LoginScreen() {
                    onChange={(e) => { setPw(e.target.value); setErr(''); }}/>
           </div>
 
-          {err && <div className="login__err"><Icon name="alert" size={13}/> {err}</div>}
+          {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
 
           <button type="submit" className="btn btn--primary btn--lg login__submit" disabled={busy}>
             {busy ? '확인 중…' : <><Icon name="arrow-right" size={15}/> 로그인</>}
@@ -105,6 +105,7 @@ function LoginScreen() {
 const MAIL_API = `${window.location.origin}/api/send-code`;
 
 function PasswordResetModal({ onClose }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [step, setStep] = useStateAU(1); // 1: 본인확인  2: 인증번호  3: 새 비밀번호  4: 완료
   const [userId, setUserId] = useStateAU('');
   const [email, setEmail] = useStateAU('');
@@ -223,7 +224,7 @@ function PasswordResetModal({ onClose }) {
   const STEPS = ['본인 확인', '인증번호', '새 비밀번호'];
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-pw-reset-title" style={{ width: 420, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-pw-reset-title" className="modal__title">{step === 4 ? '변경 완료' : '비밀번호 변경'}</h3>
@@ -332,7 +333,7 @@ function PasswordResetModal({ onClose }) {
             </div>
           )}
 
-          {err && <div className="login__err"><Icon name="alert" size={13}/> {err}</div>}
+          {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
         </div>
 
         <div className="modal__foot">

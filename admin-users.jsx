@@ -13,6 +13,7 @@ const ROLE_OPTIONS = [
 const EMPTY_FORM = { user_id: '', password: '', name: '', role: 'sales', dept: '', phone: '', email: '' };
 
 function UserFormModal({ mode, initial, onSave, onClose }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [form, setForm] = useStateAM(initial || EMPTY_FORM);
   const [errors, setErrors] = useStateAM({});
   const [showPw, setShowPw] = useStateAM(false);
@@ -26,6 +27,8 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
     if (!isEdit && !form.password.trim()) e.password = '초기 비밀번호를 입력하세요';
     if (!form.name.trim()) e.name = '이름을 입력하세요';
     if (!form.role) e.role = '역할을 선택하세요';
+    if (form.email && form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      e.email = '올바른 이메일 형식이 아닙니다';
     return e;
   }
 
@@ -36,7 +39,7 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-user-form-title" style={{ maxWidth: 480 }}>
         <div className="modal__head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span id="modal-user-form-title" className="modal__title">{isEdit ? '사용자 수정' : '사용자 추가'}</span>
@@ -104,7 +107,8 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
             </div>
             <div className="field">
               <label className="field__label" htmlFor="uf-email">이메일</label>
-              <input id="uf-email" className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="user@example.com"/>
+              <input id="uf-email" className={`input ${errors.email ? 'input--error' : ''}`} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="user@example.com"/>
+              {errors.email && <span className="field__err">{errors.email}</span>}
             </div>
           </div>
         </div>
@@ -120,8 +124,9 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
 }
 
 function DeleteConfirmModal({ user, onConfirm, onClose }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   return (
-    <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-user-delete-title" style={{ maxWidth: 380 }}>
         <div className="modal__head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span id="modal-user-delete-title" className="modal__title">사용자 삭제</span>
@@ -209,7 +214,7 @@ function AdminUsersScreen() {
             </div>
             <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
-              {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회'}
+              {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회 · A/S 접수'}
               {r.value === 'production' && '생산 대기 · 생산 입력 · 출하 대기 · 조회'}
               {r.value === 'quality' && '출하 대기 · 조회'}
               {r.value === 'as' && '조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}

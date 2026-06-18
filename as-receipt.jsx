@@ -157,6 +157,7 @@ function AsReceiptScreen() {
 
 // ── 새 접수 등록 모달 ────────────────────────────────────────────
 function AsReceiptModal({ onClose, onSubmit }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const nowStr = () => {
     const d = new Date(), p = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
@@ -209,7 +210,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
 
   return (
     <>
-      <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-as-receipt-title" style={{ width: 580, maxWidth: '96vw' }}>
           <div className="modal__head">
             <h3 id="modal-as-receipt-title" className="modal__title">새 AS 접수</h3>

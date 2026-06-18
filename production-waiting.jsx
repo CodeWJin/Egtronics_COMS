@@ -10,15 +10,17 @@ const priorityBadge = (p) => {
 
 function daysUntil(date) {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
   return Math.round((d - today) / (1000 * 60 * 60 * 24));
 }
 
 function deliveryHint(d) {
   const n = daysUntil(d);
-  if (n <= 7) return { text: `D-${n}`, color: 'var(--danger-700)', bg: 'var(--danger-50)' };
-  if (n <= 14) return { text: `D-${n}`, color: 'var(--warning-700)', bg: 'var(--warning-50)' };
+  if (n <= 0) return { text: `D+${Math.abs(n)}`, color: 'var(--danger-700)', bg: 'var(--danger-50)' };
+  else if (n <= 7) return { text: `D-${n}`, color: 'var(--danger)', bg: 'var(--danger-50)' };
+  else if (n <= 14) return { text: `D-${n}`, color: 'var(--warning-700)', bg: 'var(--warning-50)' };
   return { text: `D-${n}`, color: 'var(--ink-3)', bg: 'var(--surface-3)' };
 }
 
@@ -91,10 +93,11 @@ function ProductionWaitingScreen() {
       <div className="toolbar">
         <div className="toolbar__search">
           <span className="toolbar__search__icon"><Icon name="search" size={14}/></span>
-          <input className="input" placeholder="고객사 · 모델 · 충전소 ID · 오더번호 검색"
+          <input className="input" aria-label="고객사, 모델, 충전소 ID, 오더번호 검색"
+                 placeholder="고객사 · 모델 · 충전소 ID · 오더번호 검색"
                  value={search} onChange={(e) => setSearch(e.target.value)}/>
         </div>
-        <select className="select" style={{ width: 160, height: 34 }}
+        <select className="select" aria-label="모델 필터" style={{ width: 160, height: 34 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
           {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}

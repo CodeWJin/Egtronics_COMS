@@ -679,6 +679,7 @@ function SalesInputScreen() {
 
 /* ────────── 고객사 담당자 관리 모달 (DB: tb_customer_manager) ────────── */
 function ManagerManageModal({ customerName, onClose, onChanged }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI([]);
   const [draft, setDraft] = useStateSI(null); // { manager_id?, name, phone, email, is_primary }
   const [err, setErr] = useStateSI('');
@@ -721,7 +722,7 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-customer-mgr-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-customer-mgr-title" className="modal__title">고객사 담당자 관리</h3>
@@ -804,6 +805,7 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
 
 /* ────────── 수정 이력 모달 (DB: tb_order_history) ────────── */
 function OrderHistoryModal({ orderId, onClose }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [history, setHistory] = useStateSI([]);
 
   useEffectSI(() => {
@@ -811,7 +813,7 @@ function OrderHistoryModal({ orderId, onClose }) {
   }, [orderId]);
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-order-history-title" style={{ width: 560, maxWidth: '96vw' }}>
         <div className="modal__head">
           <h3 id="modal-order-history-title" className="modal__title"><Icon name="clock" size={14}/> 수정 이력</h3>
@@ -865,6 +867,7 @@ function OrderHistoryModal({ orderId, onClose }) {
 
 /* ────────── 고객사 추가 모달 ────────── */
 function AddCustomerModal({ onClose, onAdded }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [name, setName] = useStateSI('');
   const [code, setCode] = useStateSI('');
   const [err, setErr] = useStateSI('');
@@ -881,7 +884,7 @@ function AddCustomerModal({ onClose, onAdded }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-customer-title" style={{ width: 400, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-add-customer-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-add-customer-title" className="modal__title">고객사 추가</h3>
           <p className="modal__sub">신규 고객사를 마스터 목록에 등록합니다</p>
@@ -914,6 +917,7 @@ function AddCustomerModal({ onClose, onAdded }) {
 
 /* ────────── 고객사 마스터 관리 모달 ────────── */
 function CustomerManageModal({ onClose, onChanged }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI(() => window.PMDB.getCustomers());
   const [draft, setDraft] = useStateSI(null); // { idx, name, code }
   const [err, setErr] = useStateSI('');
@@ -942,7 +946,7 @@ function CustomerManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-customer-title" style={{ width: 520, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-manage-customer-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-manage-customer-title" className="modal__title">고객사 관리</h3>
         </div>
@@ -1003,6 +1007,7 @@ function CustomerManageModal({ onClose, onChanged }) {
 
 /* ────────── 모델 추가 모달 ────────── */
 function AddModelModal({ onClose, onAdded }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [model, setModel] = useStateSI('');
   const [name, setName] = useStateSI('');
   const [description, setDescription] = useStateSI('');
@@ -1019,7 +1024,7 @@ function AddModelModal({ onClose, onAdded }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-model-title" style={{ width: 420, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-add-model-title" style={{ width: 420, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-add-model-title" className="modal__title">모델 추가</h3>
           <p className="modal__sub">신규 모델을 마스터 목록에 등록합니다</p>
@@ -1063,6 +1068,7 @@ function AddModelModal({ onClose, onAdded }) {
 
 /* ────────── 모델 관리 모달 ────────── */
 function ModelManageModal({ onClose, onChanged }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI(() => window.PMDB.getModels());
   const [draft, setDraft] = useStateSI(null); // { idx, model, description, name, power }
   const [err, setErr] = useStateSI('');
@@ -1089,7 +1095,7 @@ function ModelManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-model-title" style={{ width: 560, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-manage-model-title" style={{ width: 560, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-manage-model-title" className="modal__title">모델 관리</h3>
         </div>
@@ -1162,6 +1168,7 @@ function ModelManageModal({ onClose, onChanged }) {
 
 /* ────────── 케이블 길이 관리 모달 ────────── */
 function CableLengthManageModal({ onClose, onChanged }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI([...window.MASTER.CABLE_LENGTHS]);
   const [input, setInput] = useStateSI('');
   const [err, setErr] = useStateSI('');
@@ -1187,7 +1194,7 @@ function CableLengthManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-cable-length-title" style={{ width: 400, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-cable-length-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-cable-length-title" className="modal__title">케이블 길이 관리</h3>
           <p className="modal__sub">tb_master_cable_length</p>
@@ -1235,6 +1242,7 @@ function CableLengthManageModal({ onClose, onChanged }) {
 
 /* ────────── CPO 운영사 추가 모달 ────────── */
 function AddCpoModal({ onClose, onAdded }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [name, setName] = useStateSI('');
   const [code, setCode] = useStateSI('');
   const [err, setErr] = useStateSI('');
@@ -1251,7 +1259,7 @@ function AddCpoModal({ onClose, onAdded }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-cpo-title" style={{ width: 400, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-add-cpo-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-add-cpo-title" className="modal__title">CPO 운영사 추가</h3>
           <p className="modal__sub">신규 CPO 운영사를 마스터 목록에 등록합니다</p>
@@ -1284,6 +1292,7 @@ function AddCpoModal({ onClose, onAdded }) {
 
 /* ────────── CPO 운영사 관리 모달 ────────── */
 function CpoManageModal({ onClose, onChanged }) {
+  const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI(() => window.PMDB.getCpos());
   const [draft, setDraft] = useStateSI(null);
   const [err, setErr] = useStateSI('');
@@ -1311,7 +1320,7 @@ function CpoManageModal({ onClose, onChanged }) {
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-manage-cpo-title" style={{ width: 520, maxWidth: '94vw' }}>
+      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-manage-cpo-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h3 id="modal-manage-cpo-title" className="modal__title">CPO 운영사 관리</h3>
           <p className="modal__sub">tb_master_cpo</p>

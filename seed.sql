@@ -19,17 +19,6 @@ CREATE TABLE IF NOT EXISTS tb_master_cpo (
 );
 ALTER TABLE tb_master_cpo DISABLE ROW LEVEL SECURITY;
 
-CREATE TABLE IF NOT EXISTS tb_as_history (
-  id             INTEGER PRIMARY KEY,
-  order_id       INTEGER NOT NULL,
-  reception_date TEXT    DEFAULT '',
-  dispatch_date  TEXT    DEFAULT '',
-  action         TEXT    DEFAULT '',
-  notes          TEXT    DEFAULT '',
-  field_manager  TEXT    DEFAULT '',
-  created_at     TEXT    NOT NULL
-);
-ALTER TABLE tb_as_history DISABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS tb_master_customer (
   id    SERIAL PRIMARY KEY,

@@ -38,6 +38,17 @@ function ProductionCompleteScreen() {
   const [search, setSearch] = useStatePC('');
   const [filterModel, setFilterModel] = useStatePC('all');
   const [report, setReport] = useStatePC(null);
+  const [shipInspections, setShipInspections] = useStatePC(() => {
+    try { return new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]')); }
+    catch(_) { return new Map(); }
+  });
+  const [shipInspectOrder, setShipInspectOrder] = useStatePC(null);
+  const [shipReport, setShipReport] = useStatePC(null);
+  const [funcInspections, setFuncInspections] = useStatePC(() => {
+    try { return new Map(JSON.parse(localStorage.getItem('pm_func_inspections') || '[]')); }
+    catch(_) { return new Map(); }
+  });
+  const [funcInspectOrder, setFuncInspectOrder] = useStatePC(null);
   const [models, setModels] = useStatePC(() => window.PMDB.getModels());
 
   React.useEffect(() => {
@@ -45,6 +56,26 @@ function ProductionCompleteScreen() {
     window.addEventListener('masterLoaded', sync);
     return () => window.removeEventListener('masterLoaded', sync);
   }, []);
+
+  const saveShipInspection = React.useCallback((orderId, data) => {
+    window.setShipInspection(orderId, data);
+    setShipInspections(prev => { const next = new Map(prev); next.set(orderId, data); return next; });
+  }, []);
+
+  const saveFuncInspection = React.useCallback((orderId, data) => {
+    window.setFuncInspection(orderId, data);
+    setFuncInspections(prev => { const next = new Map(prev); next.set(orderId, data); return next; });
+  }, []);
+
+  const handleShipComplete = React.useCallback((orderId) => {
+    if (confirm(`오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`)) {
+      window.actions.shipOrder(orderId);
+      window.setShipInspection(orderId, null);
+      setShipInspections(prev => { const next = new Map(prev); next.delete(orderId); return next; });
+    }
+  }, []);
+
+  const modelMap = useMemoPC(() => new Map(models.map(m => [m.name, m])), [models]);
 
   const completed = useMemoPC(
     () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.production?.serial_no),
@@ -91,9 +122,11 @@ function ProductionCompleteScreen() {
     <div className="screen">
       <div className="screen__head">
         <div>
-          <div className="screen__crumbs">생산 부서 · 출하대기 관리</div>
+          <div className="screen__crumbs">생산 부서 · 품질 부서</div>
           <h1 className="screen__title">출하대기 목록</h1>
-          <p className="screen__sub">생산·검정이 완료되어 출하 대기 중인 오더입니다. 출하 검사 성적서를 조회하거나 목록을 내보낼 수 있습니다.</p>
+          <p className="screen__sub">생산·검정이 완료되어 출하 대기 중인 오더입니다.
+            <br/>기능 검사 성적서를 조회하거나 목록을 내보낼 수 있습니다.
+            <br/>출하 검사 성적서를 작성할 수 있습니다.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--secondary" onClick={exportCSV} disabled={filtered.length === 0}>
@@ -109,7 +142,7 @@ function ProductionCompleteScreen() {
             <span className="stat__icon stat__icon--success"><Icon name="check" size={15}/></span>
           </div>
           <div className="stat__value">{completed.length}<small>건</small></div>
-          <div className="stat__foot">출하 검사 성적서 발급 완료</div>
+          <div className="stat__foot">기능 검사 성적서 발급 완료</div>
         </div>
         <div className="stat">
           <div className="stat__top">
@@ -140,13 +173,14 @@ function ProductionCompleteScreen() {
       <div className="toolbar">
         <div className="toolbar__search">
           <span className="toolbar__search__icon"><Icon name="search" size={14}/></span>
-          <input className="input" placeholder="고객사 · 시리얼 · 로트 · 문서번호 검색"
+          <input className="input" aria-label="고객사, 시리얼, 로트, 문서번호 검색"
+                 placeholder="고객사 · 시리얼 · 로트 · 문서번호 검색"
                  value={search} onChange={(e) => setSearch(e.target.value)}/>
         </div>
-        <select className="select" style={{ width: 160, height: 34 }}
+        <select className="select" aria-label="모델 필터" style={{ width: 160, height: 34 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
-          {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+          {models.map(m => <option key={m.name} value={m.name}>{m.model || m.name}</option>)}
         </select>
         <button className={`toolbar__filter ${search || filterModel !== 'all' ? 'toolbar__filter--active' : ''}`}
                 onClick={() => { setSearch(''); setFilterModel('all'); }}>
@@ -182,13 +216,13 @@ function ProductionCompleteScreen() {
             </thead>
             <tbody>
               {filtered.map(o => {
-                const lead = daysBetween(o.created, o.production.prod_date);
+                const modelInfo = modelMap.get(o.model_name);
                 return (
                   <tr key={o.order_id} className="row--clickable" onClick={() => setReport(o)}>
                     <td className="cell-mono">#{o.order_id}</td>
                     <td>
                       <div className="cell-strong">{o.customer_name}</div>
-                      <div className="cell-muted">{o.model_name}</div>
+                      <div className="cell-muted">{modelInfo?.model || o.model_name}</div>
                     </td>
                     <td>
                       <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 12.5 }}>{o.production.serial_no}</div>
@@ -197,19 +231,40 @@ function ProductionCompleteScreen() {
                     <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
                     <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-2)' }}>{o.production.inspection_date}</td>
                     <td>
-                      <button className="btn btn--secondary btn--sm" onClick={(e) => { e.stopPropagation(); setReport(o); }}>
-                        <Icon name="doc" size={12}/> 성적서 보기
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        <button
+                          className={`btn btn--sm ${funcInspections.has(o.order_id) ? 'btn--success' : 'btn--secondary'}`}
+                          onClick={(e) => { e.stopPropagation(); setFuncInspectOrder(o); }}>
+                          <Icon name={funcInspections.has(o.order_id) ? 'check' : 'shield'} size={12}/> 기능검사
+                        </button>
+                        <button
+                          className={`btn btn--sm ${shipInspections.has(o.order_id) ? 'btn--success' : 'btn--secondary'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (shipInspections.has(o.order_id)) {
+                              setShipReport({ order: o, inspectionData: shipInspections.get(o.order_id) });
+                            } else {
+                              setShipInspectOrder(o);
+                            }
+                          }}>
+                          <Icon name={shipInspections.has(o.order_id) ? 'check' : 'doc'} size={12}/> 출하검사
+                        </button>
+                      </div>
                     </td>
                     <td>
-                      <button className="btn btn--primary btn--sm" onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`오더 #${o.order_id}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`)) {
-                          window.actions.shipOrder(o.order_id);
-                        }
-                      }}>
-                        <Icon name="truck" size={12}/> 출하 완료
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button
+                          className="btn btn--primary btn--sm"
+                          disabled={!funcInspections.has(o.order_id) || !shipInspections.has(o.order_id)}
+                          onClick={(e) => { e.stopPropagation(); handleShipComplete(o.order_id); }}>
+                          <Icon name="truck" size={12}/> 출하 완료
+                        </button>
+                        {(!funcInspections.has(o.order_id) || !shipInspections.has(o.order_id)) && (
+                          <span style={{ fontSize: 10.5, color: 'var(--ink-4)', lineHeight: 1.3 }}>
+                            {!funcInspections.has(o.order_id) ? '기능검사 필요' : '출하검사 필요'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -220,122 +275,38 @@ function ProductionCompleteScreen() {
       )}
 
       {report && <InspectionReport order={report} onClose={() => setReport(null)}/>}
+      {shipInspectOrder && (
+        <ShipInspectionDrawer
+          order={shipInspectOrder}
+          existingData={shipInspections.get(shipInspectOrder.order_id)}
+          modelInfo={modelMap.get(shipInspectOrder.model_name)}
+          onSave={(data) => {
+            const ord = shipInspectOrder;
+            saveShipInspection(ord.order_id, data);
+            setTimeout(() => setShipReport({ order: ord, inspectionData: data }), 250);
+          }}
+          onClose={() => setShipInspectOrder(null)}
+        />
+      )}
+      {shipReport && (
+        <ShipInspectionReport
+          order={shipReport.order}
+          inspectionData={shipReport.inspectionData}
+          modelInfo={modelMap.get(shipReport.order.model_name)}
+          onClose={() => setShipReport(null)}
+        />
+      )}
+      {funcInspectOrder && (
+        <FuncInspectionDrawer
+          order={funcInspectOrder}
+          existingData={funcInspections.get(funcInspectOrder.order_id)}
+          onSave={(data) => saveFuncInspection(funcInspectOrder.order_id, data)}
+          onClose={() => setFuncInspectOrder(null)}
+        />
+      )}
     </div>
   );
 }
 
-/* ────────── 출하 검사 성적서 (printable document) ────────── */
-function InspectionReport({ order, onClose }) {
-  const p = order.production;
-  const validUntil = useMemoPC(() => {
-    if (!p.inspection_date) return null;
-    const d = new Date(p.inspection_date);
-    if (isNaN(d.getTime())) return null;
-    d.setFullYear(d.getFullYear() + 7);
-    return d.toISOString().slice(0, 10);
-  }, [order]);
-
-  return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="report" role="dialog" aria-modal="true" aria-label="출하 검사 성적서 미리보기">
-        <div className="report__bar">
-          <span className="report__bar__label"><Icon name="doc" size={14}/> 출하 검사 성적서 미리보기</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn--secondary btn--sm" onClick={() => {
-              if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 되돌릴까요?\n생산 실적은 보존되며 생산 입력에서 다시 수정할 수 있습니다.`)) {
-                window.actions.revertOrder(order.order_id);
-                onClose();
-              }
-            }}>
-              <Icon name="refresh" size={13}/> 생산대기로 변경
-            </button>
-            <button className="btn btn--secondary btn--sm" onClick={() => window.print()}>
-              <Icon name="printer" size={13}/> 인쇄 / PDF
-            </button>
-            <button className="btn btn--ghost btn--sm btn--icon" onClick={onClose} aria-label="닫기"><Icon name="x" size={15}/></button>
-          </div>
-        </div>
-        <div className="report__scroll">
-          <div className="report__doc">
-            <div className="report__hd">
-              <div>
-                <h2 className="report__hd__title">출하 검사 성적서</h2>
-                <div className="report__hd__sub">SHIPMENT INSPECTION CERTIFICATE · EV CHARGER</div>
-              </div>
-              <div className="report__hd__no">
-                문서번호
-                <strong>{p.doc_no}</strong>
-              </div>
-            </div>
-
-            <table className="report__table">
-              <tbody>
-                <tr>
-                  <th>고객사</th>
-                  <td>{order.customer_name}</td>
-                  <th>오더번호</th>
-                  <td className="report__mono">#{order.order_id}</td>
-                </tr>
-                <tr>
-                  <th>모델명</th>
-                  <td>{order.model_name}</td>
-                  <th>충전소 ID</th>
-                  <td className="report__mono">{order.station_id}</td>
-                </tr>
-                <tr>
-                  <th>시리얼 번호</th>
-                  <td className="report__mono">{p.serial_no}</td>
-                  <th>로트 번호</th>
-                  <td className="report__mono">{p.lot_no}</td>
-                </tr>
-                <tr>
-                  <th>생산일자</th>
-                  <td>{p.prod_date}</td>
-                  <th>검정일자</th>
-                  <td>{p.inspection_date}</td>
-                </tr>
-                <tr>
-                  <th>S/W 버전</th>
-                  <td className="report__mono">{p.sw_version}</td>
-                  <th>F/W 버전</th>
-                  <td className="report__mono">{p.fw_version}</td>
-                </tr>
-                <tr>
-                  <th>케이블 길이</th>
-                  <td>{p.cable_length}</td>
-                </tr>
-                <tr>
-                  <th>라우터 S/N</th>
-                  <td className="report__mono">{order.router_no}</td>
-                  <th>USIM (ICCID)</th>
-                  <td className="report__mono" style={{ fontSize: 11 }}>{order.usim_no}</td>
-                </tr>
-                <tr>
-                  <th>설치 주소</th>
-                  <td colSpan={3}>{order.install_address}</td>
-                </tr>
-                <tr>
-                  <th>검정 유효기간</th>
-                  <td>{validUntil ? `${validUntil} 까지` : <span style={{ color: 'var(--ink-4)' }}>비공용 — 해당없음</span>}</td>
-                  <th>종합 판정</th>
-                  <td><span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span></td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div className="report__seal">
-              <div className="report__seal__txt">
-                위 충전기는 사내 출하 검사 규정 및 공인기관 형식승인 기준에 따라<br/>
-                검사를 시행하였으며, 그 결과 <strong style={{ color: 'var(--ink-1)' }}>적합</strong>함을 증명합니다.<br/>
-                <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 품질보증팀(QA)</span>
-              </div>
-              <div className="report__stamp">검사<br/>합격</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 window.ProductionCompleteScreen = ProductionCompleteScreen;

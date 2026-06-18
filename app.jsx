@@ -142,7 +142,6 @@ function boot() {
   const waitForPMDB = () => {
     return new Promise((resolve) => {
       if (window.PMDB) {
-        console.log('[BOOT] PMDB already loaded');
         resolve();
         return;
       }
@@ -152,7 +151,6 @@ function boot() {
         attempts++;
         if (window.PMDB) {
           clearInterval(check);
-          console.log('[BOOT] PMDB loaded after', attempts * 100, 'ms');
           resolve();
         } else if (attempts > 100) {
           clearInterval(check);
@@ -171,16 +169,13 @@ function boot() {
       return;
     }
 
-    console.log('[BOOT] Starting PMDB.init()');
     window.updateBootStatus('데이터 시스템 초기화 중...');
 
     window.PMDB.init().then(() => {
-      console.log('[BOOT] PMDB initialized successfully');
       const store = window['__pm_store__'];
       store.dbReady = true;
       store.orders = window.PMDB.loadOrders();
       store.asReceptions = window.PMDB.loadAsReceptions();
-      console.log('[BOOT] Loaded', store.orders.length, 'orders');
       try {
         const sess = localStorage.getItem('pm_session');
         if (sess) { const u = window.PMDB.getUser(sess); if (u) store.currentUser = u; }
@@ -191,7 +186,6 @@ function boot() {
         bootEl.classList.add('hide');
         bootEl.style.display = 'none';
       }
-      console.log('[BOOT] Rendering app');
       root.render(<App/>);
     }).catch((err) => {
       console.error('[BOOT] PMDB.init() failed:', err);

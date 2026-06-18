@@ -85,10 +85,9 @@
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], as_history: [], customers: [], cpos: [], sw_versions: [], fw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], customers: [], cpos: [], sw_versions: [], fw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [] };
     let mgrSeq = 0;
     let histSeq = 0;
-    let asHistSeq = 0;
     let asRecSeq = 0;
     let asLogSeq = 0;
     let asPhotoSeq = 0;
@@ -145,19 +144,6 @@
         cache.history    = h.data || [];
         mgrSeq  = cache.managers.reduce((mx, x) => Math.max(mx, x.manager_id || 0), 0);
         histSeq = cache.history.reduce((mx, x) => Math.max(mx, x.history_id || 0), 0);
-
-        // A/S 이력 별도 로드 (테이블 미존재 시에도 앱 정상 동작)
-        try {
-          const { data: asData, error: asErr } = await client.from('tb_as_history').select('*');
-          if (!asErr) {
-            cache.as_history = asData || [];
-            asHistSeq = cache.as_history.reduce((mx, x) => Math.max(mx, x.id || 0), 0);
-          } else {
-            dbLog('WARN', 'loadAll', 'tb_as_history 조회 실패 — ' + asErr.message);
-          }
-        } catch (e) {
-          dbLog('WARN', 'loadAll', 'tb_as_history 로드 오류 — ' + e.message);
-        }
 
         // AS 접수 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
@@ -236,7 +222,6 @@
           tb_customer_manager: cache.managers.length,
           users:               cache.users.length,
           tb_order_history:    cache.history.length,
-          tb_as_history:       cache.as_history.length,
         });
       },
 
@@ -450,34 +435,6 @@
           .map(r => ({ ...r, changed_fields: JSON.parse(r.changed_fields || '[]') }));
       },
 
-      getAsHistory(order_id) {
-        return [...cache.as_history.filter(r => r.order_id === order_id)]
-          .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-      },
-
-      addAsRecord(record) {
-        const id = ++asHistSeq;
-        const row = {
-          id,
-          order_id:       record.order_id,
-          reception_date: record.reception_date || '',
-          dispatch_date:  record.dispatch_date  || '',
-          action:         record.action         || '',
-          notes:          record.notes          || '',
-          field_manager:  record.field_manager  || '',
-          created_at:     record.created_at     || TODAY,
-        };
-        cache.as_history.push(row);
-        dbLog('INFO', 'write:tb_as_history', `A/S 이력 추가 — order_id=${record.order_id}`);
-        dbWrite('tb_as_history', 'insert', () => client.from('tb_as_history').insert(row));
-        return id;
-      },
-
-      deleteAsRecord(id) {
-        cache.as_history = cache.as_history.filter(r => r.id !== id);
-        dbLog('INFO', 'write:tb_as_history', `A/S 이력 삭제 — id=${id}`);
-        dbWrite('tb_as_history', 'delete', () => client.from('tb_as_history').delete().eq('id', id));
-      },
 
       // ── AS 접수 (tb_as_reception) ──────────────────────────────
       _genReceptionNo() {

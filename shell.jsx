@@ -36,6 +36,31 @@ function useStore() {
 window.useStore = useStore;
 window.notify = notify;
 
+// pm_ship_inspections localStorage 공유 헬퍼 — production-mapping / quality-AwaitPickup / order-lookup 공용
+window.getShipInspection = function(orderId) {
+  try {
+    return new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]')).get(orderId) || null;
+  } catch(_) { return null; }
+};
+window.setShipInspection = function(orderId, data) {
+  try {
+    const m = new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]'));
+    if (data == null) m.delete(orderId); else m.set(orderId, data);
+    localStorage.setItem('pm_ship_inspections', JSON.stringify([...m]));
+  } catch(_) {}
+};
+
+// main 스크롤 잠금 훅 — 드로어·모달 공용
+function useLockScroll() {
+  useEffect(() => {
+    const el = document.querySelector('main');
+    if (!el) return;
+    el.style.overflow = 'hidden';
+    return () => { el.style.overflow = ''; };
+  }, []);
+}
+window.useLockScroll = useLockScroll;
+
 const ORDER_FIELD_LABELS = {
   customer_name: '고객사', customer_manager: '고객사 담당자', model_name: '모델',
   delivery_date: '납품일자', station_id: '충전소 ID', router_no: '라우터번호',
@@ -273,13 +298,13 @@ function UserMenu({ user }) {
         <Icon name="chevron-down" size={20} style={{ color: 'var(--ink-4)' }}/>
       </button>
       {open && (
-        <div className="usermenu__pop">
-          <div className="usermenu__head">
+        <div className="usermenu__pop" role="menu" aria-label="사용자 메뉴">
+          <div className="usermenu__head" role="presentation">
             <div className="usermenu__head__name">{user.name}</div>
             <div className="usermenu__head__sub">{user.dept} · @{user.user_id}</div>
           </div>
-          <div className="usermenu__divider"/>
-          <button className="usermenu__item" onClick={() => { setOpen(false); window.actions.logout(); }}>
+          <div className="usermenu__divider" role="separator"/>
+          <button className="usermenu__item" role="menuitem" onClick={() => { setOpen(false); window.actions.logout(); }}>
             <Icon name="external" size={20}/> 로그아웃
           </button>
         </div>
@@ -290,12 +315,57 @@ function UserMenu({ user }) {
 
 window.TopNav = TopNav;
 
+// 모달 키보드 접근성 훅 — Escape 닫기 + 포커스 트랩
+// 반환된 ref 를 modal-backdrop 에 연결하면 자동 동작
+function useModalKeyboard(onClose) {
+  const closeRef = React.useRef(onClose);
+  closeRef.current = onClose;
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const FOCUSABLE = 'button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
+
+    const handler = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const el = containerRef.current;
+      if (!el) return;
+      const nodes = Array.from(el.querySelectorAll(FOCUSABLE)).filter(n => n.offsetParent !== null);
+      if (!nodes.length) return;
+      const first = nodes[0], last = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !el.contains(active)) { e.preventDefault(); last.focus(); }
+      } else {
+        if (active === last || !el.contains(active)) { e.preventDefault(); first.focus(); }
+      }
+    };
+
+    document.addEventListener('keydown', handler);
+    const t = setTimeout(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const first = el.querySelector(FOCUSABLE);
+      first?.focus();
+    }, 30);
+
+    return () => { document.removeEventListener('keydown', handler); clearTimeout(t); };
+  }, []);
+
+  return containerRef;
+}
+window.useModalKeyboard = useModalKeyboard;
+
 function Toast() {
   const s = useStore();
   if (!s.toast) return null;
   const err = s.toast.kind === 'error';
   return (
-    <div className={`toast ${err ? 'toast--error' : ''}`}>
+    <div role={err ? 'alert' : 'status'} aria-live={err ? 'assertive' : 'polite'} className={`toast ${err ? 'toast--error' : ''}`}>
       <Icon name={err ? 'alert' : 'check'} size={14}/>
       {s.toast.text}
     </div>
