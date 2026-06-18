@@ -117,7 +117,7 @@ function OrderLookupScreen() {
           <div className="filter-grid">
             <div className="field col-span-2">
               <label className="field__label" htmlFor="ol-search"><Icon name="search" size={11}/>통합 검색</label>
-              <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 문서번호 · 주소 …"
+              <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 주소 …"
                      value={search} onChange={(e) => setSearch(e.target.value)}/>
             </div>
             <div className="field">
@@ -526,7 +526,6 @@ function OrderDrawer({ order, onClose }) {
                 <Field k="시리얼" v={p.serial_no} mono/>
                 <Field k="S/W 버전" v={p.sw_version} mono/>
                 <Field k="F/W 버전" v={p.fw_version} mono/>
-                <Field k="문서번호 (성적서)" v={p.doc_no} mono full/>
               </div>
             ) : (
               <div style={{ padding: '16px', background: 'var(--warning-50)', border: '1px solid var(--warning)', borderRadius: 'var(--r-lg)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>

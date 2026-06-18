@@ -104,12 +104,12 @@ function ProductionCompleteScreen() {
     : 0;
 
   const exportCSV = () => {
-    const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '로트', '시리얼', '검정일자', 'S/W버전', 'F/W버전', '케이블', '문서번호', '납품일자'];
+    const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '로트', '시리얼', '검정일자', 'S/W버전', 'F/W버전', '케이블', '납품일자'];
     const rows = [header, ...filtered.map(o => ([
       o.order_id, o.customer_name, o.model_name, o.station_id,
       o.production.prod_date, o.production.lot_no, o.production.serial_no,
       o.production.inspection_date, o.production.sw_version, o.production.fw_version,
-      o.production.cable_length, o.production.doc_no, o.delivery_date,
+      o.production.cable_length, o.delivery_date,
     ]))];
     downloadCSV(rows, `출하대기_${new Date().toISOString().slice(0, 10)}.csv`);
     window.actions.flashToast?.(`${filtered.length}건 CSV 내보내기 완료`);
@@ -170,8 +170,8 @@ function ProductionCompleteScreen() {
       <div className="toolbar">
         <div className="toolbar__search">
           <span className="toolbar__search__icon"><Icon name="search" size={14}/></span>
-          <input className="input" aria-label="고객사, 시리얼, 로트, 문서번호 검색"
-                 placeholder="고객사 · 시리얼 · 로트 · 문서번호 검색"
+          <input className="input" aria-label="고객사, 시리얼, 로트 검색"
+                 placeholder="고객사 · 시리얼 · 로트 검색"
                  value={search} onChange={(e) => setSearch(e.target.value)}/>
         </div>
         <select className="select" aria-label="모델 필터" style={{ width: 160, height: 34 }}

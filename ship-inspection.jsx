@@ -432,10 +432,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                 <h2 className="report__hd__title">기능 검사 성적서</h2>
                 <div className="report__hd__sub">FUNCTIONAL INSPECTION CERTIFICATE · EV CHARGER</div>
               </div>
-              <div className="report__hd__no">
-                문서번호
-                <strong>{p.doc_no}</strong>
-              </div>
+
             </div>
 
             <table className="report__table">
@@ -664,11 +661,6 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
         <div className="report__bar">
           <span className="report__bar__label"><Icon name="shield" size={14}/> 기능 검사 성적서 미리보기</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            {onEdit && (
-              <button className="btn btn--secondary btn--sm" onClick={onEdit}>
-                <Icon name="pencil" size={13}/> 수정
-              </button>
-            )}
             <button className="btn btn--secondary btn--sm" onClick={() => window.print()}>
               <Icon name="printer" size={13}/> 인쇄 / PDF
             </button>

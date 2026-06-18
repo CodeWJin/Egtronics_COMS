@@ -140,7 +140,6 @@ function CompletedView({ order }) {
             <KvCell k="검정일자" v={order.production?.inspection_date} icon="shield"/>
             <KvCell k="S/W 버전" v={order.production?.sw_version} mono icon="bolt"/>
             <KvCell k="F/W 버전" v={order.production?.fw_version} mono icon="bolt"/>
-            <KvCell k="문서번호" v={order.production?.doc_no} mono icon="doc"/>
           </div>
         </div>
       </div>

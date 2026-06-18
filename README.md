@@ -108,7 +108,6 @@ npx vercel dev     # localhost:3000
 | `tb_as_reception` | A/S 접수 |
 | `tb_as_log` | A/S 상태 변경 이력 |
 | `tb_as_photo` | A/S 첨부 사진 메타데이터 |
-| `tb_as_history` | 구형 A/S 이력 (통합 조회 전용) |
 | `tb_master_customer` | 고객사 마스터 |
 | `tb_master_cpo` | CPO 운영사 마스터 |
 | `tb_master_model` | 충전기 모델 마스터 |
