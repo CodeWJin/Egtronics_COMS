@@ -214,6 +214,10 @@ function ProductionCompleteScreen() {
             <tbody>
               {filtered.map(o => {
                 const modelInfo = modelMap.get(o.model_name);
+                const shipInsp = shipInspections.get(o.order_id);
+                const shipAllDone = !!shipInsp &&
+                  Object.keys(shipInsp.checks || {}).length > 0 &&
+                  Object.values(shipInsp.checks || {}).every(Boolean);
                 return (
                   <tr key={o.order_id} className="row--clickable" onClick={() => setReport(o)}>
                     <td className="cell-mono">#{o.order_id}</td>
@@ -235,16 +239,24 @@ function ProductionCompleteScreen() {
                           <Icon name="check" size={12}/> 기능검사성적서
                         </button>
                         <button
-                          className={`btn btn--sm ${shipInspections.has(o.order_id) ? 'btn--success' : 'btn--secondary'}`}
+                          className={`btn btn--sm ${shipAllDone ? 'btn--success' : shipInsp ? 'btn--warning' : 'btn--secondary'}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (shipInspections.has(o.order_id)) {
-                              setShipReport({ order: o, inspectionData: shipInspections.get(o.order_id) });
+                            if (shipAllDone) {
+                              setShipReport({ order: o, inspectionData: shipInsp });
                             } else {
                               setShipInspectOrder(o);
                             }
                           }}>
-                          <Icon name={shipInspections.has(o.order_id) ? 'check' : 'doc'} size={12}/> 출하검사
+                          <Icon name={shipAllDone ? 'check' : 'doc'} size={12}/> 출하검사
+                          {(() => {
+                            const cnt = window.PMDB?.getShipPhotos?.(o.order_id)?.length || 0;
+                            return cnt > 0 ? (
+                              <span style={{ marginLeft: 4, background: 'rgba(0,0,0,0.15)', borderRadius: 10, padding: '1px 6px', fontSize: 10.5 }}>
+                                {cnt}장
+                              </span>
+                            ) : null;
+                          })()}
                         </button>
                       </div>
                     </td>
@@ -252,13 +264,13 @@ function ProductionCompleteScreen() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <button
                           className="btn btn--primary btn--sm"
-                          disabled={!shipInspections.has(o.order_id)}
+                          disabled={!shipAllDone}
                           onClick={(e) => { e.stopPropagation(); handleShipComplete(o.order_id); }}>
                           <Icon name="truck" size={12}/> 출하 완료
                         </button>
-                        {!shipInspections.has(o.order_id) && (
+                        {!shipAllDone && (
                           <span style={{ fontSize: 10.5, color: 'var(--ink-4)', lineHeight: 1.3 }}>
-                            출하검사 필요
+                            {shipInsp ? '출하검사 미완료' : '출하검사 필요'}
                           </span>
                         )}
                       </div>
