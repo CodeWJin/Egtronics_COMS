@@ -772,7 +772,8 @@
         const existing = cache.ship_inspections.find(x => x.order_id === order_id);
         if (!existing) throw new Error('출하검사 성적서를 먼저 저장하세요');
         const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-        const storagePath = `order/${order_id}/${Date.now()}_${file.name}`;
+        const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
+        const storagePath = `order/${order_id}/${Date.now()}${ext}`;
         let url = '';
         try {
           const { error: upErr } = await client.storage.from('ship-photos').upload(storagePath, file, { upsert: false });
