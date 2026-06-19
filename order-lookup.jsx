@@ -426,12 +426,17 @@ function OrderDrawer({ order, onClose }) {
   const [closing, setClosing] = React.useState(false);
   const [funcInspection, setFuncInspectionState] = React.useState(() => window.getFuncInspection?.(order.order_id) ?? null);
   const [shipInspection, setShipInspectionState] = React.useState(() => window.getShipInspection?.(order.order_id) ?? null);
+  const [shipPhotos, setShipPhotosState] = React.useState(() => {
+    try { return window.PMDB?.getShipPhotos?.(order.order_id) || []; } catch (_) { return []; }
+  });
+  const [shipPhotoLightbox, setShipPhotoLightbox] = React.useState(null);
 
   // DB 로드 완료 후 검사 데이터 재조회 (loadAll 비동기 완료 전 마운트 시 초기값이 null일 수 있음)
   React.useEffect(() => {
     const sync = () => {
       setFuncInspectionState(window.getFuncInspection?.(order.order_id) ?? null);
       setShipInspectionState(window.getShipInspection?.(order.order_id) ?? null);
+      setShipPhotosState(window.PMDB?.getShipPhotos?.(order.order_id) || []);
     };
     sync();
     window.addEventListener('masterLoaded', sync);
@@ -537,6 +542,26 @@ function OrderDrawer({ order, onClose }) {
             )}
           </section>
 
+          {shipInspection && shipPhotos.length > 0 && (
+            <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <Icon name="doc" size={16} style={{ color: 'var(--ink-3)' }}/>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}>출하 전 사진</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{shipPhotos.length}장</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 6 }}>
+                {shipPhotos.map((photo, idx) => (
+                  <div key={photo.storage_path}
+                    style={{ borderRadius: 'var(--r-sm)', overflow: 'hidden', aspectRatio: '1', background: 'var(--surface-2)', cursor: 'zoom-in' }}>
+                    <img src={photo.url} alt={photo.filename}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onClick={() => setShipPhotoLightbox(idx)}/>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <OrderHistorySection orderId={order.order_id}/>
           <AsReceptionSection orderId={order.order_id}/>
         </div>
@@ -606,12 +631,44 @@ function OrderDrawer({ order, onClose }) {
         />
       )}
       {shipReportVisible && shipInspection && (
-        <ShipInspectionReport 
-        order={order} 
-        inspectionData={shipInspection} 
+        <ShipInspectionReport
+        order={order}
+        inspectionData={shipInspection}
         onClose={() => setShipReportVisible(false)}
         onEdit={() => { setShipReportVisible(false); setShipDrawerOpen(true); }}
         />
+      )}
+      {shipPhotoLightbox !== null && (
+        <div tabIndex={-1}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setShipPhotoLightbox(null)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setShipPhotoLightbox(null);
+            if (e.key === 'ArrowLeft' && shipPhotoLightbox > 0) setShipPhotoLightbox(shipPhotoLightbox - 1);
+            if (e.key === 'ArrowRight' && shipPhotoLightbox < shipPhotos.length - 1) setShipPhotoLightbox(shipPhotoLightbox + 1);
+          }}>
+          <img src={shipPhotos[shipPhotoLightbox]?.url} alt={shipPhotos[shipPhotoLightbox]?.filename}
+            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
+          <button aria-label="닫기"
+            style={{ position: 'absolute', top: 16, right: 16, width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+            onClick={() => setShipPhotoLightbox(null)}>×</button>
+          {shipPhotoLightbox > 0 && (
+            <button aria-label="이전 사진"
+              style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+              onClick={e => { e.stopPropagation(); setShipPhotoLightbox(shipPhotoLightbox - 1); }}>‹</button>
+          )}
+          {shipPhotoLightbox < shipPhotos.length - 1 && (
+            <button aria-label="다음 사진"
+              style={{ position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+              onClick={e => { e.stopPropagation(); setShipPhotoLightbox(shipPhotoLightbox + 1); }}>›</button>
+          )}
+          <div style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>
+            {shipPhotoLightbox + 1} / {shipPhotos.length}
+          </div>
+        </div>
       )}
     </>,
     document.body
