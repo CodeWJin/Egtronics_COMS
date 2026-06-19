@@ -1,16 +1,126 @@
 // 출하·기능 검사 성적서 컴포넌트 — production-mapping / quality-AwaitPickup / order-lookup 공용
 // production-mapping.jsx보다 먼저 로드되어야 함 (index.html 로드 순서 참조)
 
-const SHIP_CHECKLIST = [
-  { key: 'exterior_ok',   label: '외관 손상 없음' },
-  { key: 'label_ok',      label: '제품 라벨 부착 상태 양호' },
-  { key: 'cable_ok',      label: '케이블 단선·손상 없음' },
-  { key: 'connector_ok',  label: '커넥터 체결 상태 양호' },
-  { key: 'bolt_ok',       label: '볼트·나사 체결 완료' },
-  { key: 'package_ok',    label: '포장재 이상 없음' },
-  { key: 'accessory_ok',  label: '부속품·문서 동봉 확인' },
-  { key: 'ship_label_ok', label: '출하 라벨 부착 완료' },
+/* ────────── 기본 체크리스트 (JSON 파일 없을 때 폴백) ────────── */
+const SHIP_CHECKLIST_DEFAULT = [
+  { key: 'exterior_ok',   label: '외관 손상 없음',           type: 'checkbox' },
+  { key: 'label_ok',      label: '제품 라벨 부착 상태 양호', type: 'checkbox' },
+  { key: 'cable_ok',      label: '케이블 단선·손상 없음',    type: 'checkbox' },
+  { key: 'connector_ok',  label: '커넥터 체결 상태 양호',    type: 'checkbox' },
+  { key: 'bolt_ok',       label: '볼트·나사 체결 완료',      type: 'checkbox' },
+  { key: 'package_ok',    label: '포장재 이상 없음',         type: 'checkbox' },
+  { key: 'accessory_ok',  label: '부속품·문서 동봉 확인',    type: 'checkbox' },
+  { key: 'ship_label_ok', label: '출하 라벨 부착 완료',      type: 'checkbox' },
 ];
+
+const FUNC_CHECKLIST_DEFAULT = [
+  { key: 'power_ok',        label: '전원 공급 정상 동작',        type: 'checkbox' },
+  { key: 'display_ok',      label: '디스플레이 화면 정상 표시',  type: 'checkbox' },
+  { key: 'rfid_ok',         label: 'RFID 카드 인식 정상',       type: 'checkbox' },
+  { key: 'ocpp_ok',         label: 'OCPP 서버 통신 연결 정상',  type: 'checkbox' },
+  { key: 'charge_start_ok', label: '충전 시작 동작 확인',        type: 'checkbox' },
+  { key: 'charge_stop_ok',  label: '충전 중단·완료 동작 확인',  type: 'checkbox' },
+  { key: 'overcurrent_ok',  label: '과전류 보호 기능 정상',      type: 'checkbox' },
+  { key: 'ground_ok',       label: '접지 이상 감지 기능 정상',   type: 'input' },
+  { key: 'meter_ok',        label: '전력량계 계측 정상',         type: 'checkbox' },
+  { key: 'fw_ok',           label: 'F/W·S/W 버전 확인 완료',   type: 'checkbox' },
+];
+
+/* ────────── 체크리스트 JSON 로더 ────────── */
+// docs/ship/{model}.json 또는 docs/func/{model}.json 에서 모델별 체크리스트 로드
+// 파일이 없으면 null 반환 → 호출 측에서 DEFAULT로 폴백
+
+const _clCache = new Map();
+async function loadChecklist(type, modelKey) {
+  const slug = (modelKey || '').toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9가-힣\-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[-_]|[-_]$/g, '');
+  if (!slug) return null;
+  const cacheKey = `${type}:${slug}`;
+  if (_clCache.has(cacheKey)) return _clCache.get(cacheKey);
+  try {
+    const res = await fetch(`docs/${type}/${slug}.json`);
+    if (res.ok) {
+      const data = await res.json();
+      _clCache.set(cacheKey, data);
+      return data;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/* ────────── 체크리스트 헬퍼 ────────── */
+function initChecks(checklist, existingData) {
+  return Object.fromEntries(checklist.map(c => [
+    c.key,
+    existingData?.checks?.[c.key] !== undefined
+      ? existingData.checks[c.key]
+      : (c.type === 'checkbox' ? false : ''),
+  ]));
+}
+
+function isItemComplete(item, value) {
+  return item.type === 'checkbox' ? value === true : (value || '').trim() !== '';
+}
+
+/* ────────── 체크리스트 항목 행 컴포넌트 ────────── */
+// type: 'checkbox' → 체크박스 / type: 'input' → 텍스트 입력
+function ChecklistItemRow({ item, value, onChange }) {
+  const complete = isItemComplete(item, value);
+
+  if (item.type !== 'checkbox') {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+        background: complete ? 'var(--success-50)' : 'var(--surface)',
+        border: `1px solid ${complete ? 'var(--success)' : 'var(--border-1)'}`,
+        borderRadius: 'var(--r-sm)', transition: 'background 120ms, border-color 120ms',
+      }}>
+        <span style={{ fontSize: 13.5, color: 'var(--ink-3)', flexShrink: 0 }}>{item.label}</span>
+        <input
+          type="text"
+          value={value || ''}
+          onChange={e => onChange(e.target.value)}
+          placeholder={item.placeholder || '입력'}
+          style={{
+            flex: 1, border: 'none',
+            borderBottom: `1px solid ${complete ? 'var(--success)' : 'var(--border-1)'}`,
+            background: 'transparent', fontSize: 13.5, outline: 'none', padding: '0 4px',
+            color: complete ? 'var(--success-700)' : 'var(--ink-1)',
+            fontWeight: complete ? 600 : 400, textAlign: 'right', minWidth: 60,
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <label style={{
+      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+      background: value ? 'var(--success-50)' : 'var(--surface)',
+      border: `1px solid ${value ? 'var(--success)' : 'var(--border-1)'}`,
+      borderRadius: 'var(--r-sm)', cursor: 'pointer',
+      transition: 'background 120ms, border-color 120ms',
+    }}>
+      <input type="checkbox" checked={!!value} onChange={e => onChange(e.target.checked)}
+        style={{ accentColor: 'var(--success-700)', width: 15, height: 15, flexShrink: 0 }}/>
+      <span style={{ fontSize: 13.5, color: value ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: value ? 600 : 400 }}>
+        {item.label}
+      </span>
+    </label>
+  );
+}
+
+/* ────────── 성적서 테이블 셀 값 렌더 (checkbox→합격/불합격, input→입력값) ────────── */
+function renderCheckCell(val) {
+  if (typeof val === 'boolean') {
+    return { text: val ? '합격' : '불합격', color: val ? 'var(--success-700)' : '#dc2626' };
+  }
+  const filled = (val || '').trim() !== '';
+  return { text: val || '—', color: filled ? 'var(--ink-1)' : 'var(--ink-4)' };
+}
 
 /* ────────── 출하 전 사진 탭 ────────── */
 function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
@@ -210,14 +320,33 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
     const user = window.__pm_store__?.currentUser;
     return user?.name || '';
   });
+  const [checklist, setChecklist] = React.useState(
+    existingData?._checklist || SHIP_CHECKLIST_DEFAULT
+  );
   const [checks, setChecks] = React.useState(() =>
-    Object.fromEntries(SHIP_CHECKLIST.map(c => [c.key, existingData?.checks?.[c.key] || false]))
+    initChecks(existingData?._checklist || SHIP_CHECKLIST_DEFAULT, existingData)
   );
   const [notes, setNotes] = React.useState(existingData?.notes || '');
   const [activeTab, setActiveTab] = React.useState('checklist');
   const [photoCount, setPhotoCount] = React.useState(() => {
     try { return (window.PMDB?.getShipPhotos?.(order.order_id) || []).length; } catch (_) { return 0; }
   });
+
+  // 모델별 JSON 로드 (existingData에 _checklist가 없을 때만)
+  React.useEffect(() => {
+    if (existingData?._checklist) return;
+    const modelKey = modelInfo?.model || order.model_name;
+    loadChecklist('ship', modelKey).then(cl => {
+      if (!cl) return;
+      setChecklist(cl);
+      setChecks(prev => Object.fromEntries(cl.map(c => [
+        c.key,
+        prev[c.key] !== undefined ? prev[c.key]
+          : (existingData?.checks?.[c.key] !== undefined ? existingData.checks[c.key]
+          : (c.type === 'checkbox' ? false : '')),
+      ])));
+    });
+  }, []);
 
   const handleClose = React.useCallback(() => {
     setClosing(true);
@@ -232,12 +361,17 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
 
   window.useLockScroll();
 
-  const checkedCount = Object.values(checks).filter(Boolean).length;
-  const allChecked = checkedCount === SHIP_CHECKLIST.length;
+  const completedCount = checklist.filter(c => isItemComplete(c, checks[c.key])).length;
+  const allChecked = completedCount === checklist.length;
+  const checkboxItems = checklist.filter(c => c.type === 'checkbox');
+  const allCheckboxesChecked = checkboxItems.length > 0 && checkboxItems.every(c => checks[c.key] === true);
   const canSave = !!(inspDate && inspector.trim());
 
   const handleSave = () => {
-    onSave({ insp_date: inspDate, inspector: inspector.trim(), checks, notes, saved_at: new Date().toISOString() });
+    onSave({
+      insp_date: inspDate, inspector: inspector.trim(), checks, notes,
+      saved_at: new Date().toISOString(), _checklist: checklist,
+    });
     handleClose();
   };
 
@@ -294,35 +428,29 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
             </section>
 
             <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
-                   onClick={() => setChecks(Object.fromEntries(SHIP_CHECKLIST.map(c => [c.key, !allChecked])))}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => {
+                  const newVal = !allCheckboxesChecked;
+                  setChecks(prev => ({ ...prev, ...Object.fromEntries(checkboxItems.map(c => [c.key, newVal])) }));
+                }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
                   <Icon name="check" size={16} style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-2)' }}/>
                 </div>
                 <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>출하 검사 체크리스트</span>
                 <span style={{ fontSize: 12.5, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
-                  {checkedCount}/{SHIP_CHECKLIST.length}
+                  {completedCount}/{checklist.length}
                 </span>
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-4)' }}>
-                  {allChecked ? '전체 해제 ▲' : '전체 선택 ▼'}
-                </span>
+                {checkboxItems.length > 0 && (
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-4)' }}>
+                    {allCheckboxesChecked ? '체크 전체 해제 ▲' : '체크 전체 선택 ▼'}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {SHIP_CHECKLIST.map(item => (
-                  <label key={item.key} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                    background: checks[item.key] ? 'var(--success-50)' : 'var(--surface)',
-                    border: `1px solid ${checks[item.key] ? 'var(--success)' : 'var(--border-1)'}`,
-                    borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                    transition: 'background 120ms, border-color 120ms',
-                  }}>
-                    <input type="checkbox" checked={checks[item.key]}
-                      onChange={e => setChecks(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                      style={{ accentColor: 'var(--success-700)', width: 15, height: 15, flexShrink: 0 }}/>
-                    <span style={{ fontSize: 13.5, color: checks[item.key] ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: checks[item.key] ? 600 : 400 }}>
-                      {item.label}
-                    </span>
-                  </label>
+                {checklist.map(item => (
+                  <ChecklistItemRow key={item.key} item={item} value={checks[item.key]}
+                    onChange={val => setChecks(prev => ({ ...prev, [item.key]: val }))}/>
                 ))}
               </div>
             </section>
@@ -340,7 +468,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
                     종합 판정: {allChecked ? '합격 (PASS)' : '검사 미완료'}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>
-                    {allChecked ? '전 항목 확인 완료 · 출하 가능 상태' : `${SHIP_CHECKLIST.length - checkedCount}개 항목 미확인`}
+                    {allChecked ? '전 항목 확인 완료 · 출하 가능 상태' : `${checklist.length - completedCount}개 항목 미확인`}
                   </div>
                 </div>
               </div>
@@ -382,18 +510,6 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
 }
 
 /* ────────── 기능 검사 체크리스트 ────────── */
-const FUNC_CHECKLIST = [
-  { key: 'power_ok',        label: '전원 공급 정상 동작' },
-  { key: 'display_ok',      label: '디스플레이 화면 정상 표시' },
-  { key: 'rfid_ok',         label: 'RFID 카드 인식 정상' },
-  { key: 'ocpp_ok',         label: 'OCPP 서버 통신 연결 정상' },
-  { key: 'charge_start_ok', label: '충전 시작 동작 확인' },
-  { key: 'charge_stop_ok',  label: '충전 중단·완료 동작 확인' },
-  { key: 'overcurrent_ok',  label: '과전류 보호 기능 정상' },
-  { key: 'ground_ok',       label: '접지 이상 감지 기능 정상' },
-  { key: 'meter_ok',        label: '전력량계 계측 정상' },
-  { key: 'fw_ok',           label: 'F/W·S/W 버전 확인 완료' },
-];
 
 /* 기능 검사 데이터 헬퍼 — DB 우선, localStorage 폴백 */
 window.getFuncInspection = function(orderId) {
@@ -437,10 +553,11 @@ window.setShipInspection = function(orderId, data) {
 };
 
 /* ────────── 기능 검사 성적서 Drawer ────────── */
-function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
+function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, onSave, onClose }) {
   const [closing, setClosing] = React.useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const p = order.production || {};
+  const modelInfo = modelInfoProp || window.PMDB?.getModels?.()?.find(m => m.name === order.model_name);
 
   const [inspDate, setInspDate] = React.useState(
     existingData?.insp_date || p.inspection_date || today
@@ -450,10 +567,28 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
     const user = window.__pm_store__?.currentUser;
     return user?.name || '';
   });
+  const [checklist, setChecklist] = React.useState(
+    existingData?._checklist || FUNC_CHECKLIST_DEFAULT
+  );
   const [checks, setChecks] = React.useState(() =>
-    Object.fromEntries(FUNC_CHECKLIST.map(c => [c.key, existingData?.checks?.[c.key] ?? false]))
+    initChecks(existingData?._checklist || FUNC_CHECKLIST_DEFAULT, existingData)
   );
   const [notes, setNotes] = React.useState(existingData?.notes || '');
+
+  // 모델별 JSON 로드 (existingData에 _checklist가 없을 때만)
+  React.useEffect(() => {
+    if (existingData?._checklist) return;
+    loadChecklist('func', modelInfo?.model || order.model_name).then(cl => {
+      if (!cl) return;
+      setChecklist(cl);
+      setChecks(prev => Object.fromEntries(cl.map(c => [
+        c.key,
+        prev[c.key] !== undefined ? prev[c.key]
+          : (existingData?.checks?.[c.key] !== undefined ? existingData.checks[c.key]
+          : (c.type === 'checkbox' ? false : '')),
+      ])));
+    });
+  }, []);
 
   const handleClose = React.useCallback(() => {
     setClosing(true);
@@ -468,12 +603,17 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
 
   window.useLockScroll();
 
-  const checkedCount = Object.values(checks).filter(Boolean).length;
-  const allChecked = checkedCount === FUNC_CHECKLIST.length;
+  const completedCount = checklist.filter(c => isItemComplete(c, checks[c.key])).length;
+  const allChecked = completedCount === checklist.length;
+  const checkboxItems = checklist.filter(c => c.type === 'checkbox');
+  const allCheckboxesChecked = checkboxItems.length > 0 && checkboxItems.every(c => checks[c.key] === true);
   const canSave = !!(inspDate && inspector.trim());
 
   const handleSave = () => {
-    onSave({ insp_date: inspDate, inspector: inspector.trim(), checks, notes, saved_at: new Date().toISOString() });
+    onSave({
+      insp_date: inspDate, inspector: inspector.trim(), checks, notes,
+      saved_at: new Date().toISOString(), _checklist: checklist,
+    });
     handleClose();
   };
 
@@ -485,7 +625,7 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 오더 #{order.order_id}</div>
             <div className="drawer__title" style={{ margin: '5px 0 10px' }}>기능 검사 성적서</div>
-            <span className="badge badge--progress">{order.model_name}</span>
+            <span className="badge badge--progress">{modelInfo?.model || order.model_name}</span>
           </div>
           <button className="drawer__close" onClick={handleClose} aria-label="닫기"><Icon name="x" size={16}/></button>
         </div>
@@ -541,35 +681,27 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
           <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
             <div
               style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => setChecks(Object.fromEntries(FUNC_CHECKLIST.map(c => [c.key, !allChecked])))}
-            >
+              onClick={() => {
+                const newVal = !allCheckboxesChecked;
+                setChecks(prev => ({ ...prev, ...Object.fromEntries(checkboxItems.map(c => [c.key, newVal])) }));
+              }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
                 <Icon name="check" size={16} style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-2)' }}/>
               </div>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>기능 검사 항목</span>
               <span style={{ fontSize: 12.5, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
-                {checkedCount}/{FUNC_CHECKLIST.length}
+                {completedCount}/{checklist.length}
               </span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-4)' }}>
-                {allChecked ? '전체 해제 ▲' : '전체 선택 ▼'}
-              </span>
+              {checkboxItems.length > 0 && (
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-4)' }}>
+                  {allCheckboxesChecked ? '체크 전체 해제 ▲' : '체크 전체 선택 ▼'}
+                </span>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {FUNC_CHECKLIST.map(item => (
-                <label key={item.key} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                  background: checks[item.key] ? 'var(--success-50)' : 'var(--surface)',
-                  border: `1px solid ${checks[item.key] ? 'var(--success)' : 'var(--border-1)'}`,
-                  borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                  transition: 'background 120ms, border-color 120ms',
-                }}>
-                  <input type="checkbox" checked={checks[item.key]}
-                    onChange={e => setChecks(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                    style={{ accentColor: 'var(--success-700)', width: 15, height: 15, flexShrink: 0 }}/>
-                  <span style={{ fontSize: 13.5, color: checks[item.key] ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: checks[item.key] ? 600 : 400 }}>
-                    {item.label}
-                  </span>
-                </label>
+              {checklist.map(item => (
+                <ChecklistItemRow key={item.key} item={item} value={checks[item.key]}
+                  onChange={val => setChecks(prev => ({ ...prev, [item.key]: val }))}/>
               ))}
             </div>
           </section>
@@ -588,7 +720,7 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
                   종합 판정: {allChecked ? '합격 (PASS)' : '검사 미완료'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>
-                  {allChecked ? '전 항목 확인 완료 · 성적서 발급 가능' : `${FUNC_CHECKLIST.length - checkedCount}개 항목 미확인`}
+                  {allChecked ? '전 항목 확인 완료 · 성적서 발급 가능' : `${checklist.length - completedCount}개 항목 미확인`}
                 </div>
               </div>
             </div>
@@ -620,11 +752,14 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
 /* ────────── 기능 검사 성적서 (printable document) ────────── */
 function InspectionReport({ order, inspectionData, onClose }) {
   const p = order.production;
+  const modelInfo = window.PMDB?.getModels?.()?.find(m => m.name === order.model_name);
 
   // inspectionData prop이 없으면 DB / localStorage 캐시에서 로드
   const funcData = inspectionData || window.getFuncInspection?.(order.order_id) || null;
 
   window.useLockScroll();
+
+  const displayChecklist = funcData?._checklist || FUNC_CHECKLIST_DEFAULT;
 
   const validUntil = React.useMemo(() => {
     const dateStr = funcData?.insp_date || p.inspection_date;
@@ -636,7 +771,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
   }, [order, funcData]);
 
   const inspDateDisplay = funcData?.insp_date || p.inspection_date || '—';
-  const funcAllPassed = !!funcData && FUNC_CHECKLIST.every(item => funcData.checks?.[item.key]);
+  const funcAllPassed = !!funcData && displayChecklist.every(item => isItemComplete(item, funcData.checks?.[item.key]));
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -670,7 +805,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                 </tr>
                 <tr>
                   <th>모델명</th>
-                  <td>{order.model_name}</td>
+                  <td>{modelInfo?.model || order.model_name}</td>
                   <th>충전소 ID</th>
                   <td className="report__mono">{order.station_id}</td>
                 </tr>
@@ -725,18 +860,20 @@ function InspectionReport({ order, inspectionData, onClose }) {
                 <tr style={{ background: 'var(--indigo-50,#eef2ff)' }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 32, textAlign: 'center' }}>#</td>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)' }}>검사 항목</td>
-                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 64, textAlign: 'center' }}>결과</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 80, textAlign: 'center' }}>결과</td>
                 </tr>
-                {FUNC_CHECKLIST.map((item, idx) => (
-                  <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
-                    <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700,
-                      color: funcData?.checks?.[item.key] ? 'var(--success-700)' : (funcData ? '#dc2626' : 'var(--ink-4)') }}>
-                      {funcData ? (funcData.checks?.[item.key] ? '합격' : '불합격') : '—'}
-                    </td>
-                  </tr>
-                ))}
+                {displayChecklist.map((item, idx) => {
+                  const cell = renderCheckCell(funcData?.checks?.[item.key]);
+                  return (
+                    <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: funcData ? cell.color : 'var(--ink-4)' }}>
+                        {funcData ? cell.text : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -771,7 +908,18 @@ function InspectionReport({ order, inspectionData, onClose }) {
 /* ────────── 출하 검사 성적서 미리보기 ────────── */
 function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) {
   const p = order.production;
-  const shipAllPassed = SHIP_CHECKLIST.every(item => d.checks?.[item.key]);
+  const displayChecklist = d._checklist || SHIP_CHECKLIST_DEFAULT;
+  const shipAllPassed = displayChecklist.every(item => isItemComplete(item, d.checks?.[item.key]));
+  const [lightbox, setLightbox] = React.useState(null);
+  const lightboxRef = React.useRef(null);
+
+  const photos = React.useMemo(() => {
+    try { return window.PMDB?.getShipPhotos?.(order.order_id) || []; } catch(_) { return []; }
+  }, [order.order_id]);
+
+  React.useEffect(() => {
+    if (lightbox !== null && lightboxRef.current) lightboxRef.current.focus();
+  }, [lightbox]);
 
   window.useLockScroll();
 
@@ -843,17 +991,20 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                 <tr style={{ background: 'var(--primary-50)' }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--primary-600)', width: 32, textAlign: 'center' }}>#</td>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--primary-600)' }}>검사 항목</td>
-                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--primary-600)', width: 64, textAlign: 'center' }}>결과</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--primary-600)', width: 80, textAlign: 'center' }}>결과</td>
                 </tr>
-                {SHIP_CHECKLIST.map((item, idx) => (
-                  <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
-                    <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: d.checks[item.key] ? 'var(--success-700)' : '#dc2626' }}>
-                      {d.checks[item.key] ? '합격' : '불합격'}
-                    </td>
-                  </tr>
-                ))}
+                {displayChecklist.map((item, idx) => {
+                  const cell = renderCheckCell(d.checks[item.key]);
+                  return (
+                    <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: cell.color }}>
+                        {cell.text}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -866,6 +1017,35 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                   </tr>
                 </tbody>
               </table>
+            )}
+
+            {photos.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <div style={{
+                  padding: '8px 12px', fontWeight: 700, fontSize: 13,
+                  color: 'var(--primary-600)', background: 'var(--primary-50)',
+                  borderRadius: 'var(--r-sm) var(--r-sm) 0 0',
+                  border: '1px solid var(--border-1)', borderBottom: 'none',
+                }}>
+                  첨부 사진 ({photos.length}장)
+                </div>
+                <div style={{
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                  gap: 8, padding: 12,
+                  border: '1px solid var(--border-1)', borderRadius: '0 0 var(--r-sm) var(--r-sm)',
+                }}>
+                  {photos.map((photo, idx) => (
+                    <div key={photo.storage_path} style={{
+                      aspectRatio: '1', borderRadius: 'var(--r-sm)', overflow: 'hidden',
+                      background: 'var(--surface-2)', cursor: 'zoom-in',
+                    }}
+                      onClick={() => setLightbox(idx)}>
+                      <img src={photo.url} alt={photo.filename}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {shipAllPassed && (
@@ -881,6 +1061,54 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
           </div>
         </div>
       </div>
+
+      {lightbox !== null && (
+        <div ref={lightboxRef} tabIndex={-1}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setLightbox(null)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setLightbox(null);
+            if (e.key === 'ArrowLeft' && lightbox > 0) setLightbox(lightbox - 1);
+            if (e.key === 'ArrowRight' && lightbox < photos.length - 1) setLightbox(lightbox + 1);
+          }}>
+          <img src={photos[lightbox]?.url} alt={photos[lightbox]?.filename}
+            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
+          <button aria-label="닫기"
+            style={{
+              position: 'absolute', top: 16, right: 16, width: 40, height: 40,
+              background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+              color: '#fff', fontSize: 20, cursor: 'pointer',
+            }}
+            onClick={() => setLightbox(null)}>×</button>
+          {lightbox > 0 && (
+            <button aria-label="이전 사진"
+              style={{
+                position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+              }}
+              onClick={e => { e.stopPropagation(); setLightbox(lightbox - 1); }}>‹</button>
+          )}
+          {lightbox < photos.length - 1 && (
+            <button aria-label="다음 사진"
+              style={{
+                position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)',
+                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+              }}
+              onClick={e => { e.stopPropagation(); setLightbox(lightbox + 1); }}>›</button>
+          )}
+          <div style={{
+            position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            color: 'rgba(255,255,255,0.6)', fontSize: 12,
+          }}>
+            {lightbox + 1} / {photos.length}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -888,7 +1116,9 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
 /* ────────── 기능 검사 성적서 미리보기 ────────── */
 function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
   const p = order.production;
-  const funcAllPassed = FUNC_CHECKLIST.every(item => d.checks?.[item.key]);
+  const modelInfo = window.PMDB?.getModels?.()?.find(m => m.name === order.model_name);
+  const displayChecklist = d._checklist || FUNC_CHECKLIST_DEFAULT;
+  const funcAllPassed = displayChecklist.every(item => isItemComplete(item, d.checks?.[item.key]));
 
   window.useLockScroll();
 
@@ -927,7 +1157,7 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
                 </tr>
                 <tr>
                   <th>모델명</th>
-                  <td>{order.model_name}</td>
+                  <td>{modelInfo?.model || order.model_name}</td>
                   <th>충전소 ID</th>
                   <td className="report__mono">{order.station_id || '—'}</td>
                 </tr>
@@ -968,17 +1198,20 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
                 <tr style={{ background: 'var(--indigo-50,#eef2ff)' }}>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 32, textAlign: 'center' }}>#</td>
                   <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)' }}>검사 항목</td>
-                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 64, textAlign: 'center' }}>결과</td>
+                  <td style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--indigo-700,#4338ca)', width: 80, textAlign: 'center' }}>결과</td>
                 </tr>
-                {FUNC_CHECKLIST.map((item, idx) => (
-                  <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
-                    <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: d.checks?.[item.key] ? 'var(--success-700)' : '#dc2626' }}>
-                      {d.checks?.[item.key] ? '합격' : '불합격'}
-                    </td>
-                  </tr>
-                ))}
+                {displayChecklist.map((item, idx) => {
+                  const cell = renderCheckCell(d.checks?.[item.key]);
+                  return (
+                    <tr key={item.key} style={{ borderTop: '1px solid var(--border-1)', background: idx % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--ink-4)' }}>{idx + 1}</td>
+                      <td style={{ padding: '8px 12px', color: 'var(--ink-1)' }}>{item.label}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 700, color: cell.color }}>
+                        {cell.text}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 

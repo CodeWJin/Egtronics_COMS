@@ -60,11 +60,12 @@ function AsReceiptScreen() {
 
       {/* 상태 필터 + 검색 */}
       <div className="toolbar" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div role="group" aria-label="접수 상태 필터" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {['전체', ...window.AS_STATUS_LIST].map(st => (
             <button
               key={st}
-              className={`btn btn--sm ${statusFilter === st ? 'btn--primary' : 'btn--ghost'}`}
+              className={`btn btn--tag ${statusFilter === st ? 'btn--primary' : 'btn--ghost'}`}
+              aria-pressed={statusFilter === st}
               onClick={() => setStatusFilter(st)}>
               {st}
               <span style={{
@@ -94,6 +95,7 @@ function AsReceiptScreen() {
       <div className="card">
         <div className="table-wrap">
           <table className="table">
+            <caption className="sr-only">AS 접수 목록</caption>
             <thead>
               <tr>
                 <th>접수번호</th>
@@ -126,7 +128,7 @@ function AsReceiptScreen() {
                   <td><AsStatusBadge status={r.status}/></td>
                   <td>
                     {r.assignee
-                      ? getUserDisplayName(r.assignee)
+                      ? r.assignee.split(',').map(id => getUserDisplayName(id.trim())).join(', ')
                       : <span style={{ color: 'var(--ink-4)' }}>미배정</span>}
                   </td>
                   <td className="cell-muted">{(r.received_at || '').slice(0, 16)}</td>
@@ -157,6 +159,7 @@ function AsReceiptScreen() {
 
 // ── 새 접수 등록 모달 ────────────────────────────────────────────
 function AsReceiptModal({ onClose, onSubmit }) {
+  window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const nowStr = () => {
     const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -177,12 +180,31 @@ function AsReceiptModal({ onClose, onSubmit }) {
     received_at:    nowStr(),
   });
   const [err, setErr] = useStateAREC({});
-  const [showSearch, setShowSearch] = useStateAREC(false);
+  const [query, setQuery] = useStateAREC('');
+  const [selectedOrder, setSelectedOrder] = useStateAREC(null);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const clrErr = (key) => setErr(e => ({ ...e, [key]: '' }));
 
-  const customers = window.PMDB ? window.PMDB.getCustomers() : [];
+  const orders = useMemoAREC(() => window.PMDB ? window.PMDB.loadOrders() : [], []);
+  const modelMap = useMemoAREC(() => {
+    const map = {};
+    (window.PMDB ? window.PMDB.getModels() : []).forEach(m => { map[m.name] = m.model; });
+    return map;
+  }, []);
+  const filtered = useMemoAREC(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return orders.filter(o =>
+      o.status === 'COMPLETED' && (
+        (o.station_id                    || '').toLowerCase().includes(q) ||
+        (o.customer_name                 || '').toLowerCase().includes(q) ||
+        (o.install_address               || '').toLowerCase().includes(q) ||
+        (o.production?.serial_no         || '').toLowerCase().includes(q) ||
+        (o.model_name                    || '').toLowerCase().includes(q)
+      )
+    );
+  }, [query, orders]);
 
   const validate = () => {
     const e = {};
@@ -201,139 +223,171 @@ function AsReceiptModal({ onClose, onSubmit }) {
   const handleOrderSelect = (order) => {
     setForm(f => ({
       ...f,
-      customer_name: f.customer_name || order.customer_name || '',
-      station_id:    order.station_id || f.station_id,
+      customer_name: order.customer_name || f.customer_name,
+      station_id:    order.station_id    || f.station_id,
       order_id:      order.order_id,
     }));
-    setShowSearch(false);
+    setSelectedOrder(order);
+    setQuery('');
+    setErr(e => ({ ...e, customer_name: '' }));
+  };
+
+  const clearOrder = () => {
+    setSelectedOrder(null);
+    setForm(f => ({ ...f, order_id: null }));
   };
 
   return (
-    <>
-      <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-as-receipt-title" style={{ width: 580, maxWidth: '96vw' }}>
-          <div className="modal__head">
-            <h3 id="modal-as-receipt-title" className="modal__title">새 AS 접수</h3>
-            <p className="modal__sub">고장 충전기 정보와 증상을 입력하세요</p>
-          </div>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-as-receipt-title"
+           style={{ width: 580, maxWidth: '96vw', maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal__head">
+          <h3 id="modal-as-receipt-title" className="modal__title">새 AS 접수</h3>
+          <p className="modal__sub">고장 충전기 정보와 증상을 입력하세요</p>
+        </div>
 
-          <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
 
-            {/* 고객 / 충전소 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="field">
-                <label className="field__label" htmlFor="ar-customer-name">고객사 *</label>
-                <input
-                  id="ar-customer-name"
-                  className={`input ${err.customer_name ? 'input--error' : ''}`}
-                  list="ar-customers"
-                  placeholder="예: 카스"
-                  value={form.customer_name}
-                  onChange={(e) => { set('customer_name', e.target.value); clrErr('customer_name'); }}
-                />
-                <datalist id="ar-customers">
-                  {customers.map(c => <option key={c.name} value={c.name}/>)}
-                </datalist>
-                {err.customer_name && <div className="field__err">{err.customer_name}</div>}
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="ar-station-name">충전소명</label>
-                <input
-                  id="ar-station-name"
-                  className="input"
-                  placeholder="예: 강남구청 EV충전소"
-                  value={form.station_name}
-                  onChange={(e) => set('station_name', e.target.value)}
-                />
-              </div>
+          {/* 충전기 검색 */}
+          <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
+            <div className="field__label" style={{ marginBottom: 8 }}>
+              충전기 검색
+              <span style={{ color: 'var(--ink-4)', fontWeight: 400, fontSize: 13 }}> (선택)</span>
             </div>
-
-            {/* 충전소 ID / 충전기 번호 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="field">
-                <label className="field__label" htmlFor="ar-station-id">충전소 ID</label>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input
-                    id="ar-station-id"
-                    className="input"
-                    style={{ flex: 1 }}
-                    placeholder="예: GN-001"
-                    value={form.station_id}
-                    onChange={(e) => set('station_id', e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    title="주문 목록에서 충전소 검색"
-                    onClick={() => setShowSearch(true)}>
-                    <Icon name="search" size={13}/>
-                  </button>
-                </div>
-                {form.order_id && (
-                  <div className="field__hint"><Icon name="check" size={11}/> 오더 #{form.order_id} 연결됨</div>
+            {selectedOrder ? (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 12px',
+                background: 'var(--primary-50)',
+                border: '1px solid var(--primary-100)',
+                borderRadius: 'var(--r-sm)',
+              }}>
+                <Icon name="check" size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>
+                <span style={{ fontSize: 13, color: 'var(--ink-2)', flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>#{selectedOrder.order_id}</span>
+                  {' · '}{selectedOrder.customer_name || ''}
+                  {selectedOrder.station_id
+                    ? <span style={{ color: 'var(--ink-4)' }}> · {selectedOrder.station_id}</span>
+                    : null}
+                </span>
+                <button type="button" className="btn btn--sm btn--ghost"
+                        style={{ padding: '2px 8px', fontSize: 12 }} onClick={clearOrder}>
+                  해제
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <input
+                  className="input"
+                  aria-label="충전소 ID, 고객사, 모델명, 시리얼 번호, 설치주소로 오더 검색"
+                  placeholder="충전소 ID, 고객사, 모델명, 시리얼 번호, 설치주소 검색…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {query.trim() && (
+                  <div style={{ border: '1px solid var(--border-1)', borderRadius: 'var(--r-sm)', overflow: 'auto' }}>
+                    <table className="table" style={{ fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th>고객사</th>
+                          <th>충전소 ID</th>
+                          <th>시리얼 번호</th>
+                          <th>설치 주소</th>
+                          <th>모델</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '20px 0' }}>
+                              검색 결과 없음
+                            </td>
+                          </tr>
+                        ) : filtered.map(o => (
+                          <tr key={o.order_id} className="row--clickable"
+                            tabIndex={0}
+                            onClick={() => handleOrderSelect(o)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleOrderSelect(o)}>
+                            <td>{o.customer_name || '—'}</td>
+                            <td className="cell-mono">{o.station_id || '—'}</td>
+                            <td className="cell-mono">{o.production?.serial_no || '—'}</td>
+                            <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {o.install_address || '—'}
+                            </td>
+                            <td>{(o.model_name && (modelMap[o.model_name] || o.model_name)) || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-              <div className="field">
-                <label className="field__label" htmlFor="ar-charger-no">충전기 번호</label>
-                <input
-                  id="ar-charger-no"
-                  className="input"
-                  placeholder="예: CH-01"
-                  value={form.charger_no}
-                  onChange={(e) => set('charger_no', e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* 고장 유형 / 긴급도 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start' }}>
-              <div className="field">
-                <label className="field__label" htmlFor="ar-fault-type">고장 유형 *</label>
-                <select
-                  id="ar-fault-type"
-                  className={`select ${err.fault_type ? 'input--error' : ''}`}
-                  value={form.fault_type}
-                  onChange={(e) => { set('fault_type', e.target.value); clrErr('fault_type'); }}>
-                  <option value="">선택하세요</option>
-                  {window.FAULT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                {err.fault_type && <div className="field__err">{err.fault_type}</div>}
-              </div>
-              <div className="field">
-                <div className="field__label">긴급도</div>
-                <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
-                  {['일반', '긴급'].map(p => (
-                    <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13 }}>
-                      <input
-                        type="radio"
-                        name="ar-priority"
-                        value={p}
-                        checked={form.priority === p}
-                        onChange={() => set('priority', p)}
-                      />
-                      {p === '긴급' ? <span style={{ color: 'var(--danger-700)', fontWeight: 600 }}>긴급</span> : '일반'}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* 상세 증상 */}
+            )}
+          </div>
+          
+          {/* 고장 유형 / 긴급도 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start',
+                        borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
             <div className="field">
-              <label className="field__label" htmlFor="ar-fault-detail">상세 증상 *</label>
-              <textarea
-                id="ar-fault-detail"
-                className={`textarea ${err.fault_detail ? 'input--error' : ''}`}
-                rows={3}
-                placeholder="고장 증상을 구체적으로 입력하세요"
-                value={form.fault_detail}
-                onChange={(e) => { set('fault_detail', e.target.value); clrErr('fault_detail'); }}
-              />
-              {err.fault_detail && <div className="field__err">{err.fault_detail}</div>}
+              <label className="field__label" htmlFor="ar-fault-type">
+                고장 유형 <span className="field__req">*</span>
+              </label>
+              <select
+                id="ar-fault-type"
+                className={`select ${err.fault_type ? 'input--error' : ''}`}
+                required
+                aria-required="true"
+                aria-invalid={!!err.fault_type}
+                value={form.fault_type}
+                onChange={(e) => { set('fault_type', e.target.value); clrErr('fault_type'); }}>
+                <option value="">선택하세요</option>
+                {window.FAULT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {err.fault_type && <div className="field__err">{err.fault_type}</div>}
             </div>
+            <div className="field">
+              <div className="field__label">긴급도</div>
+              <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
+                {['일반', '긴급'].map(p => (
+                  <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13 }}>
+                    <input
+                      type="radio"
+                      name="ar-priority"
+                      value={p}
+                      checked={form.priority === p}
+                      onChange={() => set('priority', p)}
+                    />
+                    {p === '긴급'
+                      ? <span style={{ color: 'var(--danger-700)', fontWeight: 600 }}>긴급</span>
+                      : '일반'}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
-            {/* 신고자 정보 */}
-            <div className="reporter-info" style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
+          {/* 상세 증상 */}
+          <div className="field">
+            <label className="field__label" htmlFor="ar-fault-detail">
+              상세 증상 <span className="field__req">*</span>
+            </label>
+            <textarea
+              id="ar-fault-detail"
+              className={`textarea ${err.fault_detail ? 'input--error' : ''}`}
+              rows={3}
+              required
+              aria-required="true"
+              aria-invalid={!!err.fault_detail}
+              placeholder="고장 증상을 구체적으로 입력하세요"
+              value={form.fault_detail}
+              onChange={(e) => { set('fault_detail', e.target.value); clrErr('fault_detail'); }}
+            />
+            {err.fault_detail && <div className="field__err">{err.fault_detail}</div>}
+          </div>
+
+          {/* 신고자 정보 */}
+          <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field">
                 <label className="field__label" htmlFor="ar-reporter-name">신고자</label>
                 <input
@@ -345,7 +399,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 />
               </div>
               <div className="field">
-                <label className="field__label" htmlFor="ar-reporter-phone">신고자 연락처</label>
+                <label className="field__label" htmlFor="ar-reporter-phone">연락처</label>
                 <input
                   id="ar-reporter-phone"
                   className="input"
@@ -354,36 +408,29 @@ function AsReceiptModal({ onClose, onSubmit }) {
                   onChange={(e) => set('reporter_phone', e.target.value)}
                 />
               </div>
-              <div className="field">
-                <label className="field__label" htmlFor="ar-received-at">접수 일시</label>
-                <input
-                  id="ar-received-at"
-                  className="input"
-                  type="datetime-local"
-                  value={form.received_at}
-                  onChange={(e) => set('received_at', e.target.value)}
-                />
-              </div>
             </div>
-
+            <div className="field">
+              <label className="field__label" htmlFor="ar-received-at">접수 일시</label>
+              <input
+                id="ar-received-at"
+                className="input"
+                type="datetime-local"
+                value={form.received_at}
+                onChange={(e) => set('received_at', e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="modal__foot">
-            <button className="btn btn--secondary" onClick={onClose}>취소</button>
-            <button className="btn btn--primary" onClick={handleSubmit}>
-              <Icon name="check" size={13}/> 접수 등록
-            </button>
-          </div>
+        </div>
+
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>취소</button>
+          <button className="btn btn--primary" onClick={handleSubmit}>
+            <Icon name="check" size={13}/> 접수 등록
+          </button>
         </div>
       </div>
-
-      {showSearch && (
-        <ChargerSearchModal
-          onSelect={handleOrderSelect}
-          onClose={() => setShowSearch(false)}
-        />
-      )}
-    </>
+    </div>
   );
 }
 

@@ -15,6 +15,7 @@ ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_name  TEXT DEF
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS field_manager_phone TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS cpo_name            TEXT DEFAULT '';
 ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS usage_type          TEXT DEFAULT '공용';
+ALTER TABLE tb_sales_order ADD COLUMN IF NOT EXISTS charger_no          TEXT DEFAULT '';
 
 -- 기능 검사 성적서 저장
 CREATE TABLE IF NOT EXISTS tb_func_inspection (
@@ -71,7 +72,7 @@ ALTER TABLE tb_sales_order
 ALTER TABLE users
   DROP CONSTRAINT IF EXISTS chk_role,
   ADD  CONSTRAINT chk_role
-    CHECK (role IN ('admin', 'sales', 'production', 'quality', 'as'));
+    CHECK (role IN ('admin', 'sales', 'production', 'quality'));
 
 
 

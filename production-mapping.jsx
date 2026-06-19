@@ -100,17 +100,66 @@ function PendingView({ order }) {
 }
 
 function CompletedView({ order }) {
+  const shipInsp = React.useMemo(
+    () => window.PMDB.getShipInspectionDB(order.order_id),
+    [order.order_id]
+  );
+  const shipAllDone = !!shipInsp &&
+    Object.keys(shipInsp.checks || {}).length > 0 &&
+    Object.values(shipInsp.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+
+  const isAwait = order.status === 'AWAIT_PICKUP';
+
   return (
     <div className="screen">
       <div className="screen__head">
         <div>
-          <div className="screen__crumbs">입력 완료</div>
+          <div className="screen__crumbs">{isAwait ? '품질 · 출하대기' : '입력 완료'}</div>
           <h1 className="screen__title">
-            오더 #{order.order_id} · <span style={{ color: 'var(--success-700)' }}>생산완료</span>
+            오더 #{order.order_id}
+            {isAwait
+              ? <span className="badge badge--pending" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}><span className="badge__dot"/>출하대기</span>
+              : <span className="badge badge--complete" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}><Icon name="check" size={10}/>생산완료</span>
+            }
           </h1>
-          <p className="screen__sub">이미 생산이 완료된 오더입니다. 출하 검사 성적서가 발급되었습니다.</p>
+          <p className="screen__sub">
+            {isAwait
+              ? '출하 검사 성적서 작성 후 출하 완료 처리하세요.'
+              : '출하가 완료된 오더입니다. 필요 시 이전 상태로 되돌릴 수 있습니다.'}
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          {isAwait && (
+            <button
+              className="btn btn--primary"
+              disabled={!shipAllDone}
+              title={!shipInsp ? '출하 검사 성적서를 먼저 작성해 주세요' : !shipAllDone ? '출하 검사 전 항목을 완료해 주세요' : ''}
+              onClick={() => {
+                if (confirm(`오더 #${order.order_id}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환됩니다.`)) {
+                  window.actions.shipOrder(order.order_id);
+                }
+              }}>
+              <Icon name="truck" size={13}/> 출하 완료
+            </button>
+          )}
+          {order.status === 'COMPLETED' && (
+            <button className="btn btn--secondary" onClick={() => {
+              if (confirm(`오더 #${order.order_id}을(를) 출하대기 상태로 되돌릴까요?\n출하 처리가 취소되며 출하 검사를 다시 진행할 수 있습니다.`)) {
+                window.actions.revertToAwaitPickup(order.order_id);
+              }
+            }}>
+              <Icon name="refresh" size={13}/> 출하대기로 변경
+            </button>
+          )}
+          {order.status === 'COMPLETED' && (
+            <button className="btn btn--secondary" onClick={() => {
+              if (confirm(`오더 #${order.order_id}을(를) 생산진행중 상태로 되돌릴까요?\n출하 처리가 취소되며 생산 실적을 수정할 수 있습니다.`)) {
+                window.actions.revertToInProgress(order.order_id);
+              }
+            }}>
+              <Icon name="refresh" size={13}/> 생산진행중으로 변경
+            </button>
+          )}
           <button className="btn btn--secondary" onClick={() => {
             if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 되돌릴까요?\n생산 실적은 보존되며 다시 수정할 수 있습니다.`)) {
               window.actions.revertOrder(order.order_id);
@@ -119,7 +168,7 @@ function CompletedView({ order }) {
           }}>
             <Icon name="refresh" size={13}/> 생산대기로 변경
           </button>
-          <button className="btn btn--secondary" onClick={() => window.actions.setView('waiting')}>
+          <button className="btn btn--secondary" onClick={() => window.actions.setView('AwaitPickup')}>
             <Icon name="arrow-left" size={13}/> 목록으로
           </button>
         </div>
@@ -164,6 +213,10 @@ function SalesReadOnly({ order }) {
   const [prevMap, setPrevMap] = React.useState({});
   const [history, setHistory] = React.useState([]);
   const [showHist, setShowHist] = React.useState(false);
+  const modelCode = React.useMemo(
+    () => window.PMDB.getModels().find(m => m.name === order.model_name)?.model || order.model_name,
+    [order.model_name]
+  );
 
   React.useEffect(() => {
     const hist = window.PMDB.getHistory(order.order_id) || [];
@@ -203,7 +256,7 @@ function SalesReadOnly({ order }) {
         <Cell k="고객사" v={order.customer_name} prev={prevMap.customer_name}/>
         <Cell k="충전기 용도" v={order.usage_type || '공용'} prev={prevMap.usage_type}/>
         {order.cpo_name && <Cell k="CPO 운영사" v={order.cpo_name} prev={prevMap.cpo_name}/>}
-        <Cell k="모델" v={order.model_name} prev={prevMap.model_name}/>
+        <Cell k="모델" v={modelCode} prev={prevMap.model_name}/>
         <Cell k="케이블 길이" v={order.cable_length} prev={prevMap.cable_length}/>
         <Cell k="납품일자" v={order.delivery_date} mono prev={prevMap.delivery_date}/>
         <Cell k="충전소 ID" v={order.station_id} mono prev={prevMap.station_id}/>
@@ -298,6 +351,10 @@ function MappingForm({ order }) {
   const [newFwVerStable, setNewFwVerStable] = useStatePM(true);
   const [funcInspectionData, setfuncInspectionData] = useStatePM(null);
   const [openFuncInspect, setOpenFuncInspect] = useStatePM(false);
+
+  const funcAllDone = funcInspectionData != null &&
+    Object.keys(funcInspectionData.checks || {}).length > 0 &&
+    Object.values(funcInspectionData.checks || {}).every(Boolean);
 
   const modelInfo = useMemoPM(
     () => window.PMDB.getModels().find(m => m.name === order.model_name),
@@ -603,16 +660,18 @@ function MappingForm({ order }) {
               <div className="field__label"><Icon name="doc" size={11}/>기능 검사 성적서 <span className="field__req">*</span></div>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                background: funcInspectionData ? 'var(--success-50)' : 'var(--surface-2)',
-                border: `1px solid ${funcInspectionData ? 'var(--success)' : 'var(--border-1)'}`,
+                background: funcAllDone ? 'var(--success-50)' : funcInspectionData ? 'var(--warning-50,#fffbeb)' : 'var(--surface-2)',
+                border: `1px solid ${funcAllDone ? 'var(--success)' : funcInspectionData ? 'var(--warning,#f59e0b)' : 'var(--border-1)'}`,
                 borderRadius: 'var(--r-md)',
               }}>
-                <Icon name={funcInspectionData ? 'check' : 'doc'} size={16}
-                  style={{ color: funcInspectionData ? 'var(--success-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
+                <Icon name={funcAllDone ? 'check' : funcInspectionData ? 'clock' : 'doc'} size={16}
+                  style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700,#b45309)' : 'var(--ink-4)', flexShrink: 0 }}/>
                 <div style={{ flex: 1 }}>
-                  {funcInspectionData
-                    ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>작성 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
-                    : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>
+                  {funcAllDone
+                    ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                    : funcInspectionData
+                      ? <span style={{ fontSize: 13.5, color: 'var(--warning-700,#b45309)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                      : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>
                   }
                 </div>
                 <button type="button"
@@ -630,8 +689,8 @@ function MappingForm({ order }) {
               저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산
             </div>
             <button className="btn btn--success btn--lg" onClick={submit}
-              disabled={!funcInspectionData}
-              title={!funcInspectionData ? '기능검사 성적서를 먼저 작성해 주세요' : ''}>
+              disabled={!funcAllDone}
+              title={!funcInspectionData ? '기능검사 성적서를 먼저 작성해 주세요' : !funcAllDone ? '기능검사 전 항목을 완료해 주세요' : ''}>
               <Icon name="check" size={14}/> 출하대기 등록
             </button>
           </div>

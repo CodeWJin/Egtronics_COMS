@@ -35,8 +35,9 @@ function OrderLookupScreen() {
   const [fAsOnly, setFAsOnly] = useStateOL(false);
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
+  const modelMap  = useMemoOL(() => { const m = {}; models.forEach(mdl => { m[mdl.name] = mdl; }); return m; }, [models]);
 
-  const dateRangeErr = dateRangeErr;
+  const dateRangeErr = dateFrom && dateTo && dateTo < dateFrom;
   const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
 
   const filtered = useMemoOL(() => {
@@ -222,7 +223,14 @@ function OrderLookupScreen() {
                     <div className="cell-strong">{o.customer_name}</div>
                     <div className="cell-muted">접수 {o.created}</div>
                   </td>
-                  <td><span className="badge badge--neutral">{o.model_name}</span></td>
+                  <td>
+                    <span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.3px' }}>
+                      {modelMap[o.model_name]?.model || o.model_name}
+                    </span>
+                    {modelMap[o.model_name]?.model && (
+                      <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{o.model_name}</div>
+                    )}
+                  </td>
                   <td className="cell-mono">{o.station_id}</td>
                   <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
                   <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
@@ -461,6 +469,10 @@ function OrderDrawer({ order, onClose }) {
   }, [handleClose]);
 
   const p = order.production;
+  const modelObj = React.useMemo(() => {
+    const ms = window.PMDB?.getModels?.() || [];
+    return ms.find(m => m.name === order.model_name) || null;
+  }, [order.model_name]);
   const s = window.useStore();
   const role = s.currentUser ? s.currentUser.role : null;
 
@@ -500,7 +512,8 @@ function OrderDrawer({ order, onClose }) {
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>영업 입력 정보</span>
             </div>
             <div className="dgrid">
-              <Field k="모델" v={order.model_name}/>
+              <Field k="모델 코드" v={modelObj?.model || '—'} mono/>
+              <Field k="모델명" v={order.model_name}/>
               <Field k="케이블 길이" v={order.cable_length}/>
               <Field k="담당자" v={managerDisplay}/>
               <Field k="납품일자" v={order.delivery_date} mono/>
@@ -642,7 +655,7 @@ function OrderDrawer({ order, onClose }) {
         <div tabIndex={-1}
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
-            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setShipPhotoLightbox(null)}
           onKeyDown={e => {

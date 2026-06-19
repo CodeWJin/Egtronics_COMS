@@ -1,0 +1,12 @@
+[
+  { "key": "power_ok",        "label": "전원 공급 정상 동작",        "type": "checkbox" },
+  { "key": "display_ok",      "label": "디스플레이 화면 정상 표시",  "type": "checkbox" },
+  { "key": "rfid_ok",         "label": "RFID 카드 인식 정상",       "type": "checkbox" },
+  { "key": "ocpp_ok",         "label": "OCPP 서버 통신 연결 정상",  "type": "checkbox" },
+  { "key": "charge_start_ok", "label": "충전 시작 동작 확인",        "type": "checkbox" },
+  { "key": "charge_stop_ok",  "label": "충전 중단·완료 동작 확인",  "type": "checkbox" },
+  { "key": "overcurrent_ok",  "label": "과전류 보호 기능 정상",      "type": "checkbox" },
+  { "key": "ground_ok",       "label": "접지 이상 감지 기능 정상",   "type": "input" },
+  { "key": "meter_ok",        "label": "전력량계 계측 정상",         "type": "checkbox" },
+  { "key": "fw_ok",           "label": "F/W·S/W 버전 확인 완료",   "type": "checkbox" }
+]

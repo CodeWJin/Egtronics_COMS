@@ -7,12 +7,12 @@ const ROLE_OPTIONS = [
   { value: 'sales',      label: '영업본부' },
   { value: 'production', label: '제조생산본부' },
   { value: 'quality',    label: '품질관리본부' },
-  { value: 'as',         label: 'A/S (유지보수)' },
 ];
 
 const EMPTY_FORM = { user_id: '', password: '', name: '', role: 'sales', dept: '', phone: '', email: '' };
 
 function UserFormModal({ mode, initial, onSave, onClose }) {
+  window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [form, setForm] = useStateAM(initial || EMPTY_FORM);
   const [errors, setErrors] = useStateAM({});
@@ -124,6 +124,7 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
 }
 
 function DeleteConfirmModal({ user, onConfirm, onClose }) {
+  window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   return (
     <div className="modal-backdrop" ref={dialogRef} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -140,7 +141,7 @@ function DeleteConfirmModal({ user, onConfirm, onClose }) {
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
-          <button className="btn" style={{ background: 'var(--danger)', color: 'white', border: 'none' }} onClick={onConfirm}>
+          <button className="btn" style={{ background: 'var(--danger)', color: '#fff', border: 'none' }} onClick={onConfirm}>
             <Icon name="alert" size={14}/> 삭제
           </button>
         </div>
@@ -216,8 +217,7 @@ function AdminUsersScreen() {
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
               {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회 · A/S 접수'}
               {r.value === 'production' && '생산 대기 · 생산 입력 · 출하 대기 · 조회'}
-              {r.value === 'quality' && '출하 대기 · 조회'}
-              {r.value === 'as' && '조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
+              {r.value === 'quality' && '출하 대기 · 조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
             </div>
             <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>
               {users.filter(u => u.role === r.value).length}명

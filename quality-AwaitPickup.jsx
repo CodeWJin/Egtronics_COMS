@@ -202,12 +202,11 @@ function ProductionCompleteScreen() {
           <table className="table">
             <thead>
               <tr>
-                <th style={{ width: 70 }}>오더 #</th>
                 <th>고객사 / 모델</th>
                 <th>시리얼 / 로트</th>
                 <th>생산일</th>
-                <th>검정일</th>
-                <th>성적서</th>
+                <th>기능검사성적서</th>
+                <th>출하 전 검사</th>
                 <th style={{ width: 110 }}>출하</th>
               </tr>
             </thead>
@@ -219,8 +218,7 @@ function ProductionCompleteScreen() {
                   Object.keys(shipInsp.checks || {}).length > 0 &&
                   Object.values(shipInsp.checks || {}).every(Boolean);
                 return (
-                  <tr key={o.order_id} className="row--clickable" onClick={() => setReport(o)}>
-                    <td className="cell-mono">#{o.order_id}</td>
+                  <tr key={o.order_id} className="row--clickable" onClick={() => { window.actions.selectOrder(o.order_id); window.actions.setView('mapping'); }}>
                     <td>
                       <div className="cell-strong">{o.customer_name}</div>
                       <div className="cell-muted">{modelInfo?.model || o.model_name}</div>
@@ -230,14 +228,15 @@ function ProductionCompleteScreen() {
                       <div className="cell-mono" style={{ color: 'var(--ink-4)' }}>{o.production.lot_no}</div>
                     </td>
                     <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
-                    <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-2)' }}>{o.production.inspection_date}</td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        <button
+                      <button
                           className="btn btn--sm btn--success"
                           onClick={(e) => { e.stopPropagation(); setReport(o); }}>
                           <Icon name="check" size={12}/> 기능검사성적서
-                        </button>
+                      </button>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                         <button
                           className={`btn btn--sm ${shipAllDone ? 'btn--success' : shipInsp ? 'btn--warning' : 'btn--secondary'}`}
                           onClick={(e) => { e.stopPropagation(); setShipInspectOrder(o); }}>

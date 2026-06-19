@@ -61,12 +61,12 @@ function AsProcessingScreen() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            <div role="group" aria-label="접수 상태 필터" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {filterLabels.map(st => (
                 <button
                   key={st}
-                  className={`btn btn--sm ${statusFilter === st ? 'btn--primary' : 'btn--ghost'}`}
-                  style={{ fontSize: 12, padding: '3px 8px' }}
+                  className={`btn btn--tag ${statusFilter === st ? 'btn--primary' : 'btn--ghost'}`}
+                  aria-pressed={statusFilter === st}
                   onClick={() => setStatusFilter(st)}>
                   {st}
                   <span style={{
@@ -87,12 +87,13 @@ function AsProcessingScreen() {
               <div style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '40px 0', fontSize: 13 }}>
                 해당하는 접수 건이 없습니다
               </div>
-            ) : filtered.map(r => (
+            ) : filtered.map((r, idx) => (
               <AsListCard
                 key={r.id}
                 r={r}
                 active={r.id === selectedId}
                 onClick={() => window.actions.selectAs(r.id)}
+                staggerIndex={idx}
               />
             ))}
           </div>
@@ -116,7 +117,7 @@ function AsProcessingScreen() {
 }
 
 // ── 목록 카드 ────────────────────────────────────────────────────
-function AsListCard({ r, active, onClick }) {
+function AsListCard({ r, active, onClick, staggerIndex = 0 }) {
   return (
     <div
       className={`as-card ${active ? 'as-card--active' : ''}`}
@@ -124,6 +125,7 @@ function AsListCard({ r, active, onClick }) {
       tabIndex={0}
       onClick={onClick}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      style={{ '--i': Math.min(staggerIndex, 8) }}
     >
       <div className="as-card__header">
         <span className="as-card__no">{r.reception_no}</span>
@@ -148,10 +150,10 @@ function AsDetailPanel({ reception: r }) {
   const [tab, setTab] = useStateAP('process'); // 'process' | 'info' | 'log'
 
   const [form, setForm] = useStateAP({
-    assignee:     r.assignee     || '',
+    assignee:     r.assignee ? r.assignee.split(',').map(s => s.trim()).filter(Boolean) : [],
     dispatch_date:r.dispatch_date|| '',
     status:       r.status       || '접수대기',
-    action_type:  r.action_type  || '',
+    action_type:  r.action_type ? r.action_type.split(',').map(s => s.trim()).filter(Boolean) : [],
     action_detail:r.action_detail|| '',
     cost:         r.cost         || '',
     completed_at: r.completed_at || '',
@@ -169,27 +171,36 @@ function AsDetailPanel({ reception: r }) {
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
-  const users = window.PMDB ? window.PMDB.getAllUsers() : [];
-  const asUsers = users.filter(u => u.role === 'as' || u.role === 'admin');
+  const asUsers = useMemoAP(() => {
+    const users = window.PMDB ? window.PMDB.getAllUsers() : [];
+    return users.filter(u => u.role === 'quality' || u.role === 'admin');
+  }, []);
 
   const handleSave = () => {
     setBusy(true);
     setTimeout(() => {
-      const updStatus = form.status !== r.status ? form.status : undefined;
-      const updCompleted = form.status === '처리완료' && !form.completed_at
-        ? new Date().toISOString().replace('T', ' ').slice(0, 19)
-        : form.completed_at;
+      try {
+        const updStatus = form.status !== r.status ? form.status : undefined;
+        const updCompleted = form.status === '처리완료' && !form.completed_at
+          ? new Date().toISOString().replace('T', ' ').slice(0, 19)
+          : form.completed_at;
 
-      window.actions.updateAsReception(r.id, {
-        ...form,
-        completed_at: updCompleted,
-      }, memo || '');
+        window.actions.updateAsReception(r.id, {
+          ...form,
+          assignee:    form.assignee.join(', '),
+          action_type: form.action_type.join(', '),
+          completed_at: updCompleted,
+        }, memo || '');
 
-      if (updStatus) {
-        setLogs(window.PMDB.getAsLogs(r.id));
+        if (updStatus) {
+          setLogs(window.PMDB.getAsLogs(r.id));
+        }
+        setMemo('');
+      } catch (err) {
+        console.error('AS 처리 저장 실패:', err);
+      } finally {
+        setBusy(false);
       }
-      setMemo('');
-      setBusy(false);
     }, 300);
   };
 
@@ -219,10 +230,14 @@ function AsDetailPanel({ reception: r }) {
             <Icon name="x" size={14}/>
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 0 }}>
+        <div role="tablist" aria-label="AS 처리 탭" style={{ display: 'flex', gap: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
           {TABS.map(t => (
             <button
               key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              aria-controls={`tabpanel-${t.key}`}
+              id={`tab-${t.key}-${r.id}`}
               onClick={() => setTab(t.key)}
               style={{
                 padding: '6px 14px', fontSize: 13, border: 'none', background: 'none', cursor: 'pointer',
@@ -242,7 +257,12 @@ function AsDetailPanel({ reception: r }) {
 
         {/* ── 처리 현황 탭 ── */}
         {tab === 'process' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div
+            role="tabpanel"
+            id="tabpanel-process"
+            aria-labelledby={`tab-process-${r.id}`}
+            tabIndex={0}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {isCompleted && (
               <div style={{
@@ -254,44 +274,63 @@ function AsDetailPanel({ reception: r }) {
               </div>
             )}
 
-            {/* 담당자 / 출동 예정일 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="field">
-                <label className="field__label" htmlFor={`ap-${r.id}-assignee`}>담당자 배정</label>
-                <select
-                  id={`ap-${r.id}-assignee`}
-                  className="select"
-                  value={form.assignee}
-                  onChange={(e) => set('assignee', e.target.value)}
-                  disabled={isCompleted}>
-                  <option value="">미배정</option>
-                  {asUsers.map(u => (
-                    <option key={u.user_id} value={u.user_id}>{u.name} ({window.ROLE_LABEL[u.role]})</option>
-                  ))}
-                </select>
+            {/* 담당자 배정 (다중 선택) */}
+            <div className="field">
+              <div className="field__label">
+                담당자 배정
+                <span style={{ fontWeight: 400, color: 'var(--ink-4)', fontSize: 11, marginLeft: 5 }}>(복수 선택 가능)</span>
               </div>
-              <div className="field">
-                <label className="field__label" htmlFor={`ap-${r.id}-dispatch-date`}>출동 예정일</label>
-                <input
-                  id={`ap-${r.id}-dispatch-date`}
-                  className="input"
-                  type="date"
-                  value={form.dispatch_date}
-                  onChange={(e) => set('dispatch_date', e.target.value)}
-                  disabled={isCompleted}
-                />
-              </div>
+              {asUsers.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>등록된 AS 담당자가 없습니다</div>
+              ) : (
+                <div role="group" aria-label="담당자 배정 (복수 선택 가능)" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {asUsers.map(u => {
+                    const sel = form.assignee.includes(u.user_id);
+                    return (
+                      <button
+                        key={u.user_id}
+                        type="button"
+                        className={`btn btn--tag ${sel ? 'btn--primary' : 'btn--ghost'}`}
+                        aria-pressed={sel}
+                        disabled={isCompleted}
+                        onClick={() => !isCompleted && set('assignee', sel
+                          ? form.assignee.filter(x => x !== u.user_id)
+                          : [...form.assignee, u.user_id]
+                        )}>
+                        {u.name}
+                        <span style={{ marginLeft: 4, color: 'var(--ink-4)', fontSize: 11 }}>
+                          {window.ROLE_LABEL[u.role]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 출동 예정일 */}
+            <div className="field" style={{ maxWidth: 200 }}>
+              <label className="field__label" htmlFor={`ap-${r.id}-dispatch-date`}>출동 예정일</label>
+              <input
+                id={`ap-${r.id}-dispatch-date`}
+                className="input"
+                type="date"
+                value={form.dispatch_date}
+                onChange={(e) => set('dispatch_date', e.target.value)}
+                disabled={isCompleted}
+              />
             </div>
 
             {/* 상태 변경 */}
             <div className="field">
               <div className="field__label">처리 상태</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div role="group" aria-label="처리 상태 선택" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {window.AS_STATUS_LIST.map(st => (
                   <button
                     key={st}
                     type="button"
-                    className={`btn btn--sm ${form.status === st ? 'btn--primary' : 'btn--ghost'}`}
+                    className={`btn btn--tag ${form.status === st ? 'btn--primary' : 'btn--ghost'}`}
+                    aria-pressed={form.status === st}
                     onClick={() => !isCompleted && set('status', st)}
                     disabled={isCompleted && st !== '처리완료'}
                     style={{ opacity: isCompleted && st !== form.status ? 0.5 : 1 }}>
@@ -301,31 +340,53 @@ function AsDetailPanel({ reception: r }) {
               </div>
             </div>
 
-            {/* 조치 내용 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="field">
-                <label className="field__label" htmlFor={`ap-${r.id}-action-type`}>조치 유형</label>
-                <select
-                  id={`ap-${r.id}-action-type`}
-                  className="select"
-                  value={form.action_type}
-                  onChange={(e) => set('action_type', e.target.value)}
-                  disabled={isCompleted}>
-                  <option value="">선택</option>
-                  {window.AS_ACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+            {/* 조치 유형 (다중 선택) */}
+            <div className="field">
+              <div className="field__label">
+                조치 유형
+                <span style={{ fontWeight: 400, color: 'var(--ink-4)', fontSize: 11, marginLeft: 5 }}>(복수 선택 가능)</span>
               </div>
-              <div className="field">
-                <label className="field__label" htmlFor={`ap-${r.id}-cost`}>발생 비용 (원)</label>
-                <input
-                  id={`ap-${r.id}-cost`}
-                  className="input"
-                  placeholder="예: 150000"
-                  value={form.cost}
-                  onChange={(e) => set('cost', e.target.value)}
-                  disabled={isCompleted}
-                />
+              <div role="group" aria-label="조치 유형 (복수 선택 가능)" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {window.AS_ACTION_TYPE_GROUPS.map((group, gi) => (
+                  <div key={group.label} style={gi > 0 ? { borderTop: '1px solid var(--border-1)', paddingTop: 8 } : {}}>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 5, letterSpacing: '-0.1px', fontWeight: 500 }}>
+                      {group.label}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {group.items.map(t => {
+                        const sel = form.action_type.includes(t);
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            className={`btn btn--tag ${sel ? 'btn--primary' : 'btn--ghost'}`}
+                            aria-pressed={sel}
+                            disabled={isCompleted}
+                            onClick={() => !isCompleted && set('action_type', sel
+                              ? form.action_type.filter(x => x !== t)
+                              : [...form.action_type, t]
+                            )}>
+                            {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            {/* 발생 비용 */}
+            <div className="field">
+              <label className="field__label" htmlFor={`ap-${r.id}-cost`}>발생 비용 (원)</label>
+              <input
+                id={`ap-${r.id}-cost`}
+                className="input"
+                placeholder="예: 150000"
+                value={form.cost}
+                onChange={(e) => set('cost', e.target.value)}
+                disabled={isCompleted}
+              />
             </div>
 
             <div className="field">
@@ -377,15 +438,22 @@ function AsDetailPanel({ reception: r }) {
                       set('status', '처리완료');
                       setBusy(true);
                       setTimeout(() => {
-                        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-                        window.actions.updateAsReception(r.id, {
-                          ...form,
-                          status: '처리완료',
-                          completed_at: form.completed_at || now,
-                        }, memo || '처리 완료');
-                        setLogs(window.PMDB.getAsLogs(r.id));
-                        setMemo('');
-                        setBusy(false);
+                        try {
+                          const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+                          window.actions.updateAsReception(r.id, {
+                            ...form,
+                            assignee:    form.assignee.join(', '),
+                            action_type: form.action_type.join(', '),
+                            status: '처리완료',
+                            completed_at: form.completed_at || now,
+                          }, memo || '처리 완료');
+                          setLogs(window.PMDB.getAsLogs(r.id));
+                          setMemo('');
+                        } catch (err) {
+                          console.error('처리 완료 저장 실패:', err);
+                        } finally {
+                          setBusy(false);
+                        }
                       }, 300);
                     }}>
                     <Icon name="check" size={14}/> 처리 완료
@@ -401,7 +469,12 @@ function AsDetailPanel({ reception: r }) {
 
         {/* ── 접수 정보 탭 ── */}
         {tab === 'info' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div
+            role="tabpanel"
+            id="tabpanel-info"
+            aria-labelledby={`tab-info-${r.id}`}
+            tabIndex={0}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <InfoSection title="고객 · 충전기 정보">
               <InfoRow label="고객사"    value={r.customer_name}/>
               <InfoRow label="충전소명"  value={r.station_name}/>
@@ -427,7 +500,11 @@ function AsDetailPanel({ reception: r }) {
 
         {/* ── 처리 이력 탭 ── */}
         {tab === 'log' && (
-          <div>
+          <div
+            role="tabpanel"
+            id="tabpanel-log"
+            aria-labelledby={`tab-log-${r.id}`}
+            tabIndex={0}>
             {logs.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '40px 0', fontSize: 13 }}>
                 처리 이력이 없습니다
@@ -459,11 +536,17 @@ function AsDetailPanel({ reception: r }) {
 
         {/* ── 사진 탭 ── */}
         {tab === 'photo' && (
-          <AsPhotoTab
-            receptionId={r.id}
-            photos={photos}
-            onPhotosChange={(updated) => setPhotos(updated)}
-          />
+          <div
+            role="tabpanel"
+            id="tabpanel-photo"
+            aria-labelledby={`tab-photo-${r.id}`}
+            tabIndex={0}>
+            <AsPhotoTab
+              receptionId={r.id}
+              photos={photos}
+              onPhotosChange={(updated) => setPhotos(updated)}
+            />
+          </div>
         )}
       </div>
     </div>
@@ -492,7 +575,7 @@ function InfoSection({ title, children }) {
 }
 
 function InfoRow({ label, value, mono, multiline }) {
-  if (!value && value !== 0) value = <span style={{ color: 'var(--ink-5)' }}>—</span>;
+  if (!value && value !== 0) value = <span style={{ color: 'var(--ink-4)' }}>—</span>;
   return (
     <div style={{
       display: 'flex', gap: 12, padding: '9px 14px',
@@ -510,10 +593,15 @@ function InfoRow({ label, value, mono, multiline }) {
 // ── 사진 첨부 탭 ─────────────────────────────────────────────────
 function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
   const fileInputRef = useRefAP(null);
+  const lightboxRef = useRefAP(null);
   const [uploading, setUploading] = useStateAP(false);
   const [uploadErr, setUploadErr] = useStateAP('');
   const [lightbox, setLightbox] = useStateAP(null);    // { url, filename }
   const [deleteConfirm, setDeleteConfirm] = useStateAP(null); // photo.id
+
+  useEffectAP(() => {
+    if (lightbox && lightboxRef.current) lightboxRef.current.focus();
+  }, [lightbox]);
 
   const currentUserId = (window.__pm_store__ && window.__pm_store__.user)
     ? window.__pm_store__.user.user_id : '';
@@ -622,11 +710,21 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
       {/* 라이트박스 */}
       {lightbox && (
         <div
+          ref={lightboxRef}
           className="photo-lightbox"
           role="dialog"
-          aria-label="사진 크게 보기"
+          aria-label={`사진 크게 보기 — ${lightbox.filename}`}
           aria-modal="true"
-          onClick={() => setLightbox(null)}>
+          onClick={() => setLightbox(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') { setLightbox(null); return; }
+            const idx = photos.findIndex(p => p.url === lightbox.url);
+            if (e.key === 'ArrowRight' && idx < photos.length - 1)
+              setLightbox({ url: photos[idx + 1].url, filename: photos[idx + 1].filename });
+            if (e.key === 'ArrowLeft' && idx > 0)
+              setLightbox({ url: photos[idx - 1].url, filename: photos[idx - 1].filename });
+          }}
+          tabIndex={-1}>
           <img
             className="photo-lightbox__img"
             src={lightbox.url}
@@ -634,6 +732,28 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
             onClick={(e) => e.stopPropagation()}
           />
           <div className="photo-lightbox__name">{lightbox.filename}</div>
+          {photos.length > 1 && (() => {
+            const idx = photos.findIndex(p => p.url === lightbox.url);
+            return (
+              <div className="photo-lightbox__nav" onClick={(e) => e.stopPropagation()}>
+                <button
+                  className="photo-lightbox__nav-btn"
+                  aria-label="이전 사진"
+                  disabled={idx === 0}
+                  onClick={() => setLightbox({ url: photos[idx - 1].url, filename: photos[idx - 1].filename })}>
+                  ‹
+                </button>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{idx + 1} / {photos.length}</span>
+                <button
+                  className="photo-lightbox__nav-btn"
+                  aria-label="다음 사진"
+                  disabled={idx === photos.length - 1}
+                  onClick={() => setLightbox({ url: photos[idx + 1].url, filename: photos[idx + 1].filename })}>
+                  ›
+                </button>
+              </div>
+            );
+          })()}
           <button
             className="photo-lightbox__close"
             aria-label="닫기"

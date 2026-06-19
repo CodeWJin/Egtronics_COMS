@@ -1,0 +1,10 @@
+[
+  { "key": "exterior_ok",   "label": "외관 손상 없음",           "type": "checkbox" },
+  { "key": "label_ok",      "label": "제품 라벨 부착 상태 양호", "type": "checkbox" },
+  { "key": "cable_ok",      "label": "케이블 단선·손상 없음",    "type": "checkbox" },
+  { "key": "connector_ok",  "label": "커넥터 체결 상태 양호",    "type": "checkbox" },
+  { "key": "bolt_ok",       "label": "볼트·나사 체결 완료",      "type": "checkbox" },
+  { "key": "package_ok",    "label": "포장재 이상 없음",         "type": "checkbox" },
+  { "key": "accessory_ok",  "label": "부속품·문서 동봉 확인",    "type": "checkbox" },
+  { "key": "ship_label_ok", "label": "출하 라벨 부착 완료",      "type": "checkbox" }
+]

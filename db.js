@@ -223,7 +223,7 @@
 
       addOrder(form) {
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
+        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, charger_no: form.charger_no || '', router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
         cache.orders.push(row);
         dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
         dbWrite('tb_sales_order', 'insert', () => client.from('tb_sales_order').insert(row));
@@ -236,7 +236,7 @@
           dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
+        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, charger_no: form.charger_no || '', router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
         Object.assign(o, upd);
         dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'update', () => client.from('tb_sales_order').update(upd).eq('order_id', order_id));
@@ -297,6 +297,30 @@
           }
           return { error: null };
         });
+      },
+
+      revertToAwaitPickup(order_id) {
+        const o = cache.orders.find(x => x.order_id === order_id);
+        if (!o || o.status !== 'COMPLETED') {
+          dbLog('WARN', 'write:tb_sales_order', `AWAIT_PICKUP 복귀 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
+        o.status = 'AWAIT_PICKUP';
+        dbLog('INFO', 'write:tb_sales_order', `출하대기로 변경 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'revertToAwaitPickup', () => client.from('tb_sales_order').update({ status: 'AWAIT_PICKUP' }).eq('order_id', order_id));
+        return true;
+      },
+
+      revertToInProgress(order_id) {
+        const o = cache.orders.find(x => x.order_id === order_id);
+        if (!o || o.status !== 'COMPLETED') {
+          dbLog('WARN', 'write:tb_sales_order', `IN_PROGRESS 복귀 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
+        o.status = 'IN_PROGRESS';
+        dbLog('INFO', 'write:tb_sales_order', `생산진행중으로 변경 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'revertToInProgress', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        return true;
       },
 
       startProduction(order_id) {
@@ -962,6 +986,8 @@
     completeOrder(id, p)     { return this.backend.completeOrder(id, p); },
     shipOrder(id)            { return this.backend.shipOrder(id); },
     revertOrder(id)          { return this.backend.revertOrder(id); },
+    revertToAwaitPickup(id)  { return this.backend.revertToAwaitPickup(id); },
+    revertToInProgress(id)   { return this.backend.revertToInProgress(id); },
     startProduction(id)      { return this.backend.startProduction(id); },
     serialExists(s, excl)    { return this.backend.serialExists(s, excl); },
     getManagers(c)           { return this.backend.getManagers(c); },

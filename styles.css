@@ -231,7 +231,7 @@ input, select, textarea { font-family: inherit; }
 }
 .screen__crumbs {
   font-size: 12px;
-  color: var(--ink-4);
+  color: var(--ink-3);
   margin-bottom: 6px;
   letter-spacing: -0.12px;
 }
@@ -429,7 +429,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface);
   color: var(--ink-2);
   cursor: pointer;
-  transition: border-color 140ms, background 140ms;
+  transition: border-color 140ms, background 140ms, color 140ms;
   letter-spacing: -0.224px;
 }
 .chip:hover { border-color: var(--border-2); color: var(--ink-1); }
@@ -554,6 +554,14 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--r-pill);
   letter-spacing: -0.12px;
 }
+/* 필터·토글 태그 버튼 — btn--sm보다 수평 여백 작음 */
+.btn--tag {
+  height: 28px;
+  padding: 0 9px;
+  font-size: 12px;
+  border-radius: var(--r-pill);
+  letter-spacing: -0.12px;
+}
 .btn--icon {
   padding: 0;
   width: 36px;
@@ -594,9 +602,10 @@ input, select, textarea { font-family: inherit; }
 .as-card {
   background: var(--surface); border: 1px solid var(--border-1);
   border-radius: var(--r-lg); padding: 12px 14px;
-  cursor: pointer; transition: border-color 0.14s, box-shadow 0.14s;
+  cursor: pointer; transition: border-color 0.14s, box-shadow 0.14s, transform 100ms;
 }
 .as-card:hover { border-color: var(--primary); }
+.as-card:active { transform: scale(0.98); }
 .as-card--active {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-50);
@@ -723,6 +732,24 @@ input, select, textarea { font-family: inherit; }
   transition: opacity 120ms;
 }
 .photo-lightbox__close:hover { opacity: 1; }
+.photo-lightbox__nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.photo-lightbox__nav-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  border-radius: 50%;
+  width: 36px; height: 36px;
+  font-size: 22px; line-height: 1;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.photo-lightbox__nav-btn:hover:not(:disabled) { background: rgba(255,255,255,0.28); }
+.photo-lightbox__nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* Toolbar — Apple sub-nav inspired: parchment bg, hairline border */
 .toolbar {
@@ -766,6 +793,7 @@ input, select, textarea { font-family: inherit; }
   font-size: 13px;
   cursor: pointer;
   letter-spacing: -0.12px;
+  transition: background 140ms, color 140ms, border-color 140ms;
 }
 .toolbar__filter:hover { background: var(--surface-3); }
 .toolbar__filter--active {
@@ -795,6 +823,7 @@ input, select, textarea { font-family: inherit; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  transition: background 140ms, color 140ms, box-shadow 140ms;
 }
 .toolbar__view__btn--active {
   background: var(--surface);
@@ -904,12 +933,14 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--r-md);
   padding: 14px 16px;
   cursor: pointer;
-  transition: border-color 140ms;
+  transition: border-color 140ms, box-shadow 200ms, transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .kanban__card:hover {
   border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+  transform: translateY(-1px);
 }
-.kanban__card:active { transform: scale(0.99); }
+.kanban__card:active { transform: scale(0.98); }
 .kanban__card__top {
   display: flex;
   justify-content: space-between;
@@ -948,13 +979,17 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--r-lg);
   padding: 18px 20px;
   cursor: pointer;
-  transition: border-color 140ms;
+  transition: border-color 140ms, box-shadow 200ms, transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.ordercard:hover { border-color: var(--primary); }
-.ordercard:active { transform: scale(0.99); }
+.ordercard:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+  transform: translateY(-1px);
+}
+.ordercard:active { transform: scale(0.98); }
 .ordercard__top {
   display: flex;
   justify-content: space-between;
@@ -1226,6 +1261,8 @@ input, select, textarea { font-family: inherit; }
   .screen { padding: 20px 18px 48px; }
   .screen__head { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
   .screen__head > *:last-child { width: 100%; justify-content: flex-start !important; }
+  .sales-controls { align-items: flex-start; }
+  .sales-buttons { justify-content: flex-start; }
   .screen__title { font-size: 22px; }
 
   .statrow { grid-template-columns: repeat(2, 1fr); }
@@ -1247,8 +1284,6 @@ input, select, textarea { font-family: inherit; }
   .toolbar__search { max-width: 100%; width: 100%; }
   .dgrid { grid-template-columns: 1fr; }
   .gridcards { grid-template-columns: 1fr 1fr; }
-  .sales-layout { grid-template-columns: 1fr !important; }
-  .sales-preview { display: none !important; }
 }
 
 @media (max-width: 600px) {
@@ -1328,6 +1363,44 @@ input, select, textarea { font-family: inherit; }
   .btn--lg { height: 44px; padding: 0 18px; font-size: 15px; }
 }
 
+/* Sales controls — 진행률(위) + 버튼(아래) 수직 정렬 */
+.sales-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.sales-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.sales-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Sales input layout */
+.sales-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+.sales-preview--mobile { display: none; }
+
+@media (max-width: 1200px) {
+  .sales-layout { grid-template-columns: 1fr; }
+  .sales-preview { display: none; }
+  .sales-preview--mobile { display: block; }
+}
+
 /* Form grid */
 .form-grid {
   display: grid;
@@ -1347,6 +1420,28 @@ input, select, textarea { font-family: inherit; }
   gap: 12px;
 }
 .form-grid--full > * { grid-column: 1 / -1; }
+
+.sales-summary-strip {
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.sales-summary-strip summary {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+.sales-summary-strip summary::-webkit-details-marker { display: none; }
+.sales-summary-strip[open] summary { border-bottom: 1px solid var(--border-1); }
+.sales-summary-strip .kv { padding: 12px 16px; margin: 0; }
 
 .section-title {
   display: flex;
@@ -1393,6 +1488,15 @@ input, select, textarea { font-family: inherit; }
   display: inline-grid;
   place-items: center;
   cursor: help;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.helpdot:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ============================================================
@@ -1996,12 +2100,27 @@ input, select, textarea { font-family: inherit; }
 @media (pointer: coarse) {
   /* Minimum 44px hit area on touch devices */
   .btn--sm          { min-height: 44px; }
+  .btn--tag         { min-height: 44px; }
+  .chip             { min-height: 44px; padding: 10px 16px; }
   .toolbar__view__btn { min-height: 44px; padding: 0 14px; }
   .drawer__close    { width: 44px; height: 44px; }
   .photo-thumb__del {
-    width: 32px; height: 32px;
-    font-size: 17px;
-    top: 4px; right: 4px;
+    width: 44px; height: 44px;
+    font-size: 19px;
+    top: 2px; right: 2px;
+  }
+  .photo-thumb__confirm-btns button {
+    height: 44px;
+  }
+  /* helpdot: expand hit area without changing visual size */
+  .helpdot {
+    position: relative;
+  }
+  .helpdot::after {
+    content: '';
+    position: absolute;
+    top: -15px; bottom: -15px;
+    left: -15px; right: -15px;
   }
 }
 
@@ -2051,6 +2170,33 @@ input, select, textarea { font-family: inherit; }
 /* ============================================================
    Motion — purposeful animations (state, feedback, transition)
    ============================================================ */
+
+/* Login card entrance — fires on mount when user is not authenticated */
+@keyframes logincardin {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to   { opacity: 1; transform: none; }
+}
+.login__card {
+  animation: logincardin 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Login error message — fades in from above when validation fails */
+@keyframes loginerrfade {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+.login__err {
+  animation: loginerrfade 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Demo account list — slides down when toggle is clicked */
+@keyframes demoslide {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
+}
+.login__demo__list {
+  animation: demoslide 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 
 @keyframes screenin {
   from { opacity: 0; transform: translateY(4px); }
@@ -2145,6 +2291,16 @@ input, select, textarea { font-family: inherit; }
   animation: emptyFloat 3.2s ease-in-out infinite;
 }
 
+/* AS card list stagger — fires on mount; uses --i CSS custom prop set via JSX */
+@keyframes ascardIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+.as-card {
+  animation: ascardIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+
 /* AS 접수 모달 — 신고자 정보 그리드 */
 .reporter-info {
   display: grid;
@@ -2158,4 +2314,17 @@ input, select, textarea { font-family: inherit; }
   .topnav__brand{
     display: none;
   }
+}
+
+/* ============================================================
+   Utility — screen-reader only
+   ============================================================ */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

@@ -160,6 +160,24 @@ window.actions = {
     notify();
     setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
   },
+  revertToAwaitPickup(order_id) {
+    const s = window[STORE_KEY];
+    const ok = window.PMDB.revertToAwaitPickup(order_id);
+    if (!ok) return;
+    s.orders = window.PMDB.loadOrders();
+    s.toast = { kind: 'success', text: `오더 #${order_id} 출하대기로 변경` };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+  },
+  revertToInProgress(order_id) {
+    const s = window[STORE_KEY];
+    const ok = window.PMDB.revertToInProgress(order_id);
+    if (!ok) return;
+    s.orders = window.PMDB.loadOrders();
+    s.toast = { kind: 'success', text: `오더 #${order_id} 생산진행중으로 변경` };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+  },
   startProduction(order_id) {
     const s = window[STORE_KEY];
     const ok = window.PMDB.startProduction(order_id);

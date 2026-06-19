@@ -66,7 +66,7 @@ INSERT INTO users (user_id, password, name, role, dept, phone, email) VALUES
   ('admin', '1234', '박우진', 'admin',      '충전기개발실',  '010-2567-8418', 'wjpark@egtronics.com'),
   ('sales', '1234', '신정륜', 'sales',      '영업부',        '010-3000-4000', 'sales@egtrinocs.com'),
   ('prod',  '1234', '김태윤', 'production', '생산부',        '010-5000-6000', 'prod@egtrinocs.com'),
-  ('as',    '1234', '민경선', 'as',         '품질관리본부',  '010-5000-6000', 'as@egtrinocs.com')
+  ('quality',    '1234', '민경선', 'quality',         '품질관리본부',  '010-5000-6000', 'as@egtrinocs.com')
 ON CONFLICT (user_id) DO NOTHING;
 
 -- ┌──────────────────────────────────┐

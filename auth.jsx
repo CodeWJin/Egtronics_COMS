@@ -5,10 +5,9 @@ window.ROLE_TABS = {
   admin:      ['sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
   sales:      ['sales', 'waiting', 'lookup','as-receipt','as-processing'],
   production: ['waiting', 'mapping', 'AwaitPickup', 'lookup'],
-  quality:    ['AwaitPickup', 'lookup'],
-  as:         ['lookup', 'as-receipt', 'as-processing'],
+  quality:    ['AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
-window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질', as: 'A/S' };
+window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질'};
 
 const { useState: useStateAU } = React;
 
@@ -105,6 +104,7 @@ function LoginScreen() {
 const MAIL_API = `${window.location.origin}/api/send-code`;
 
 function PasswordResetModal({ onClose }) {
+  window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [step, setStep] = useStateAU(1); // 1: 본인확인  2: 인증번호  3: 새 비밀번호  4: 완료
   const [userId, setUserId] = useStateAU('');

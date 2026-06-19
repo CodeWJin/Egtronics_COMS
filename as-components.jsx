@@ -13,15 +13,14 @@ window.FAULT_TYPES = [
 
 window.AS_STATUS_LIST = ['접수대기', '담당자배정', '처리중', '처리완료'];
 
-window.AS_ACTION_TYPES = [
-  '원격 리셋',
-  '현장 출동',
-  '보드 교체',
-  '커넥터 교체',
-  '펌웨어 업데이트',
-  '네트워크 점검',
-  '기타',
+window.AS_ACTION_TYPE_GROUPS = [
+  { label: '하드웨어(HW) 및 부품 관리', items: ['부품 교체 (냉땜 등)', '배선 교체', '외함 교체', '하드웨어 교체', '제품교체'] },
+  { label: '소프트웨어(SW) 및 설정 관리', items: ['펌웨어 업데이트', 'HMI 업데이트', '설정 변경', '원격 리셋'] },
+  { label: '통신 및 네트워크',             items: ['통신연결불량', '무선모뎀 문제'] },
+  { label: '인프라 설치 및 외부 요인',     items: ['충전기 설치 문제 / 시공문제', '차량 이상 진단', '사용자 사용 문제'] },
+  { label: '원인 분석 및 기타',             items: ['원인분석', '특이사항없음'] },
 ];
+window.AS_ACTION_TYPES = window.AS_ACTION_TYPE_GROUPS.flatMap(g => g.items);
 
 // ── 상태 배지 ──────────────────────────────────────────────────────
 function AsStatusBadge({ status }) {
@@ -43,6 +42,7 @@ window.AsPriorityBadge = AsPriorityBadge;
 
 // ── 주문 목록에서 충전소/충전기 검색 모달 ─────────────────────────
 function ChargerSearchModal({ onSelect, onClose }) {
+  window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [query, setQuery] = useStateASC('');
 
@@ -65,8 +65,8 @@ function ChargerSearchModal({ onSelect, onClose }) {
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-charger-search-title" style={{ width: 620, maxWidth: '96vw' }}>
         <div className="modal__head">
-          <h3 id="modal-charger-search-title" className="modal__title">충전소 검색</h3>
-          <p className="modal__sub">생산완료된 오더 중 충전소를 검색하여 정보를 자동 입력합니다</p>
+          <h3 id="modal-charger-search-title" className="modal__title">충전기 검색</h3>
+          <p className="modal__sub">출하완료된 오더 중 충전기를 검색하여 정보를 자동 입력합니다</p>
         </div>
         <div className="modal__body">
           <input
