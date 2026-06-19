@@ -12,6 +12,194 @@ const SHIP_CHECKLIST = [
   { key: 'ship_label_ok', label: '출하 라벨 부착 완료' },
 ];
 
+/* ────────── 출하 전 사진 탭 ────────── */
+function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
+  const [photos, setPhotos] = React.useState(() => {
+    try { return window.PMDB?.getShipPhotos?.(orderId) || []; } catch (_) { return []; }
+  });
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadErr, setUploadErr] = React.useState('');
+  const [lightbox, setLightbox] = React.useState(null);
+  const [confirmDel, setConfirmDel] = React.useState(null);
+  const fileInputRef = React.useRef(null);
+  const lightboxRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (lightbox !== null && lightboxRef.current) lightboxRef.current.focus();
+  }, [lightbox]);
+
+  const currentUser = window.__pm_store__?.currentUser;
+
+  const handleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setUploadErr('');
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) {
+        setUploadErr('이미지 파일만 업로드할 수 있습니다.');
+        continue;
+      }
+      setUploading(true);
+      try {
+        const entry = await window.PMDB.addShipPhoto(orderId, file, currentUser?.user_id || '');
+        setPhotos(prev => {
+          const next = [...prev, entry];
+          onCountChange(next.length);
+          return next;
+        });
+      } catch (e) {
+        setUploadErr('업로드 실패: ' + e.message);
+      } finally {
+        setUploading(false);
+      }
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDelete = async (storagePath) => {
+    try {
+      await window.PMDB.deleteShipPhoto(orderId, storagePath);
+      setPhotos(prev => {
+        const next = prev.filter(p => p.storage_path !== storagePath);
+        onCountChange(next.length);
+        return next;
+      });
+    } catch (e) {
+      setUploadErr('삭제 실패: ' + e.message);
+    }
+    setConfirmDel(null);
+  };
+
+  if (!hasInspRow) {
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+        <Icon name="doc" size={28} style={{ color: 'var(--ink-5)', marginBottom: 12 }}/>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 6 }}>
+          출하검사 성적서를 먼저 저장하세요
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.5 }}>
+          체크리스트 탭에서 검사 정보를 입력하고 저장하면<br/>사진을 첨부할 수 있습니다.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <input ref={fileInputRef} type="file" accept="image/*" multiple capture="environment"
+        style={{ display: 'none' }} onChange={e => handleFiles(e.target.files)}/>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button className="btn btn--primary" disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}>
+          <Icon name="plus" size={13}/> {uploading ? '업로드 중…' : '사진 첨부'}
+        </button>
+        <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>
+          {photos.length > 0 ? `${photos.length}장 첨부됨` : '첨부된 사진이 없습니다'}
+        </span>
+      </div>
+
+      {uploadErr && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 'var(--r-sm)', fontSize: 13,
+          background: '#fef2f2', border: '1px solid #ef4444', color: '#dc2626',
+        }}>
+          {uploadErr}
+        </div>
+      )}
+
+      {photos.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
+          {photos.map((photo, idx) => (
+            <div key={photo.storage_path} style={{
+              position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden',
+              aspectRatio: '1', background: 'var(--surface-2)',
+            }}>
+              <img src={photo.url} alt={photo.filename}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
+                onClick={() => setLightbox(idx)}/>
+              {confirmDel === photo.storage_path ? (
+                <div style={{
+                  position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  justifyContent: 'center', gap: 4, padding: 6,
+                }}>
+                  <span style={{ fontSize: 11, color: '#fff', textAlign: 'center', marginBottom: 2 }}>삭제할까요?</span>
+                  <button onClick={() => handleDelete(photo.storage_path)}
+                    style={{ width: '100%', height: 44, background: '#dc2626', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    삭제
+                  </button>
+                  <button onClick={() => setConfirmDel(null)}
+                    style={{ width: '100%', height: 44, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, cursor: 'pointer' }}>
+                    취소
+                  </button>
+                </div>
+              ) : (
+                <button aria-label="사진 삭제"
+                  style={{
+                    position: 'absolute', top: 4, right: 4, width: 28, height: 28,
+                    background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%',
+                    color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                  onClick={() => setConfirmDel(photo.storage_path)}>
+                  <Icon name="x" size={12}/>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {lightbox !== null && (
+        <div ref={lightboxRef} tabIndex={-1}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setLightbox(null)}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setLightbox(null);
+            if (e.key === 'ArrowLeft' && lightbox > 0) setLightbox(lightbox - 1);
+            if (e.key === 'ArrowRight' && lightbox < photos.length - 1) setLightbox(lightbox + 1);
+          }}>
+          <img src={photos[lightbox]?.url} alt={photos[lightbox]?.filename}
+            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
+          <button aria-label="닫기"
+            style={{
+              position: 'absolute', top: 16, right: 16, width: 40, height: 40,
+              background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
+              color: '#fff', fontSize: 20, cursor: 'pointer',
+            }}
+            onClick={() => setLightbox(null)}>×</button>
+          {lightbox > 0 && (
+            <button aria-label="이전 사진"
+              style={{
+                position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
+                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+              }}
+              onClick={e => { e.stopPropagation(); setLightbox(lightbox - 1); }}>‹</button>
+          )}
+          {lightbox < photos.length - 1 && (
+            <button aria-label="다음 사진"
+              style={{
+                position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)',
+                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+              }}
+              onClick={e => { e.stopPropagation(); setLightbox(lightbox + 1); }}>›</button>
+          )}
+          <div style={{
+            position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+            color: 'rgba(255,255,255,0.6)', fontSize: 12,
+          }}>
+            {lightbox + 1} / {photos.length}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ────────── 출하 검사 성적서 Drawer ────────── */
 function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose }) {
   const [closing, setClosing] = React.useState(false);
@@ -26,6 +214,10 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
     Object.fromEntries(SHIP_CHECKLIST.map(c => [c.key, existingData?.checks?.[c.key] || false]))
   );
   const [notes, setNotes] = React.useState(existingData?.notes || '');
+  const [activeTab, setActiveTab] = React.useState('checklist');
+  const [photoCount, setPhotoCount] = React.useState(() => {
+    try { return (window.PMDB?.getShipPhotos?.(order.order_id) || []).length; } catch (_) { return 0; }
+  });
 
   const handleClose = React.useCallback(() => {
     setClosing(true);
@@ -42,7 +234,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
 
   const checkedCount = Object.values(checks).filter(Boolean).length;
   const allChecked = checkedCount === SHIP_CHECKLIST.length;
-  const canSave = !!(inspDate && inspector.trim() && allChecked);
+  const canSave = !!(inspDate && inspector.trim());
 
   const handleSave = () => {
     onSave({ insp_date: inspDate, inspector: inspector.trim(), checks, notes, saved_at: new Date().toISOString() });
@@ -52,7 +244,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
-      <aside className={`drawer${closing ? ' drawer--closing' : ''}`}>
+      <aside className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="출하 검사 성적서">
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 오더 #{order.order_id}</div>
@@ -62,94 +254,126 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
           <button className="drawer__close" onClick={handleClose} aria-label="닫기"><Icon name="x" size={16}/></button>
         </div>
 
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-1)', background: 'var(--surface)', flexShrink: 0 }}>
+          {[
+            { key: 'checklist', label: '체크리스트' },
+            { key: 'photos',    label: photoCount > 0 ? `사진 (${photoCount})` : '사진' },
+          ].map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              style={{
+                flex: 1, height: 44, background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 400,
+                color: activeTab === tab.key ? 'var(--primary-600)' : 'var(--ink-3)',
+                borderBottom: activeTab === tab.key ? '2px solid var(--primary-600)' : '2px solid transparent',
+                transition: 'color 120ms, border-color 120ms',
+              }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div className="drawer__body">
-          <section style={{ background: 'var(--primary-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
-                <Icon name="doc" size={16} style={{ color: 'var(--primary-600)' }}/>
-              </div>
-              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>기본 정보</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div className="field">
-                <label className="field__label">검사일자 <span className="field__req">*</span></label>
-                <input type="date" className="input" value={inspDate} onChange={e => setInspDate(e.target.value)}/>
-              </div>
-              <div className="field">
-                <label className="field__label">검사자 <span className="field__req">*</span></label>
-                <input type="text" className="input" placeholder="검사자 이름" value={inspector} onChange={e => setInspector(e.target.value)}/>
-              </div>
-            </div>
-          </section>
-
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
-                 onClick={() => setChecks(Object.fromEntries(SHIP_CHECKLIST.map(c => [c.key, !allChecked])))}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
-                <Icon name="check" size={16} style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-2)' }}/>
-              </div>
-              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>출하 검사 체크리스트</span>
-              <span style={{ fontSize: 12.5, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
-                {checkedCount}/{SHIP_CHECKLIST.length}
-              </span>
-              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-4)' }}>
-                {allChecked ? '전체 해제 ▲' : '전체 선택 ▼'}
-              </span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {SHIP_CHECKLIST.map(item => (
-                <label key={item.key} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                  background: checks[item.key] ? 'var(--success-50)' : 'var(--surface)',
-                  border: `1px solid ${checks[item.key] ? 'var(--success)' : 'var(--border-1)'}`,
-                  borderRadius: 'var(--r-sm)', cursor: 'pointer',
-                  transition: 'background 120ms, border-color 120ms',
-                }}>
-                  <input type="checkbox" checked={checks[item.key]}
-                    onChange={e => setChecks(prev => ({ ...prev, [item.key]: e.target.checked }))}
-                    style={{ accentColor: 'var(--success-700)', width: 15, height: 15, flexShrink: 0 }}/>
-                  <span style={{ fontSize: 13.5, color: checks[item.key] ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: checks[item.key] ? 600 : 400 }}>
-                    {item.label}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </section>
-
-          <section style={{
-            borderRadius: 'var(--r-lg)', padding: '14px 16px',
-            background: allChecked ? 'var(--success-50)' : 'var(--surface-2)',
-            border: `1px solid ${allChecked ? 'var(--success)' : 'var(--border-1)'}`,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Icon name={allChecked ? 'check' : 'clock'} size={18}
-                style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
-              <div>
-                <div style={{ fontSize: 14.5, fontWeight: 700, color: allChecked ? 'var(--success-700)' : 'var(--ink-3)' }}>
-                  종합 판정: {allChecked ? '합격 (PASS)' : '검사 미완료'}
+          {activeTab === 'checklist' && (<>
+            <section style={{ background: 'var(--primary-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+                  <Icon name="doc" size={16} style={{ color: 'var(--primary-600)' }}/>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>
-                  {allChecked ? '전 항목 확인 완료 · 출하 가능 상태' : `${SHIP_CHECKLIST.length - checkedCount}개 항목 미확인`}
+                <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>기본 정보</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="field">
+                  <label className="field__label">검사일자 <span className="field__req">*</span></label>
+                  <input type="date" className="input" value={inspDate} onChange={e => setInspDate(e.target.value)}/>
+                </div>
+                <div className="field">
+                  <label className="field__label">검사자 <span className="field__req">*</span></label>
+                  <input type="text" className="input" placeholder="검사자 이름" value={inspector} onChange={e => setInspector(e.target.value)}/>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <div className="field">
-              <label className="field__label">비고</label>
-              <textarea className="textarea" rows={3} placeholder="특이사항 기입 (선택)"
-                value={notes} onChange={e => setNotes(e.target.value)}/>
-            </div>
-          </section>
+            <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
+                   onClick={() => setChecks(Object.fromEntries(SHIP_CHECKLIST.map(c => [c.key, !allChecked])))}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+                  <Icon name="check" size={16} style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-2)' }}/>
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>출하 검사 체크리스트</span>
+                <span style={{ fontSize: 12.5, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
+                  {checkedCount}/{SHIP_CHECKLIST.length}
+                </span>
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--ink-4)' }}>
+                  {allChecked ? '전체 해제 ▲' : '전체 선택 ▼'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {SHIP_CHECKLIST.map(item => (
+                  <label key={item.key} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    background: checks[item.key] ? 'var(--success-50)' : 'var(--surface)',
+                    border: `1px solid ${checks[item.key] ? 'var(--success)' : 'var(--border-1)'}`,
+                    borderRadius: 'var(--r-sm)', cursor: 'pointer',
+                    transition: 'background 120ms, border-color 120ms',
+                  }}>
+                    <input type="checkbox" checked={checks[item.key]}
+                      onChange={e => setChecks(prev => ({ ...prev, [item.key]: e.target.checked }))}
+                      style={{ accentColor: 'var(--success-700)', width: 15, height: 15, flexShrink: 0 }}/>
+                    <span style={{ fontSize: 13.5, color: checks[item.key] ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: checks[item.key] ? 600 : 400 }}>
+                      {item.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section style={{
+              borderRadius: 'var(--r-lg)', padding: '14px 16px',
+              background: allChecked ? 'var(--success-50)' : 'var(--surface-2)',
+              border: `1px solid ${allChecked ? 'var(--success)' : 'var(--border-1)'}`,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Icon name={allChecked ? 'check' : 'clock'} size={18}
+                  style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
+                <div>
+                  <div style={{ fontSize: 14.5, fontWeight: 700, color: allChecked ? 'var(--success-700)' : 'var(--ink-3)' }}>
+                    종합 판정: {allChecked ? '합격 (PASS)' : '검사 미완료'}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-4)', marginTop: 2 }}>
+                    {allChecked ? '전 항목 확인 완료 · 출하 가능 상태' : `${SHIP_CHECKLIST.length - checkedCount}개 항목 미확인`}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <div className="field">
+                <label className="field__label">비고</label>
+                <textarea className="textarea" rows={3} placeholder="특이사항 기입 (선택)"
+                  value={notes} onChange={e => setNotes(e.target.value)}/>
+              </div>
+            </section>
+          </>)}
+
+          {activeTab === 'photos' && (
+            <ShipPhotoTab
+              orderId={order.order_id}
+              hasInspRow={!!window.PMDB?.getShipInspectionDB?.(order.order_id)}
+              onCountChange={setPhotoCount}
+            />
+          )}
         </div>
 
         <div className="drawer__foot">
-          <button className="btn btn--ghost" onClick={handleClose}>취소</button>
-          <button className="btn btn--primary" onClick={handleSave} disabled={!canSave}
-            title={!canSave ? '검사일자, 검사자, 전 체크리스트 항목을 완료해 주세요' : ''}>
-            <Icon name="check" size={13}/> 검사 완료 저장
+          <button className="btn btn--ghost" onClick={handleClose}>
+            {activeTab === 'checklist' ? '취소' : '닫기'}
           </button>
+          {activeTab === 'checklist' && (
+            <button className="btn btn--primary" onClick={handleSave} disabled={!canSave}
+              title={!canSave ? '검사일자와 검사자를 입력해 주세요' : ''}>
+              <Icon name="check" size={13}/> 검사 완료 저장
+            </button>
+          )}
         </div>
       </aside>
     </>,
@@ -246,7 +470,7 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
 
   const checkedCount = Object.values(checks).filter(Boolean).length;
   const allChecked = checkedCount === FUNC_CHECKLIST.length;
-  const canSave = !!(inspDate && inspector.trim() && allChecked);
+  const canSave = !!(inspDate && inspector.trim());
 
   const handleSave = () => {
     onSave({ insp_date: inspDate, inspector: inspector.trim(), checks, notes, saved_at: new Date().toISOString() });
@@ -383,7 +607,7 @@ function FuncInspectionDrawer({ order, existingData, onSave, onClose }) {
         <div className="drawer__foot">
           <button className="btn btn--ghost" onClick={handleClose}>취소</button>
           <button className="btn btn--primary" onClick={handleSave} disabled={!canSave}
-            title={!canSave ? '검정일자, 검사자, 전 체크리스트 항목을 완료해 주세요' : ''}>
+            title={!canSave ? '검정일자와 검사자를 입력해 주세요' : ''}>
             <Icon name="check" size={13}/> 검사 완료 저장
           </button>
         </div>
@@ -412,6 +636,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
   }, [order, funcData]);
 
   const inspDateDisplay = funcData?.insp_date || p.inspection_date || '—';
+  const funcAllPassed = !!funcData && FUNC_CHECKLIST.every(item => funcData.checks?.[item.key]);
 
   return (
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -487,7 +712,10 @@ function InspectionReport({ order, inspectionData, onClose }) {
                   <th>검정 유효기간</th>
                   <td>{validUntil ? `${validUntil}까지` : <span style={{ color: 'var(--ink-4)' }}>비공용 — 해당없음</span>}</td>
                   <th>종합 판정</th>
-                  <td><span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span></td>
+                  <td>{funcAllPassed
+                    ? <span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span>
+                    : <span style={{ color: '#dc2626', fontWeight: 700 }}>미완료</span>}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -523,14 +751,16 @@ function InspectionReport({ order, inspectionData, onClose }) {
               </table>
             )}
 
-            <div className="report__seal">
-              <div className="report__seal__txt">
-                위 충전기는 사내 출하 검사 규정 및 공인기관 형식승인 기준에 따라<br/>
-                검사를 시행하였으며, 그 결과 <strong style={{ color: 'var(--ink-1)' }}>적합</strong>함을 증명합니다.<br/>
-                <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 제조생산팀</span>
+            {funcAllPassed && (
+              <div className="report__seal">
+                <div className="report__seal__txt">
+                  위 충전기는 사내 출하 검사 규정 및 공인기관 형식승인 기준에 따라<br/>
+                  검사를 시행하였으며, 그 결과 <strong style={{ color: 'var(--ink-1)' }}>적합</strong>함을 증명합니다.<br/>
+                  <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 제조생산팀</span>
+                </div>
+                <div className="report__stamp">검사<br/>합격</div>
               </div>
-              <div className="report__stamp">검사<br/>합격</div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -541,6 +771,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
 /* ────────── 출하 검사 성적서 미리보기 ────────── */
 function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) {
   const p = order.production;
+  const shipAllPassed = SHIP_CHECKLIST.every(item => d.checks?.[item.key]);
 
   window.useLockScroll();
 
@@ -599,7 +830,10 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                 </tr>
                 <tr>
                   <th>종합 판정</th>
-                  <td colSpan={3}><span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span></td>
+                  <td colSpan={3}>{shipAllPassed
+                    ? <span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span>
+                    : <span style={{ color: '#dc2626', fontWeight: 700 }}>미완료</span>}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -634,14 +868,16 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
               </table>
             )}
 
-            <div className="report__seal">
-              <div className="report__seal__txt">
-                위 충전기는 사내 출하 검사 규정에 따라 전 항목을 점검하였으며,<br/>
-                그 결과 <strong style={{ color: 'var(--ink-1)' }}>이상 없음</strong>을 확인합니다.<br/>
-                <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 품질관리본부</span>
+            {shipAllPassed && (
+              <div className="report__seal">
+                <div className="report__seal__txt">
+                  위 충전기는 사내 출하 검사 규정에 따라 전 항목을 점검하였으며,<br/>
+                  그 결과 <strong style={{ color: 'var(--ink-1)' }}>이상 없음</strong>을 확인합니다.<br/>
+                  <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 품질관리본부</span>
+                </div>
+                <div className="report__stamp">출하<br/>합격</div>
               </div>
-              <div className="report__stamp">출하<br/>합격</div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -652,6 +888,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
 /* ────────── 기능 검사 성적서 미리보기 ────────── */
 function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
   const p = order.production;
+  const funcAllPassed = FUNC_CHECKLIST.every(item => d.checks?.[item.key]);
 
   window.useLockScroll();
 
@@ -718,7 +955,10 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
                 </tr>
                 <tr>
                   <th>종합 판정</th>
-                  <td colSpan={3}><span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span></td>
+                  <td colSpan={3}>{funcAllPassed
+                    ? <span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span>
+                    : <span style={{ color: '#dc2626', fontWeight: 700 }}>미완료</span>}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -753,14 +993,16 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
               </table>
             )}
 
-            <div className="report__seal">
-              <div className="report__seal__txt">
-                위 충전기는 사내 기능 검사 규정에 따라 전 항목을 점검하였으며,<br/>
-                그 결과 <strong style={{ color: 'var(--ink-1)' }}>이상 없음</strong>을 확인합니다.<br/>
-                <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 제조생산팀</span>
+            {funcAllPassed && (
+              <div className="report__seal">
+                <div className="report__seal__txt">
+                  위 충전기는 사내 기능 검사 규정에 따라 전 항목을 점검하였으며,<br/>
+                  그 결과 <strong style={{ color: 'var(--ink-1)' }}>이상 없음</strong>을 확인합니다.<br/>
+                  <span style={{ color: 'var(--ink-4)' }}>발급일 {new Date().toISOString().slice(0, 10)} · 제조생산팀</span>
+                </div>
+                <div className="report__stamp">기능<br/>합격</div>
               </div>
-              <div className="report__stamp">기능<br/>합격</div>
-            </div>
+            )}
           </div>
         </div>
       </div>
