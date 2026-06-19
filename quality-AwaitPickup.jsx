@@ -240,14 +240,7 @@ function ProductionCompleteScreen() {
                         </button>
                         <button
                           className={`btn btn--sm ${shipAllDone ? 'btn--success' : shipInsp ? 'btn--warning' : 'btn--secondary'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (shipAllDone) {
-                              setShipReport({ order: o, inspectionData: shipInsp });
-                            } else {
-                              setShipInspectOrder(o);
-                            }
-                          }}>
+                          onClick={(e) => { e.stopPropagation(); setShipInspectOrder(o); }}>
                           <Icon name={shipAllDone ? 'check' : 'doc'} size={12}/> 출하검사
                           {(() => {
                             const cnt = window.PMDB?.getShipPhotos?.(o.order_id)?.length || 0;
@@ -258,6 +251,13 @@ function ProductionCompleteScreen() {
                             ) : null;
                           })()}
                         </button>
+                        {shipAllDone && (
+                          <button className="btn btn--sm btn--ghost"
+                            onClick={(e) => { e.stopPropagation(); setShipReport({ order: o, inspectionData: shipInsp }); }}
+                            style={{ fontSize: 11 }}>
+                            <Icon name="doc" size={11}/> 성적서 보기
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td>
