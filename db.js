@@ -53,7 +53,6 @@
     { user_id: 'sales',   password: '1234', name: '신정륜', role: 'sales',      dept: '영업부',       phone: '010-3000-4000', email: 'sales@egtrinocs.com' },
     { user_id: 'prod',    password: '1234', name: '김태윤', role: 'production', dept: '생산부',       phone: '010-5000-6000', email: 'prod@egtrinocs.com' },
     { user_id: 'qual',    password: '1234', name: '민경선', role: 'quality',    dept: '품질관리본부',  phone: '010-5000-6000', email: 'qual@egtrinocs.com' },
-    { user_id: 'as',      password: '1234', name: '민경선', role: 'as',         dept: '유지관리',      phone: '010-5000-6000', email: 'as@egtrinocs.com' },
   ];
   window.SEED_USERS = SEED_USERS;
 
@@ -280,6 +279,11 @@
         if (o) o.status = 'PENDING';
         const prod = cache.production.find(x => x.order_id === order_id);
         if (prod) prod.serial_no = null;
+        // 출하 사진 경로를 캐시에서 수집 (삭제 전에)
+        const shipRow = cache.ship_inspections.find(x => x.order_id === order_id);
+        const shipPhotoPaths = shipRow
+          ? JSON.parse(shipRow.photos || '[]').map(p => p.storage_path).filter(Boolean)
+          : [];
         cache.func_inspections = cache.func_inspections.filter(x => x.order_id !== order_id);
         cache.ship_inspections = cache.ship_inspections.filter(x => x.order_id !== order_id);
         dbLog('INFO', 'write:revert', `생산대기로 변경 — serial 초기화·검사 삭제, order_id=${order_id}`);
@@ -287,7 +291,11 @@
           await client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id);
           await client.from('tb_production_info').update({ serial_no: null }).eq('order_id', order_id);
           await client.from('tb_func_inspection').delete().eq('order_id', order_id);
-          return client.from('tb_ship_inspection').delete().eq('order_id', order_id);
+          await client.from('tb_ship_inspection').delete().eq('order_id', order_id);
+          if (shipPhotoPaths.length > 0) {
+            try { await client.storage.from('ship-photos').remove(shipPhotoPaths); } catch (_) {}
+          }
+          return { error: null };
         });
       },
 
@@ -719,7 +727,14 @@
       getShipInspectionDB(order_id) {
         const r = cache.ship_inspections.find(x => x.order_id === order_id);
         if (!r) return null;
-        return { insp_date: r.insp_date, inspector: r.inspector, checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at };
+        return {
+          insp_date: r.insp_date,
+          inspector: r.inspector,
+          checks: JSON.parse(r.checks || '{}'),
+          notes: r.notes || '',
+          saved_at: r.saved_at,
+          photos: JSON.parse(r.photos || '[]'),
+        };
       },
 
       saveShipInspection(order_id, data) {
@@ -733,14 +748,66 @@
         const existing = cache.ship_inspections.find(x => x.order_id === order_id);
         if (existing) {
           Object.assign(existing, { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+          // photos 필드는 건드리지 않음 — addShipPhoto/deleteShipPhoto로만 변경
         } else {
-          cache.ship_inspections.push({ order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+          cache.ship_inspections.push({ order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at, photos: '[]' });
         }
         dbLog('INFO', 'write:tb_ship_inspection', `출하 검사 성적서 저장 — order_id=${order_id}`);
         dbWrite('tb_ship_inspection', 'upsert', () => client.from('tb_ship_inspection').upsert(
           { order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at },
           { onConflict: 'order_id' }
         ));
+        // photos 컬럼을 upsert payload에 포함하지 않음:
+        //   INSERT 시 → DB DEFAULT '[]' 적용
+        //   UPDATE 시 → 기존 photos 값 유지 (Supabase upsert는 payload에 없는 컬럼을 덮어쓰지 않음)
+      },
+
+      getShipPhotos(order_id) {
+        const r = cache.ship_inspections.find(x => x.order_id === order_id);
+        if (!r) return [];
+        try { return JSON.parse(r.photos || '[]'); } catch (_) { return []; }
+      },
+
+      async addShipPhoto(order_id, file, by) {
+        const existing = cache.ship_inspections.find(x => x.order_id === order_id);
+        if (!existing) throw new Error('출하검사 성적서를 먼저 저장하세요');
+        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const storagePath = `order/${order_id}/${Date.now()}_${file.name}`;
+        let url = '';
+        try {
+          const { error: upErr } = await client.storage.from('ship-photos').upload(storagePath, file, { upsert: false });
+          if (upErr) throw upErr;
+          const { data: urlData } = client.storage.from('ship-photos').getPublicUrl(storagePath);
+          url = urlData.publicUrl || '';
+        } catch (e) {
+          dbLog('ERROR', 'addShipPhoto', 'Storage 업로드 실패 — ' + e.message);
+          throw e;
+        }
+        const photoEntry = { filename: file.name, url, storage_path: storagePath, uploaded_by: by || '', uploaded_at: now };
+        const currentPhotos = JSON.parse(existing.photos || '[]');
+        currentPhotos.push(photoEntry);
+        existing.photos = JSON.stringify(currentPhotos);
+        dbLog('INFO', 'write:tb_ship_inspection', `출하 사진 추가 — order_id=${order_id}, path=${storagePath}`);
+        const photosJson = existing.photos;
+        dbWrite('tb_ship_inspection', 'update-photos', () =>
+          client.from('tb_ship_inspection').update({ photos: photosJson }).eq('order_id', order_id)
+        );
+        return photoEntry;
+      },
+
+      async deleteShipPhoto(order_id, storagePath) {
+        const existing = cache.ship_inspections.find(x => x.order_id === order_id);
+        if (!existing) return;
+        const currentPhotos = JSON.parse(existing.photos || '[]');
+        existing.photos = JSON.stringify(currentPhotos.filter(p => p.storage_path !== storagePath));
+        dbLog('INFO', 'write:tb_ship_inspection', `출하 사진 삭제 — order_id=${order_id}, path=${storagePath}`);
+        if (storagePath) {
+          try { await client.storage.from('ship-photos').remove([storagePath]); } catch (_) {}
+        }
+        const photosJson = existing.photos;
+        dbWrite('tb_ship_inspection', 'update-photos', () =>
+          client.from('tb_ship_inspection').update({ photos: photosJson }).eq('order_id', order_id)
+        );
       },
 
       addMasterCableLength(value) {
@@ -942,6 +1009,9 @@
     saveFuncInspection(id, data)    { return this.backend.saveFuncInspection(id, data); },
     deleteFuncInspection(id)        { return this.backend.deleteFuncInspection(id); },
     getShipInspectionDB(id)         { return this.backend.getShipInspectionDB(id); },
+    getShipPhotos(id)               { return this.backend.getShipPhotos(id); },
+    addShipPhoto(id, file, by)      { return this.backend.addShipPhoto(id, file, by); },
+    deleteShipPhoto(id, path)       { return this.backend.deleteShipPhoto(id, path); },
     saveShipInspection(id, data)    { return this.backend.saveShipInspection(id, data); },
     getSwVersions()                 { return this.backend.getSwVersions(); },
     addMasterSwVersion(v)           { return this.backend.addMasterSwVersion(v); },
