@@ -323,6 +323,18 @@
         return true;
       },
 
+      awaitToInProgress(order_id) {
+        const o = cache.orders.find(x => x.order_id === order_id);
+        if (!o || o.status !== 'AWAIT_PICKUP') {
+          dbLog('WARN', 'write:tb_sales_order', `작업중 복귀 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
+        o.status = 'IN_PROGRESS';
+        dbLog('INFO', 'write:tb_sales_order', `출하대기→작업중 변경 — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'awaitToInProgress', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        return true;
+      },
+
       startProduction(order_id) {
         const o = cache.orders.find(x => x.order_id === order_id);
         if (!o || o.status !== 'PENDING') {
@@ -988,6 +1000,7 @@
     revertOrder(id)          { return this.backend.revertOrder(id); },
     revertToAwaitPickup(id)  { return this.backend.revertToAwaitPickup(id); },
     revertToInProgress(id)   { return this.backend.revertToInProgress(id); },
+    awaitToInProgress(id)    { return this.backend.awaitToInProgress(id); },
     startProduction(id)      { return this.backend.startProduction(id); },
     serialExists(s, excl)    { return this.backend.serialExists(s, excl); },
     getManagers(c)           { return this.backend.getManagers(c); },

@@ -10,11 +10,11 @@
 |------|-----------|------|
 | 영업 입력 | admin, sales | 신규 발주 등록 (고객사·모델·납품일·케이블·설치주소·현장담당자) |
 | 생산 대기 | admin, sales, production | 테이블·카드·칸반·타임라인 뷰, 수정이력 |
-| 생산 입력 | admin, production | 시리얼·로트·SW버전·검사일 입력, 시리얼 자동채번 |
-| 출하 대기 | admin, production, quality | 출하 검수 체크, CSV 내보내기 |
-| 통합 조회 | 전체 | 오더 검색·필터·정렬, 변경이력, A/S 이력 |
+| 생산 입력 | admin, production | 시리얼·로트·SW버전·검사일 입력, 시리얼 자동채번, 기능검사 성적서 작성, 상태 전환(출하완료·되돌리기) |
+| 출하 대기 | admin, production, quality | 출하 검사 성적서 작성·사진 첨부, 출하완료 처리, CSV 내보내기. 행 클릭 시 생산 입력 화면으로 이동 |
+| 통합 조회 | 전체 | 오더 검색·필터·정렬, 변경이력, 기능·출하 성적서 조회, A/S 이력(as 역할) |
 | 사용자 관리 | admin | 계정·역할 관리 |
-| A/S 접수 | admin, quality, sales | 접수번호(`AS-{연도,월}-{4자리}`) 자동발번, 고장유형·증상 등록 |
+| A/S 접수 | admin, quality, sales | 접수번호(`AS-{연도월일}-{4자리}`) 자동발번, 고장유형·증상 등록 |
 | A/S 처리 | admin, quality | 상태 흐름 관리, 처리이력 로그, 사진 첨부 |
 
 ## 기술 스택
@@ -50,6 +50,7 @@ npx vercel dev     # localhost:3000
 1. **최초 세팅**: Supabase 대시보드 → SQL Editor에서 `seed.sql` 전체 실행
 2. **스키마 변경만 반영**: `supabase-schema.sql`의 마이그레이션 전용 섹션만 실행 (기존 데이터 유지)
 3. **A/S 사진 첨부**: Supabase Storage에 `as-photos` 버킷을 퍼블릭으로 생성
+4. **출하 전 사진 첨부**: Supabase Storage에 `ship-photos` 버킷을 퍼블릭으로 생성
 
 ## 환경 변수 (Vercel)
 
@@ -75,8 +76,9 @@ npx vercel dev     # localhost:3000
 │  # 화면
 ├── sales-input.jsx          # 영업 입력
 ├── production-waiting.jsx   # 생산 대기 (테이블·카드·칸반·타임라인)
-├── production-mapping.jsx   # 생산 입력 (시리얼 채번 포함)
-├── quality-AwaitPickup.jsx  # 출하 대기 (검수 체크·CSV 내보내기)
+├── ship-inspection.jsx      # 기능·출하 검사 성적서 Drawer (공용)
+├── production-mapping.jsx   # 생산 입력 (시리얼 채번·상태 전환 포함)
+├── quality-AwaitPickup.jsx  # 출하 대기 (검수 체크·사진·CSV 내보내기)
 ├── order-lookup.jsx         # 통합 조회
 ├── admin-users.jsx          # 사용자 관리
 ├── as-components.jsx        # A/S 공용 상수·컴포넌트
@@ -86,6 +88,10 @@ npx vercel dev     # localhost:3000
 │  # 유틸리티
 ├── icons.jsx                # 아이콘 컴포넌트
 ├── tweaks-panel.jsx         # 실시간 테마 변경 패널
+│
+│  # 체크리스트 JSON (모델별)
+├── docs/ship/default.json   # 출하 검사 기본 체크리스트
+├── docs/func/default.json   # 기능 검사 기본 체크리스트
 │
 │  # Vercel Serverless
 ├── api/config.js            # GET /supabase-config.js
@@ -105,16 +111,19 @@ npx vercel dev     # localhost:3000
 | `tb_production_info` | 생산 실적 (시리얼·로트·SW버전·검사일) |
 | `tb_customer_manager` | 고객사별 담당자 목록 |
 | `tb_order_history` | 오더 변경 이력 |
+| `tb_func_inspection` | 기능 검사 성적서 (order_id UNIQUE) |
+| `tb_ship_inspection` | 출하 검사 성적서 + 출하 전 사진 (order_id UNIQUE) |
 | `tb_as_reception` | A/S 접수 |
 | `tb_as_log` | A/S 상태 변경 이력 |
 | `tb_as_photo` | A/S 첨부 사진 메타데이터 |
 | `tb_master_customer` | 고객사 마스터 |
 | `tb_master_cpo` | CPO 운영사 마스터 |
-| `tb_master_model` | 충전기 모델 마스터 |
+| `tb_master_model` | 충전기 모델 마스터 (`model` 코드, `name` 표시명) |
 | `tb_master_sw_version` | SW 버전 마스터 |
+| `tb_master_fw_version` | FW 버전 마스터 |
 | `tb_master_cable_length` | 케이블 길이 마스터 |
 
-**오더 상태 흐름**: `PENDING`(생산대기) → `IN_PROGRESS`(생산중) → `AWAIT_PICKUP`(출하대기) → `COMPLETED`(생산완료). 각 전환마다 `tb_order_history`에 이력 기록.
+**오더 상태 흐름**: `PENDING`(생산대기) → `IN_PROGRESS`(생산중) → `AWAIT_PICKUP`(출하대기) → `COMPLETED`(생산완료). 각 전환마다 `tb_order_history`에 이력 기록. `COMPLETED` 상태에서 `AWAIT_PICKUP` 또는 `IN_PROGRESS`로 되돌릴 수 있으며, 어느 상태에서든 `PENDING`으로 초기화 가능(시리얼·검사 데이터 삭제).
 
 ## 트러블슈팅
 

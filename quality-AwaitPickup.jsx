@@ -67,9 +67,11 @@ function ProductionCompleteScreen() {
   }, []);
 
   const handleShipComplete = React.useCallback((orderId) => {
-    if (confirm(`오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`)) {
-      window.actions.shipOrder(orderId);
-    }
+    window.actions.showConfirm(
+      `오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`,
+      () => window.actions.shipOrder(orderId),
+      { confirmLabel: '출하 완료' }
+    );
   }, []);
 
   const modelMap = useMemoPC(() => new Map(models.map(m => [m.name, m])), [models]);
@@ -174,7 +176,7 @@ function ProductionCompleteScreen() {
                  placeholder="고객사 · 시리얼 · 로트 검색"
                  value={search} onChange={(e) => setSearch(e.target.value)}/>
         </div>
-        <select className="select" aria-label="모델 필터" style={{ width: 160, height: 34 }}
+        <select className="select" aria-label="모델 필터" style={{ width: 160 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
           {models.map(m => <option key={m.name} value={m.name}>{m.model || m.name}</option>)}
@@ -192,7 +194,7 @@ function ProductionCompleteScreen() {
       {filtered.length === 0 ? (
         <div className="table-wrap">
           <div className="emptystate">
-            <Icon name="truck" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
+            <Icon name="truck" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }} aria-hidden="true"/>
             <div className="emptystate__title">출하대기 오더가 없습니다</div>
             <div className="emptystate__sub">생산 입력에서 실적을 등록하면 이 목록에 표시됩니다</div>
           </div>
@@ -216,9 +218,17 @@ function ProductionCompleteScreen() {
                 const shipInsp = shipInspections.get(o.order_id);
                 const shipAllDone = !!shipInsp &&
                   Object.keys(shipInsp.checks || {}).length > 0 &&
-                  Object.values(shipInsp.checks || {}).every(Boolean);
+                  Object.values(shipInsp.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
                 return (
-                  <tr key={o.order_id} className="row--clickable" onClick={() => { window.actions.selectOrder(o.order_id); window.actions.setView('mapping'); }}>
+                  <tr key={o.order_id} className="row--clickable" onClick={() => {
+                    const role = s.currentUser?.role;
+                    if (role === 'admin' || role === 'production') {
+                      window.actions.selectOrder(o.order_id);
+                      window.actions.setView('mapping');
+                    } else {
+                      setShipInspectOrder(o);
+                    }
+                  }}>
                     <td>
                       <div className="cell-strong">{o.customer_name}</div>
                       <div className="cell-muted">{modelInfo?.model || o.model_name}</div>

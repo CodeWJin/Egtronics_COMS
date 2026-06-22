@@ -438,6 +438,12 @@ function OrderDrawer({ order, onClose }) {
     try { return window.PMDB?.getShipPhotos?.(order.order_id) || []; } catch (_) { return []; }
   });
   const [shipPhotoLightbox, setShipPhotoLightbox] = React.useState(null);
+  const shipPhotoLightboxRef = React.useRef(null);
+  React.useEffect(() => {
+    if (shipPhotoLightbox !== null && shipPhotoLightboxRef.current) {
+      shipPhotoLightboxRef.current.focus();
+    }
+  }, [shipPhotoLightbox]);
 
   // DB 로드 완료 후 검사 데이터 재조회 (loadAll 비동기 완료 전 마운트 시 초기값이 null일 수 있음)
   React.useEffect(() => {
@@ -488,12 +494,18 @@ function OrderDrawer({ order, onClose }) {
   const canEditSales = (role === 'sales' || role === 'admin') && order.status === 'PENDING';
   const goMapping = () => { window.actions.selectOrder(order.order_id); window.actions.setView('mapping'); };
   const goEdit = () => { window.actions.editOrder(order.order_id); handleClose(); };
-  const revert = () => { if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 변경할까요?`)) { window.actions.revertOrder(order.order_id); handleClose(); } };
+  const revert = () => {
+    window.actions.showConfirm(
+      `오더 #${order.order_id}을(를) 생산대기 상태로 변경할까요?`,
+      () => { window.actions.revertOrder(order.order_id); handleClose(); },
+      { danger: true, confirmLabel: '변경' }
+    );
+  };
 
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
-      <aside className={`drawer${closing ? ' drawer--closing' : ''}`}>
+      <aside className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="오더 상세">
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 접수 {order.created}</div>
@@ -613,6 +625,7 @@ function OrderDrawer({ order, onClose }) {
         <FuncInspectionDrawer
           order={order}
           existingData={funcInspection}
+          modelInfo={modelObj}
           onSave={(data) => {
             window.setFuncInspection(order.order_id, data);
             setFuncInspectionState(data);
@@ -634,6 +647,7 @@ function OrderDrawer({ order, onClose }) {
         <ShipInspectionDrawer
           order={order}
           existingData={shipInspection}
+          modelInfo={modelObj}
           onSave={(data) => {
             window.setShipInspection(order.order_id, data);
             setShipInspectionState(data);
@@ -652,7 +666,8 @@ function OrderDrawer({ order, onClose }) {
         />
       )}
       {shipPhotoLightbox !== null && (
-        <div tabIndex={-1}
+        <div ref={shipPhotoLightboxRef} tabIndex={-1}
+          role="dialog" aria-modal="true" aria-label="출하 전 사진 라이트박스"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
             zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -48,21 +48,26 @@ async function loadChecklist(type, modelKey) {
       return data;
     }
   } catch (_) {}
+  _clCache.set(cacheKey, null); // 404/오류도 캐시 — 재진입마다 중복 요청 방지
   return null;
 }
 
 /* ────────── 체크리스트 헬퍼 ────────── */
 function initChecks(checklist, existingData) {
-  return Object.fromEntries(checklist.map(c => [
-    c.key,
-    existingData?.checks?.[c.key] !== undefined
-      ? existingData.checks[c.key]
-      : (c.type === 'checkbox' ? false : ''),
-  ]));
+  return Object.fromEntries(checklist.map(c => {
+    const v = existingData?.checks?.[c.key];
+    if (v === undefined) return [c.key, (!c.type || c.type === 'checkbox') ? false : ''];
+    // 구형 데이터: input 항목에 boolean이 저장된 경우 빈 문자열로 초기화
+    if (c.type === 'input' && typeof v === 'boolean') return [c.key, ''];
+    return [c.key, v];
+  }));
 }
 
 function isItemComplete(item, value) {
-  return item.type === 'checkbox' ? value === true : (value || '').trim() !== '';
+  // !item.type: 이전 포맷(type 필드 없음)은 checkbox로 취급
+  if (!item.type || item.type === 'checkbox') return value === true;
+  // input 타입: 구형 bool 값(ground_ok=true/false) 안전 처리
+  return String(value || '').trim() !== '';
 }
 
 /* ────────── 체크리스트 항목 행 컴포넌트 ────────── */
@@ -72,14 +77,16 @@ function ChecklistItemRow({ item, value, onChange }) {
 
   if (item.type !== 'checkbox') {
     return (
-      <div style={{
+      <label htmlFor={`cl-${item.key}`} className="checklist-row" style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
         background: complete ? 'var(--success-50)' : 'var(--surface)',
         border: `1px solid ${complete ? 'var(--success)' : 'var(--border-1)'}`,
         borderRadius: 'var(--r-sm)', transition: 'background 120ms, border-color 120ms',
+        cursor: 'text',
       }}>
         <span style={{ fontSize: 13.5, color: 'var(--ink-3)', flexShrink: 0 }}>{item.label}</span>
         <input
+          id={`cl-${item.key}`}
           type="text"
           value={value || ''}
           onChange={e => onChange(e.target.value)}
@@ -92,12 +99,12 @@ function ChecklistItemRow({ item, value, onChange }) {
             fontWeight: complete ? 600 : 400, textAlign: 'right', minWidth: 60,
           }}
         />
-      </div>
+      </label>
     );
   }
 
   return (
-    <label style={{
+    <label className="checklist-row" style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
       background: value ? 'var(--success-50)' : 'var(--surface)',
       border: `1px solid ${value ? 'var(--success)' : 'var(--border-1)'}`,
@@ -116,7 +123,7 @@ function ChecklistItemRow({ item, value, onChange }) {
 /* ────────── 성적서 테이블 셀 값 렌더 (checkbox→합격/불합격, input→입력값) ────────── */
 function renderCheckCell(val) {
   if (typeof val === 'boolean') {
-    return { text: val ? '합격' : '불합격', color: val ? 'var(--success-700)' : '#dc2626' };
+    return { text: val ? '합격' : '불합격', color: val ? 'var(--success-700)' : 'var(--danger-700)' };
   }
   const filled = (val || '').trim() !== '';
   return { text: val || '—', color: filled ? 'var(--ink-1)' : 'var(--ink-4)' };
@@ -211,7 +218,7 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
       {uploadErr && (
         <div style={{
           padding: '10px 14px', borderRadius: 'var(--r-sm)', fontSize: 13,
-          background: '#fef2f2', border: '1px solid #ef4444', color: '#dc2626',
+          background: 'var(--danger-50)', border: '1px solid var(--danger)', color: 'var(--danger-700)',
         }}>
           {uploadErr}
         </div>
@@ -220,36 +227,20 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
       {photos.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
           {photos.map((photo, idx) => (
-            <div key={photo.storage_path} style={{
-              position: 'relative', borderRadius: 'var(--r-sm)', overflow: 'hidden',
-              aspectRatio: '1', background: 'var(--surface-2)',
-            }}>
-              <img src={photo.url} alt={photo.filename}
+            <div key={photo.storage_path} className="photo-thumb">
+              <img src={photo.url} alt={photo.filename} loading="lazy"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
                 onClick={() => setLightbox(idx)}/>
               {confirmDel === photo.storage_path ? (
-                <div style={{
-                  position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.65)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', gap: 4, padding: 6,
-                }}>
-                  <span style={{ fontSize: 11, color: '#fff', textAlign: 'center', marginBottom: 2 }}>삭제할까요?</span>
-                  <button onClick={() => handleDelete(photo.storage_path)}
-                    style={{ width: '100%', height: 44, background: '#dc2626', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                    삭제
-                  </button>
-                  <button onClick={() => setConfirmDel(null)}
-                    style={{ width: '100%', height: 44, background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: 4, color: '#fff', fontSize: 12, cursor: 'pointer' }}>
-                    취소
-                  </button>
+                <div className="photo-thumb__confirm">
+                  <span>삭제할까요?</span>
+                  <div className="photo-thumb__confirm-btns">
+                    <button className="btn-ok" onClick={() => handleDelete(photo.storage_path)}>삭제</button>
+                    <button className="btn-cancel" onClick={() => setConfirmDel(null)}>취소</button>
+                  </div>
                 </div>
               ) : (
-                <button aria-label="사진 삭제"
-                  style={{
-                    position: 'absolute', top: 4, right: 4, width: 28, height: 28,
-                    background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%',
-                    color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
+                <button aria-label="사진 삭제" className="photo-thumb__del"
                   onClick={() => setConfirmDel(photo.storage_path)}>
                   <Icon name="x" size={12}/>
                 </button>
@@ -261,9 +252,10 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
 
       {lightbox !== null && (
         <div ref={lightboxRef} tabIndex={-1}
+          role="dialog" aria-modal="true" aria-label="사진 라이트박스"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
-            zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setLightbox(null)}
           onKeyDown={e => {
@@ -417,19 +409,19 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="field">
-                  <label className="field__label">검사일자 <span className="field__req">*</span></label>
-                  <input type="date" className="input" value={inspDate} onChange={e => setInspDate(e.target.value)}/>
+                  <label className="field__label" htmlFor="si-date">검사일자 <span className="field__req">*</span></label>
+                  <input id="si-date" type="date" className="input" value={inspDate} onChange={e => setInspDate(e.target.value)}/>
                 </div>
                 <div className="field">
-                  <label className="field__label">검사자 <span className="field__req">*</span></label>
-                  <input type="text" className="input" placeholder="검사자 이름" value={inspector} onChange={e => setInspector(e.target.value)}/>
+                  <label className="field__label" htmlFor="si-inspector">검사자 <span className="field__req">*</span></label>
+                  <input id="si-inspector" type="text" className="input" placeholder="검사자 이름" value={inspector} onChange={e => setInspector(e.target.value)}/>
                 </div>
               </div>
             </section>
 
             <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
+              <button type="button"
+                style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none', background: 'none', border: 'none', padding: 0, width: '100%', textAlign: 'left' }}
                 onClick={() => {
                   const newVal = !allCheckboxesChecked;
                   setChecks(prev => ({ ...prev, ...Object.fromEntries(checkboxItems.map(c => [c.key, newVal])) }));
@@ -446,7 +438,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
                     {allCheckboxesChecked ? '체크 전체 해제 ▲' : '체크 전체 선택 ▼'}
                   </span>
                 )}
-              </div>
+              </button>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {checklist.map(item => (
                   <ChecklistItemRow key={item.key} item={item} value={checks[item.key]}
@@ -679,8 +671,8 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
 
           {/* 기능 검사 체크리스트 */}
           <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none' }}
+            <button type="button"
+              style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none', background: 'none', border: 'none', padding: 0, width: '100%', textAlign: 'left' }}
               onClick={() => {
                 const newVal = !allCheckboxesChecked;
                 setChecks(prev => ({ ...prev, ...Object.fromEntries(checkboxItems.map(c => [c.key, newVal])) }));
@@ -697,7 +689,7 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
                   {allCheckboxesChecked ? '체크 전체 해제 ▲' : '체크 전체 선택 ▼'}
                 </span>
               )}
-            </div>
+            </button>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {checklist.map(item => (
                 <ChecklistItemRow key={item.key} item={item} value={checks[item.key]}
@@ -849,7 +841,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                   <th>종합 판정</th>
                   <td>{funcAllPassed
                     ? <span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span>
-                    : <span style={{ color: '#dc2626', fontWeight: 700 }}>미완료</span>}
+                    : <span style={{ color: 'var(--danger-700)', fontWeight: 700 }}>미완료</span>}
                   </td>
                 </tr>
               </tbody>
@@ -980,7 +972,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                   <th>종합 판정</th>
                   <td colSpan={3}>{shipAllPassed
                     ? <span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span>
-                    : <span style={{ color: '#dc2626', fontWeight: 700 }}>미완료</span>}
+                    : <span style={{ color: 'var(--danger-700)', fontWeight: 700 }}>미완료</span>}
                   </td>
                 </tr>
               </tbody>
@@ -1040,7 +1032,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                       background: 'var(--surface-2)', cursor: 'zoom-in',
                     }}
                       onClick={() => setLightbox(idx)}>
-                      <img src={photo.url} alt={photo.filename}
+                      <img src={photo.url} alt={photo.filename} loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                     </div>
                   ))}
@@ -1064,9 +1056,10 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
 
       {lightbox !== null && (
         <div ref={lightboxRef} tabIndex={-1}
+          role="dialog" aria-modal="true" aria-label="사진 라이트박스"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
-            zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setLightbox(null)}
           onKeyDown={e => {
@@ -1187,7 +1180,7 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
                   <th>종합 판정</th>
                   <td colSpan={3}>{funcAllPassed
                     ? <span className="report__pass"><Icon name="check" size={13}/> 합격 (PASS)</span>
-                    : <span style={{ color: '#dc2626', fontWeight: 700 }}>미완료</span>}
+                    : <span style={{ color: 'var(--danger-700)', fontWeight: 700 }}>미완료</span>}
                   </td>
                 </tr>
               </tbody>

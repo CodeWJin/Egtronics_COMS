@@ -17,6 +17,7 @@ window[STORE_KEY] = window[STORE_KEY] || {
   completingOrderId: null,
   asReceptions: [],
   selectedAsId: null,
+  confirmModal: null,
 };
 
 function notify() {
@@ -178,6 +179,15 @@ window.actions = {
     notify();
     setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
   },
+  awaitToInProgress(order_id) {
+    const s = window[STORE_KEY];
+    const ok = window.PMDB.awaitToInProgress(order_id);
+    if (!ok) return;
+    s.orders = window.PMDB.loadOrders();
+    s.toast = { kind: 'success', text: `오더 #${order_id} 작업중으로 변경` };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+  },
   startProduction(order_id) {
     const s = window[STORE_KEY];
     const ok = window.PMDB.startProduction(order_id);
@@ -250,6 +260,14 @@ window.actions = {
   },
   selectAs(id) {
     window[STORE_KEY].selectedAsId = id;
+    notify();
+  },
+  showConfirm(message, onConfirm, opts = {}) {
+    window[STORE_KEY].confirmModal = { message, onConfirm, ...opts };
+    notify();
+  },
+  closeConfirm() {
+    window[STORE_KEY].confirmModal = null;
     notify();
   },
 };
@@ -391,3 +409,35 @@ function Toast() {
 }
 
 window.Toast = Toast;
+
+function ConfirmModal() {
+  const s = useStore();
+  const modal = s.confirmModal;
+  const containerRef = useModalKeyboard(() => window.actions.closeConfirm());
+  if (!modal) return null;
+  return ReactDOM.createPortal(
+    <div className="modal-backdrop" ref={containerRef}
+         onClick={e => { if (e.target === e.currentTarget) window.actions.closeConfirm(); }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div className="modal__head">
+          <h2 className="modal__title" id="confirm-modal-title">{modal.title || '확인'}</h2>
+        </div>
+        <div className="modal__body">
+          <p style={{ fontSize: 14, color: 'var(--ink-2)', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+            {modal.message}
+          </p>
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--ghost" onClick={() => window.actions.closeConfirm()}>취소</button>
+          <button
+            className={`btn ${modal.danger ? 'btn--danger' : 'btn--primary'}`}
+            onClick={() => { window.actions.closeConfirm(); modal.onConfirm(); }}>
+            {modal.confirmLabel || '확인'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+window.ConfirmModal = ConfirmModal;

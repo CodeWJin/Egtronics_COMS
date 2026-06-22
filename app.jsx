@@ -77,7 +77,7 @@ function App() {
 
   // Gate everything behind login
   if (!s.currentUser) {
-    return (<><LoginScreen/><Toast/></>);
+    return (<><LoginScreen/><Toast/><ConfirmModal/></>);
   }
 
   return (
@@ -96,6 +96,7 @@ function App() {
         </div>
       </main>
       <Toast/>
+      <ConfirmModal/>
 
       <TweaksPanel>
         <TweakSection label="테마" />

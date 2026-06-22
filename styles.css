@@ -540,6 +540,12 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--success);
 }
 .btn--success:hover { background: var(--success-700); border-color: var(--success-700); }
+.btn--danger {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+}
+.btn--danger:hover { background: var(--danger-700); border-color: var(--danger-700); }
 .btn--lg {
   height: 44px;
   padding: 0 22px;
@@ -614,6 +620,12 @@ input, select, textarea { font-family: inherit; }
 .as-card__no { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
 .as-card__title { font-size: 13px; font-weight: 600; color: var(--ink-1); }
 .as-card__meta { font-size: 12px; color: var(--ink-4); }
+/* 체크리스트 행 — label 래퍼에 키보드 포커스 인디케이터 */
+.checklist-row:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .as-log-timeline { display: flex; flex-direction: column; gap: 0; }
 .as-log-item {
   display: flex; gap: 12px;

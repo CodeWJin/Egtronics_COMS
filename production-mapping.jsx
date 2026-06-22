@@ -36,6 +36,44 @@ function makeSerialDateCode(dateISO) {
   return yearCode + monthCode;
 }
 
+function changeStatus(orderId, from, to) {
+  const key = `${from}->${to}`;
+  const MAP = {
+    'AWAIT_PICKUP->COMPLETED': {
+      message: `오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환됩니다.`,
+      confirmLabel: '출하 완료',
+      action: () => window.actions.shipOrder(orderId),
+    },
+    'AWAIT_PICKUP->IN_PROGRESS': {
+      message: `오더 #${orderId}을(를) 작업중 상태로 되돌릴까요?\n출하대기가 취소되며 생산 실적을 수정할 수 있습니다.`,
+      action: () => { window.actions.awaitToInProgress(orderId); window.actions.setView('mapping'); },
+    },
+    'COMPLETED->AWAIT_PICKUP': {
+      message: `오더 #${orderId}을(를) 출하대기 상태로 되돌릴까요?\n출하 처리가 취소되며 출하 검사를 다시 진행할 수 있습니다.`,
+      action: () => window.actions.revertToAwaitPickup(orderId),
+    },
+    'COMPLETED->IN_PROGRESS': {
+      message: `오더 #${orderId}을(를) 생산진행중 상태로 되돌릴까요?\n출하 처리가 취소되며 생산 실적을 수정할 수 있습니다.`,
+      action: () => window.actions.revertToInProgress(orderId),
+    },
+    'COMPLETED->PENDING': {
+      message: `오더 #${orderId}을(를) 생산대기 상태로 되돌릴까요?\n시리얼·기능검사·출하검사·사진이 모두 삭제됩니다.`,
+      confirmLabel: '삭제 후 변경',
+      danger: true,
+      action: () => { window.actions.revertOrder(orderId); window.actions.setView('waiting'); },
+    },
+    'IN_PROGRESS->PENDING': {
+      message: `오더 #${orderId}을(를) 생산대기로 되돌릴까요?\n입력 중인 내용은 저장되지 않습니다.`,
+      confirmLabel: '되돌리기',
+      danger: true,
+      action: () => window.actions.revertOrder(orderId),
+    },
+  };
+  const c = MAP[key];
+  if (!c) return;
+  window.actions.showConfirm(c.message, c.action, { danger: c.danger, confirmLabel: c.confirmLabel });
+}
+
 function ProductionMappingScreen() {
   const s = window.useStore();
   const order = s.orders.find(o => o.order_id === s.selectedOrderId);
@@ -119,7 +157,7 @@ function CompletedView({ order }) {
             오더 #{order.order_id}
             {isAwait
               ? <span className="badge badge--pending" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}><span className="badge__dot"/>출하대기</span>
-              : <span className="badge badge--complete" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}><Icon name="check" size={10}/>생산완료</span>
+              : <span className="badge badge--complete" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}><Icon name="check" size={10}/>출하완료</span>
             }
           </h1>
           <p className="screen__sub">
@@ -134,40 +172,22 @@ function CompletedView({ order }) {
               className="btn btn--primary"
               disabled={!shipAllDone}
               title={!shipInsp ? '출하 검사 성적서를 먼저 작성해 주세요' : !shipAllDone ? '출하 검사 전 항목을 완료해 주세요' : ''}
-              onClick={() => {
-                if (confirm(`오더 #${order.order_id}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환됩니다.`)) {
-                  window.actions.shipOrder(order.order_id);
-                }
-              }}>
+              onClick={() => changeStatus(order.order_id, 'AWAIT_PICKUP', 'COMPLETED')}>
               <Icon name="truck" size={13}/> 출하 완료
             </button>
           )}
+          {isAwait && (
+            <button className="btn btn--secondary"
+              onClick={() => changeStatus(order.order_id, 'AWAIT_PICKUP', 'IN_PROGRESS')}>
+              <Icon name="refresh" size={13}/> 작업중으로 변경
+            </button>
+          )}
           {order.status === 'COMPLETED' && (
-            <button className="btn btn--secondary" onClick={() => {
-              if (confirm(`오더 #${order.order_id}을(를) 출하대기 상태로 되돌릴까요?\n출하 처리가 취소되며 출하 검사를 다시 진행할 수 있습니다.`)) {
-                window.actions.revertToAwaitPickup(order.order_id);
-              }
-            }}>
+            <button className="btn btn--secondary"
+              onClick={() => changeStatus(order.order_id, 'COMPLETED', 'AWAIT_PICKUP')}>
               <Icon name="refresh" size={13}/> 출하대기로 변경
             </button>
           )}
-          {order.status === 'COMPLETED' && (
-            <button className="btn btn--secondary" onClick={() => {
-              if (confirm(`오더 #${order.order_id}을(를) 생산진행중 상태로 되돌릴까요?\n출하 처리가 취소되며 생산 실적을 수정할 수 있습니다.`)) {
-                window.actions.revertToInProgress(order.order_id);
-              }
-            }}>
-              <Icon name="refresh" size={13}/> 생산진행중으로 변경
-            </button>
-          )}
-          <button className="btn btn--secondary" onClick={() => {
-            if (confirm(`오더 #${order.order_id}을(를) 생산대기 상태로 되돌릴까요?\n생산 실적은 보존되며 다시 수정할 수 있습니다.`)) {
-              window.actions.revertOrder(order.order_id);
-              window.actions.setView('waiting');
-            }
-          }}>
-            <Icon name="refresh" size={13}/> 생산대기로 변경
-          </button>
           <button className="btn btn--secondary" onClick={() => window.actions.setView('AwaitPickup')}>
             <Icon name="arrow-left" size={13}/> 목록으로
           </button>
@@ -354,7 +374,7 @@ function MappingForm({ order }) {
 
   const funcAllDone = funcInspectionData != null &&
     Object.keys(funcInspectionData.checks || {}).length > 0 &&
-    Object.values(funcInspectionData.checks || {}).every(Boolean);
+    Object.values(funcInspectionData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
 
   const modelInfo = useMemoPM(
     () => window.PMDB.getModels().find(m => m.name === order.model_name),
@@ -470,11 +490,8 @@ function MappingForm({ order }) {
           <span style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>
             <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/{isPublic ? 7 : 6} 항목 입력
           </span>
-          <button className="btn btn--ghost btn--sm" onClick={() => {
-            if (confirm(`오더 #${order.order_id}을(를) 생산대기로 되돌릴까요?\n입력 중인 내용은 저장되지 않습니다.`)) {
-              window.actions.revertOrder(order.order_id);
-            }
-          }}>
+          <button className="btn btn--ghost btn--sm"
+            onClick={() => changeStatus(order.order_id, 'IN_PROGRESS', 'PENDING')}>
             <Icon name="refresh" size={12}/> 대기로
           </button>
           <button className="btn btn--secondary" onClick={() => {
