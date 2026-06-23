@@ -23,7 +23,7 @@
   --ink-1: #1d1d1f;
   --ink-2: #333333;
   --ink-3: #6b6b6b;   /* 5.3:1 on white — WCAG AA */
-  --ink-4: #737373;   /* 4.85:1 on #fff · 4.26:1 on --surface-2 — 일반 텍스트는 #fff 배경에만 사용 */
+  --ink-4: #6e6e6e;   /* 4.9:1 on #fff · 4.66:1 on --surface-2 — WCAG AA 준수 */
   --ink-5: #cccccc;
   --placeholder: #737373; /* 4.75:1 on white — WCAG AA for placeholder */
 
@@ -501,7 +501,7 @@ input, select, textarea { font-family: inherit; }
   padding: 0 18px;
   height: 36px;
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: -0.224px;
   border-radius: var(--r-pill);
   cursor: pointer;
@@ -646,7 +646,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center; justify-content: center;
   color: var(--ink-4); gap: 12px; text-align: center;
 }
-.as-empty-panel__icon { font-size: 40px; opacity: 0.3; }
+.as-empty-panel__icon { font-size: 40px; opacity: 0.45; }
 .badge__dot {
   width: 5px; height: 5px;
   border-radius: 50%;

@@ -3,6 +3,29 @@
 function App() {
   const s = window.useStore();
 
+  // 브라우저 뒤로가기/앞으로가기 지원
+  React.useEffect(() => {
+    const store = window['__pm_store__'];
+    if (!history.state || !history.state.view) {
+      const validViews = ['sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
+      const hashView = window.location.hash.slice(1);
+      if (hashView && validViews.includes(hashView)) {
+        store.view = hashView;
+      }
+      history.replaceState({ view: store.view, selectedOrderId: store.selectedOrderId }, '', '#' + store.view);
+    }
+    const handlePop = (e) => {
+      const state = e.state;
+      if (state && state.view) {
+        store.view = state.view;
+        store.selectedOrderId = 'selectedOrderId' in state ? state.selectedOrderId : null;
+        window.notify();
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
   // Initial deep-link if no order selected and on mapping
   React.useEffect(() => {
     if (s.view === 'mapping' && !s.selectedOrderId) {
@@ -71,7 +94,7 @@ function App() {
     if (!u) return;
     const allowed = window.ROLE_TABS[u.role] || [];
     if (allowed.length && !allowed.includes(s.view)) {
-      window.actions.setView(allowed[0]);
+      window.actions.setViewReplace(allowed[0]);
     }
   }, [s.currentUser, s.view]);
 

@@ -520,8 +520,10 @@ function SalesInputScreen() {
                          placeholder="예: CT3006"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.station_id}
-                         onChange={(e) => { update('station_id', e.target.value); setTouched((t) => ({ ...t, station_id: 1 })); }}/>
+                         onChange={(e) => { update('station_id', e.target.value); setTouched((t) => ({ ...t, station_id: 1 })); }}
+                         onBlur={() => setTouched((t) => ({ ...t, station_id: 1 }))}/>
                   {showErr('station_id') && <div className="field__err"><Icon name="alert" size={12}/> {errors.station_id}</div>}
+                  {!showErr('station_id') && <div className="field__hint"><Icon name="info" size={11}/> 영문+숫자 조합 · 환경부 MEA 또는 자체 관제 ID (예: CT3006, ME0001)</div>}
                 </div>
                 <div className="field">
                   <div className="field__label"><label htmlFor="si-charger-no">충전기 번호</label><button type="button" className="helpdot" title="충전소 내 충전기 식별 번호 (예: 01, 02)" aria-label="도움말: 충전기 식별 번호 설명">?</button></div>
@@ -551,17 +553,26 @@ function SalesInputScreen() {
                 <div className="field">
                   <label className="field__label" htmlFor="si-router-no">라우터번호 (S/N)</label>
                   <input id="si-router-no" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
+                         placeholder="예: RTR-2024-00001"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.router_no}
-                         onChange={(e) => { update('router_no', e.target.value); setTouched((t) => ({ ...t, router_no: 1 })); }}/>
+                         onChange={(e) => { update('router_no', e.target.value); setTouched((t) => ({ ...t, router_no: 1 })); }}
+                         onBlur={() => setTouched((t) => ({ ...t, router_no: 1 }))}/>
+                  {showErr('router_no') && <div className="field__err"><Icon name="alert" size={12}/> {errors.router_no}</div>}
+                  {!showErr('router_no') && <div className="field__hint"><Icon name="info" size={11}/> LTE 라우터 하단 스티커 S/N 참조</div>}
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="si-usim-no">USIM번호 (ICCID)</label>
                   <input id="si-usim-no" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
+                         placeholder="예: 89820012345678901234"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.usim_no}
-                         onChange={(e) => { update('usim_no', e.target.value); setTouched((t) => ({ ...t, usim_no: 1 })); }}/>
+                         onChange={(e) => { update('usim_no', e.target.value.replace(/\D/g, '')); setTouched((t) => ({ ...t, usim_no: 1 })); }}
+                         onBlur={() => setTouched((t) => ({ ...t, usim_no: 1 }))}
+                         maxLength={20}
+                         inputMode="numeric"/>
                   {showErr('usim_no') && <div className="field__err"><Icon name="alert" size={12}/> {errors.usim_no}</div>}
+                  {!showErr('usim_no') && <div className="field__hint"><Icon name="info" size={11}/> USIM 칩 뒷면 또는 SIM 카드 봉투의 ICCID 19~20자리 숫자</div>}
                 </div>
               </div>
             </div>

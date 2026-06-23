@@ -77,7 +77,8 @@ window.actions = {
     const s = window[STORE_KEY];
     s.toast = { kind, text };
     notify();
-    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+    const duration = Math.max(2400, text.length * 80);
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, duration);
   },
   login(userId, password) {
     const u = window.PMDB.authenticate(userId, password);
@@ -88,6 +89,7 @@ window.actions = {
     const allowed = window.ROLE_TABS[u.role] || ['lookup'];
     s.view = allowed[0];
     s.selectedOrderId = null;
+    history.replaceState({ view: allowed[0], selectedOrderId: null }, '', '#' + allowed[0]);
     window.actions.flashToast(`${u.name}님 환영합니다 · ${window.ROLE_LABEL[u.role]} 권한`);
     notify();
     return true;
@@ -126,8 +128,7 @@ window.actions = {
       return;
     }
     s.editingOrderId = id;
-    s.view = 'sales';
-    notify();
+    window.actions.setView('sales');
   },
   cancelEdit() {
     window[STORE_KEY].editingOrderId = null;
@@ -202,7 +203,17 @@ window.actions = {
     notify();
   },
   setView(v) {
-    window[STORE_KEY].view = v;
+    const s = window[STORE_KEY];
+    if (s.view !== v) {
+      history.pushState({ view: v, selectedOrderId: s.selectedOrderId }, '', '#' + v);
+    }
+    s.view = v;
+    notify();
+  },
+  setViewReplace(v) {
+    const s = window[STORE_KEY];
+    history.replaceState({ view: v, selectedOrderId: s.selectedOrderId }, '', '#' + v);
+    s.view = v;
     notify();
   },
   setWaitingView(v) {
@@ -219,8 +230,7 @@ window.actions = {
       s.completingOrderId = null;
       s.toast = { kind: 'success', text: `오더 #${order_id} 생산완료 — 출하대기로 이동` };
       s.selectedOrderId = null;
-      s.view = 'waiting';
-      notify();
+      window.actions.setView('waiting');
       setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2600);
     }, 900);
   },

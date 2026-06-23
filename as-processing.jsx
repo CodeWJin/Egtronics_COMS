@@ -30,14 +30,12 @@ function AsProcessingScreen() {
 
   const selected = receptions.find(r => r.id === selectedId) || null;
 
-  const filterLabels = ['진행중', '전체', ...window.AS_STATUS_LIST];
-  const counts = useMemoAP(() => {
-    const c = {};
-    c['전체'] = receptions.length;
-    c['진행중'] = receptions.filter(r => r.status !== '처리완료').length;
-    window.AS_STATUS_LIST.forEach(st => { c[st] = receptions.filter(r => r.status === st).length; });
-    return c;
-  }, [receptions]);
+  const filterLabels = ['진행중', '전체', '처리완료'];
+  const counts = useMemoAP(() => ({
+    '진행중': receptions.filter(r => r.status !== '처리완료').length,
+    '전체': receptions.length,
+    '처리완료': receptions.filter(r => r.status === '처리완료').length,
+  }), [receptions]);
 
   return (
     <div className="screen" style={{ paddingBottom: 0 }}>
