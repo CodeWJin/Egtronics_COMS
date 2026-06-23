@@ -147,6 +147,7 @@ function AsListCard({ r, active, onClick, staggerIndex = 0 }) {
 
 // ── 처리 상세 패널 ───────────────────────────────────────────────
 function AsDetailPanel({ reception: r }) {
+  const s = window.useStore();
   const [tab, setTab] = useStateAP('process'); // 'process' | 'info' | 'log'
 
   const [form, setForm] = useStateAP({
@@ -164,10 +165,7 @@ function AsDetailPanel({ reception: r }) {
   const [logs, setLogs] = useStateAP([]);
   const [photos, setPhotos] = useStateAP([]);
 
-  const canComplete = (() => {
-    const u = window.__pm_store__?.currentUser;
-    return u?.role === 'quality' || u?.role === 'admin';
-  })();
+  const canComplete = s.currentUser?.role === 'quality' || s.currentUser?.role === 'admin';
 
   useEffectAP(() => {
     setLogs(window.PMDB.getAsLogs(r.id));
