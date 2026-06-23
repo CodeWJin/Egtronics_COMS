@@ -49,9 +49,7 @@ function AsReceiptScreen() {
       <div className="screen__head">
         <div>
           <h1 className="screen__title">AS 접수</h1>
-          <div style={{ fontSize: 13, color: 'var(--ink-4)', marginTop: 2 }}>
-            전체 {receptions.length}건 · 처리 중 {(counts['담당자배정'] || 0) + (counts['처리중'] || 0)}건
-          </div>
+          <p className="screen__sub">전체 {receptions.length}건 · 처리 중 {(counts['담당자배정'] || 0) + (counts['처리중'] || 0)}건</p>
         </div>
         <button className="btn btn--primary" onClick={() => setShowModal(true)}>
           <Icon name="plus" size={14}/> 새 접수 등록
@@ -59,7 +57,7 @@ function AsReceiptScreen() {
       </div>
 
       {/* 상태 필터 + 검색 */}
-      <div className="toolbar" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+      <div className="toolbar" style={{ flexWrap: 'wrap', gap: 8 }}>
         <div role="group" aria-label="접수 상태 필터" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {['전체', ...window.AS_STATUS_LIST].map(st => (
             <button
@@ -92,22 +90,21 @@ function AsReceiptScreen() {
       </div>
 
       {/* 접수 목록 */}
-      <div className="card">
-        <div className="table-wrap">
-          <table className="table">
+      <div className="table-wrap">
+        <table className="table">
             <caption className="sr-only">AS 접수 목록</caption>
             <thead>
               <tr>
-                <th>접수번호</th>
-                <th>고객사</th>
-                <th>충전소 ID</th>
-                <th>충전기 번호</th>
-                <th>고장 유형</th>
-                <th>긴급도</th>
-                <th>상태</th>
-                <th>담당자</th>
-                <th>접수일시</th>
-                <th></th>
+                <th scope="col">접수번호</th>
+                <th scope="col">고객사</th>
+                <th scope="col">충전소 ID</th>
+                <th scope="col">충전기 번호</th>
+                <th scope="col">고장 유형</th>
+                <th scope="col">긴급도</th>
+                <th scope="col">상태</th>
+                <th scope="col">담당자</th>
+                <th scope="col">접수일시</th>
+                <th scope="col"></th>
               </tr>
             </thead>
             <tbody>
@@ -140,8 +137,7 @@ function AsReceiptScreen() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </table>
       </div>
 
       {showModal && (

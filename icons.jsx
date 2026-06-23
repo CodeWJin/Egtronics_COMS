@@ -13,6 +13,7 @@ const Icon = ({ name, size = 16, stroke = 1.6, ...rest }) => {
     case 'search':      return <svg {...common}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>;
     case 'plus':        return <svg {...common}><path d="M12 5v14M5 12h14"/></svg>;
     case 'chevron-down':return <svg {...common}><path d="M6 9l6 6 6-6"/></svg>;
+    case 'chevron-up':  return <svg {...common}><path d="M6 15l6-6 6 6"/></svg>;
     case 'chevron-right':return <svg {...common}><path d="M9 6l6 6-6 6"/></svg>;
     case 'arrow-right': return <svg {...common}><path d="M5 12h14M13 5l7 7-7 7"/></svg>;
     case 'arrow-left':  return <svg {...common}><path d="M19 12H5M11 5l-7 7 7 7"/></svg>;

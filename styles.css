@@ -774,6 +774,8 @@ input, select, textarea { font-family: inherit; }
   border-bottom: 0;
   border-radius: var(--r-lg) var(--r-lg) 0 0;
 }
+/* toolbar 안 select 높이 — input(36px)/filter(36px)와 통일 */
+.toolbar .select { height: 36px; }
 .toolbar__search {
   flex: 1;
   max-width: 360px;
@@ -872,6 +874,10 @@ input, select, textarea { font-family: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* 정렬 가능한 컬럼 헤더 */
+.th--sort { cursor: pointer; user-select: none; }
+.th--sort:hover { color: var(--ink-1); }
+.th--sort svg { vertical-align: middle; opacity: 0.75; margin-left: 3px; }
 .table td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-1);
@@ -2311,6 +2317,66 @@ input, select, textarea { font-family: inherit; }
 .as-card {
   animation: ascardIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: calc(var(--i, 0) * 35ms);
+}
+
+/* Kanban card stagger — uses --i CSS custom prop set via JSX */
+@keyframes cardin {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.kanban__card {
+  animation: cardin 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+
+/* Order card grid stagger — uses --i CSS custom prop set via JSX */
+.ordercard {
+  animation: cardin 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+/* Table row entrance — opacity stagger on view-enter remount */
+@keyframes rowin {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.table tbody tr {
+  animation: rowin 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.table tbody tr:nth-child(1)  { animation-delay:   0ms; }
+.table tbody tr:nth-child(2)  { animation-delay:  18ms; }
+.table tbody tr:nth-child(3)  { animation-delay:  36ms; }
+.table tbody tr:nth-child(4)  { animation-delay:  54ms; }
+.table tbody tr:nth-child(5)  { animation-delay:  72ms; }
+.table tbody tr:nth-child(6)  { animation-delay:  90ms; }
+.table tbody tr:nth-child(7)  { animation-delay: 108ms; }
+.table tbody tr:nth-child(8)  { animation-delay: 126ms; }
+.table tbody tr:nth-child(9)  { animation-delay: 144ms; }
+.table tbody tr:nth-child(10) { animation-delay: 162ms; }
+.table tbody tr:nth-child(11) { animation-delay: 180ms; }
+.table tbody tr:nth-child(12) { animation-delay: 198ms; }
+.table tbody tr:nth-child(13) { animation-delay: 216ms; }
+.table tbody tr:nth-child(14) { animation-delay: 234ms; }
+.table tbody tr:nth-child(15) { animation-delay: 252ms; }
+.table tbody tr:nth-child(16) { animation-delay: 270ms; }
+.table tbody tr:nth-child(17) { animation-delay: 288ms; }
+.table tbody tr:nth-child(18) { animation-delay: 306ms; }
+.table tbody tr:nth-child(19) { animation-delay: 324ms; }
+.table tbody tr:nth-child(20) { animation-delay: 342ms; }
+
+/* Timeline item stagger — uses --i CSS custom prop set via JSX */
+.timeline__item {
+  animation: cardin 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 28ms);
+}
+
+/* Count badge pop-in — fires when badge mounts (count goes 0 → n) */
+@keyframes countpop {
+  from { opacity: 0; transform: scale(0.55); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.topnav__count {
+  animation: countpop 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* AS 접수 모달 — 신고자 정보 그리드 */

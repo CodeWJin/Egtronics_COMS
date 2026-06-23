@@ -83,7 +83,9 @@ function OrderLookupScreen() {
     else { setSortKey(k); setSortDir('asc'); }
   };
 
-  const sortArrow = (k) => sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  const sortArrow = (k) => sortKey === k
+    ? <Icon name={sortDir === 'asc' ? 'chevron-up' : 'chevron-down'} size={11} aria-hidden="true"/>
+    : null;
 
   const selected = s.orders.find(o => o.order_id === selId);
 
@@ -202,13 +204,19 @@ function OrderLookupScreen() {
             </colgroup>
             <thead>
               <tr>
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('order_id')}>오더 #{sortArrow('order_id')}</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('customer_name')}>고객사{sortArrow('customer_name')}</th>
-                <th>모델</th>
-                <th>충전소 ID</th>
-                <th style={{ cursor: 'pointer' }} onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
-                <th>생산일</th>
-                <th></th>
+                <th scope="col" className="th--sort"
+                    aria-sort={sortKey === 'order_id' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => toggleSort('order_id')}>오더 #{sortArrow('order_id')}</th>
+                <th scope="col" className="th--sort"
+                    aria-sort={sortKey === 'customer_name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => toggleSort('customer_name')}>고객사{sortArrow('customer_name')}</th>
+                <th scope="col">모델</th>
+                <th scope="col">충전소 ID</th>
+                <th scope="col" className="th--sort"
+                    aria-sort={sortKey === 'delivery_date' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
+                <th scope="col">생산일</th>
+                <th scope="col"></th>
               </tr>
             </thead>
             <tbody>
@@ -494,14 +502,6 @@ function OrderDrawer({ order, onClose }) {
   const canEditSales = (role === 'sales' || role === 'admin') && order.status === 'PENDING';
   const goMapping = () => { window.actions.selectOrder(order.order_id); window.actions.setView('mapping'); };
   const goEdit = () => { window.actions.editOrder(order.order_id); handleClose(); };
-  const revert = () => {
-    window.actions.showConfirm(
-      `오더 #${order.order_id}을(를) 생산대기 상태로 변경할까요?`,
-      () => { window.actions.revertOrder(order.order_id); handleClose(); },
-      { danger: true, confirmLabel: '변경' }
-    );
-  };
-
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>

@@ -97,7 +97,7 @@ function ProductionWaitingScreen() {
                  placeholder="고객사 · 모델 · 충전소 ID · 오더번호 검색"
                  value={search} onChange={(e) => setSearch(e.target.value)}/>
         </div>
-        <select className="select" aria-label="모델 필터" style={{ width: 160, height: 34 }}
+        <select className="select" aria-label="모델 필터" style={{ width: 160 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
           {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
@@ -222,11 +222,12 @@ function ViewCards({ orders, onPick, completingId, editedIds }) {
   return (
     <div style={{ marginTop: 16 }}>
       <div className="gridcards">
-        {orders.map(o => {
+        {orders.map((o, idx) => {
           const d = deliveryHint(o.delivery_date);
           const completing = completingId === o.order_id;
           return (
             <div key={o.order_id}
+                 style={{ '--i': idx }}
                  className={`ordercard ${completing ? 'row--completing' : ''}`}
                  role="button" tabIndex={0}
                  onClick={() => onPick(o.order_id)}
@@ -302,11 +303,12 @@ function ViewKanban({ orders, onPick, completingId, editedIds }) {
             {items.length === 0 && (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-4)', fontSize: 12 }}>—</div>
             )}
-            {items.map(o => {
+            {items.map((o, idx) => {
               const d = deliveryHint(o.delivery_date);
               const completing = completingId === o.order_id;
               return (
                 <div key={o.order_id}
+                     style={{ '--i': idx }}
                      className={`kanban__card ${completing ? 'row--completing' : ''}`}
                      role="button" tabIndex={0}
                      onClick={() => onPick(o.order_id)}
@@ -367,10 +369,11 @@ function ViewTimeline({ orders, onPick, completingId, editedIds }) {
               <span style={{ marginTop: 4, fontSize: 11, padding: '1px 7px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600, alignSelf: 'flex-start' }}>{d.text}</span>
             </div>
             <div className="timeline__items">
-              {items.map(o => {
+              {items.map((o, idx) => {
                 const completing = completingId === o.order_id;
                 return (
                   <div key={o.order_id}
+                       style={{ '--i': idx }}
                        className={`timeline__item ${completing ? 'row--completing' : ''}`}
                        role="button" tabIndex={0}
                        onClick={() => onPick(o.order_id)}

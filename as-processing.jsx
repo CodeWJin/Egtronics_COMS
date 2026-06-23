@@ -164,6 +164,11 @@ function AsDetailPanel({ reception: r }) {
   const [logs, setLogs] = useStateAP([]);
   const [photos, setPhotos] = useStateAP([]);
 
+  const canComplete = (() => {
+    const u = window.__pm_store__?.currentUser;
+    return u?.role === 'quality' || u?.role === 'admin';
+  })();
+
   useEffectAP(() => {
     setLogs(window.PMDB.getAsLogs(r.id));
     setPhotos(window.PMDB.getAsPhotos(r.id));
@@ -331,9 +336,9 @@ function AsDetailPanel({ reception: r }) {
                     type="button"
                     className={`btn btn--tag ${form.status === st ? 'btn--primary' : 'btn--ghost'}`}
                     aria-pressed={form.status === st}
-                    onClick={() => !isCompleted && set('status', st)}
-                    disabled={isCompleted && st !== '처리완료'}
-                    style={{ opacity: isCompleted && st !== form.status ? 0.5 : 1 }}>
+                    onClick={() => canComplete && set('status', st)}
+                    disabled={!canComplete}
+                    style={{ opacity: !canComplete && st !== form.status ? 0.5 : 1 }}>
                     {st}
                   </button>
                 ))}
@@ -415,7 +420,7 @@ function AsDetailPanel({ reception: r }) {
               />
             </div>
 
-            {!isCompleted && (
+            {(!isCompleted || canComplete) && (
               <div className="field">
                 <label className="field__label" htmlFor={`ap-${r.id}-memo`}>변경 사유 / 메모</label>
                 <input
@@ -428,9 +433,9 @@ function AsDetailPanel({ reception: r }) {
               </div>
             )}
 
-            {!isCompleted && (
+            {(!isCompleted || canComplete) && (
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                {form.status !== '처리완료' && (
+                {form.status !== '처리완료' && canComplete && (
                   <button
                     className="btn btn--success"
                     disabled={busy}

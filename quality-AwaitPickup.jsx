@@ -123,9 +123,7 @@ function ProductionCompleteScreen() {
         <div>
           <div className="screen__crumbs">생산 부서 · 품질 부서</div>
           <h1 className="screen__title">출하대기 목록</h1>
-          <p className="screen__sub">생산·검정이 완료되어 출하 대기 중인 오더입니다.
-            <br/>기능 검사 성적서를 조회하거나 목록을 내보낼 수 있습니다.
-            <br/>출하 검사 성적서를 작성할 수 있습니다.</p>
+          <p className="screen__sub">생산·검정이 완료되어 출하 대기 중인 오더입니다. 기능·출하 검사 성적서를 조회하거나 출하 처리를 진행할 수 있습니다.</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn--secondary" onClick={exportCSV} disabled={filtered.length === 0}>
@@ -204,12 +202,12 @@ function ProductionCompleteScreen() {
           <table className="table">
             <thead>
               <tr>
-                <th>고객사 / 모델</th>
-                <th>시리얼 / 로트</th>
-                <th>생산일</th>
-                <th>기능검사성적서</th>
-                <th>출하 전 검사</th>
-                <th style={{ width: 110 }}>출하</th>
+                <th scope="col">고객사 / 모델</th>
+                <th scope="col">시리얼 / 로트</th>
+                <th scope="col">생산일</th>
+                <th scope="col">기능검사성적서</th>
+                <th scope="col">출하 전 검사</th>
+                <th scope="col" style={{ width: 110 }}>출하</th>
               </tr>
             </thead>
             <tbody>
