@@ -1335,7 +1335,7 @@ input, select, textarea { font-family: inherit; }
   .gridcards { grid-template-columns: 1fr; }
   .filter-grid { grid-template-columns: 1fr !important; }
 
-  .modal-backdrop { align-items: flex-end; }
+  .modal-backdrop { align-items: flex-end; padding-top: 54px; } /* topnav 아래부터 콘텐츠 */
   .modal {
     width: 100% !important;
     max-width: 100% !important;

@@ -765,7 +765,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
   const inspDateDisplay = funcData?.insp_date || p.inspection_date || '—';
   const funcAllPassed = !!funcData && displayChecklist.every(item => isItemComplete(item, funcData.checks?.[item.key]));
 
-  return (
+  return ReactDOM.createPortal(
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="report" role="dialog" aria-modal="true" aria-label="기능 검사 성적서 미리보기">
         <div className="report__bar">
@@ -893,7 +893,8 @@ function InspectionReport({ order, inspectionData, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -915,7 +916,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
 
   window.useLockScroll();
 
-  return (
+  return ReactDOM.createPortal(
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="report" role="dialog" aria-modal="true" aria-label="출하 검사 성적서 미리보기">
         <div className="report__bar">
@@ -1102,7 +1103,8 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 
