@@ -65,7 +65,7 @@ function ChargerSearchModal({ onSelect, onClose }) {
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-charger-search-title" style={{ width: 620, maxWidth: '96vw' }}>
         <div className="modal__head">
-          <h3 id="modal-charger-search-title" className="modal__title">충전기 검색</h3>
+          <h2 id="modal-charger-search-title" className="modal__title">충전기 검색</h2>
           <p className="modal__sub">출하완료된 오더 중 충전기를 검색하여 정보를 자동 입력합니다</p>
         </div>
         <div className="modal__body">
@@ -80,11 +80,11 @@ function ChargerSearchModal({ onSelect, onClose }) {
             <table className="table">
               <thead>
                 <tr>
-                  <th>오더번호</th>
-                  <th>고객사</th>
-                  <th>충전소 ID</th>
-                  <th>설치 주소</th>
-                  <th>모델</th>
+                  <th scope="col">오더번호</th>
+                  <th scope="col">고객사</th>
+                  <th scope="col">충전소 ID</th>
+                  <th scope="col">설치 주소</th>
+                  <th scope="col">모델</th>
                 </tr>
               </thead>
               <tbody>

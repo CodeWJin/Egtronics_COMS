@@ -67,13 +67,7 @@ function AsProcessingScreen() {
                   aria-pressed={statusFilter === st}
                   onClick={() => setStatusFilter(st)}>
                   {st}
-                  <span style={{
-                    marginLeft: 4, fontSize: 11, fontVariantNumeric: 'tabular-nums',
-                    padding: '0 5px', borderRadius: 8,
-                    background: statusFilter === st ? 'rgba(255,255,255,0.22)' : 'var(--surface-2)',
-                  }}>
-                    {counts[st] || 0}
-                  </span>
+                  <span className="btn__count">{counts[st] || 0}</span>
                 </button>
               ))}
             </div>
@@ -82,8 +76,21 @@ function AsProcessingScreen() {
           {/* 카드 목록 */}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {filtered.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '40px 0', fontSize: 13 }}>
-                해당하는 접수 건이 없습니다
+              <div className="emptystate" style={{ padding: '40px 12px' }}>
+                <div className="emptystate__title">해당하는 접수 건이 없습니다</div>
+                <div className="emptystate__sub">
+                  {receptions.length === 0
+                    ? 'AS 접수 건이 아직 없습니다'
+                    : '필터 또는 검색어를 변경해 보세요'}
+                </div>
+                {receptions.length === 0 && (
+                  <button
+                    className="btn btn--primary btn--sm"
+                    style={{ marginTop: 12 }}
+                    onClick={() => window.actions.setView('as-receipt')}>
+                    <Icon name="plus" size={12}/> 새 접수 등록
+                  </button>
+                )}
               </div>
             ) : filtered.map((r, idx) => (
               <AsListCard
@@ -102,10 +109,10 @@ function AsProcessingScreen() {
           {selected ? (
             <AsDetailPanel key={selected.id} reception={selected}/>
           ) : (
-            <div className="as-empty-panel">
-              <div className="as-empty-panel__icon" aria-hidden="true">📋</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)' }}>접수 건을 선택하세요</div>
-              <div style={{ fontSize: 13 }}>왼쪽 목록에서 AS 건을 클릭하면 처리 패널이 열립니다</div>
+            <div className="emptystate" style={{ padding: '60px 24px' }}>
+              <Icon name="list" size={40} style={{ opacity: 0.2, marginBottom: 12, display: 'block', margin: '0 auto 12px' }} aria-hidden="true"/>
+              <div className="emptystate__title">접수 건을 선택하세요</div>
+              <div className="emptystate__sub">왼쪽 목록에서 AS 건을 클릭하면 처리 패널이 열립니다</div>
             </div>
           )}
         </div>
@@ -245,7 +252,7 @@ function AsDetailPanel({ reception: r }) {
                 color: tab === t.key ? 'var(--primary)' : 'var(--ink-3)',
                 fontWeight: tab === t.key ? 600 : 400,
                 borderBottom: tab === t.key ? '2px solid var(--primary)' : '2px solid transparent',
-                marginBottom: -1, transition: 'all 0.14s',
+                marginBottom: -1, transition: 'color 0.14s, border-color 0.14s',
               }}>
               {t.label}
             </button>

@@ -83,6 +83,7 @@ function AsReceiptScreen() {
         <input
           className="input toolbar__search"
           style={{ width: 260 }}
+          aria-label="AS 접수 검색 — 접수번호, 고객사, 충전소 ID"
           placeholder="접수번호, 고객사, 충전소 ID…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -111,7 +112,7 @@ function AsReceiptScreen() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '52px 0' }}>
-                    {search || statusFilter !== '전체' ? '검색 결과가 없습니다' : 'AS 접수 내역이 없습니다'}
+                    {search || statusFilter !== '전체' ? '검색 조건에 맞는 접수가 없습니다 — 필터나 검색어를 변경해 보세요' : '아직 접수된 AS가 없습니다 — 우측 상단 [새 AS 접수] 버튼으로 등록하세요'}
                   </td>
                 </tr>
               ) : filtered.map(r => (
@@ -176,6 +177,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
     received_at:    nowStr(),
   });
   const [err, setErr] = useStateAREC({});
+  const [isSubmitting, setIsSubmitting] = useStateAREC(false);
   const [query, setQuery] = useStateAREC('');
   const [selectedOrder, setSelectedOrder] = useStateAREC(null);
 
@@ -211,9 +213,15 @@ function AsReceiptModal({ onClose, onSubmit }) {
   };
 
   const handleSubmit = () => {
+    if (isSubmitting) return;
     const e = validate();
     if (Object.keys(e).length) { setErr(e); return; }
-    onSubmit({ ...form, received_at: form.received_at.replace('T', ' ') });
+    setIsSubmitting(true);
+    try {
+      onSubmit({ ...form, received_at: form.received_at.replace('T', ' ') });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOrderSelect = (order) => {
@@ -238,7 +246,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-as-receipt-title"
            style={{ width: 580, maxWidth: '96vw', maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
-          <h3 id="modal-as-receipt-title" className="modal__title">새 AS 접수</h3>
+          <h2 id="modal-as-receipt-title" className="modal__title">새 AS 접수</h2>
           <p className="modal__sub">고장 충전기 정보와 증상을 입력하세요</p>
         </div>
 
@@ -285,11 +293,11 @@ function AsReceiptModal({ onClose, onSubmit }) {
                     <table className="table" style={{ fontSize: 13 }}>
                       <thead>
                         <tr>
-                          <th>고객사</th>
-                          <th>충전소 ID</th>
-                          <th>시리얼 번호</th>
-                          <th>설치 주소</th>
-                          <th>모델</th>
+                          <th scope="col">고객사</th>
+                          <th scope="col">충전소 ID</th>
+                          <th scope="col">시리얼 번호</th>
+                          <th scope="col">설치 주소</th>
+                          <th scope="col">모델</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -339,7 +347,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 <option value="">선택하세요</option>
                 {window.FAULT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              {err.fault_type && <div className="field__err">{err.fault_type}</div>}
+              {err.fault_type && <div className="field__err" role="alert">{err.fault_type}</div>}
             </div>
             <div className="field">
               <div className="field__label">긴급도</div>
@@ -378,7 +386,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
               value={form.fault_detail}
               onChange={(e) => { set('fault_detail', e.target.value); clrErr('fault_detail'); }}
             />
-            {err.fault_detail && <div className="field__err">{err.fault_detail}</div>}
+            {err.fault_detail && <div className="field__err" role="alert">{err.fault_detail}</div>}
           </div>
 
           {/* 신고자 정보 */}
@@ -398,8 +406,10 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 <label className="field__label" htmlFor="ar-reporter-phone">연락처</label>
                 <input
                   id="ar-reporter-phone"
+                  type="tel"
                   className="input"
                   placeholder="010-0000-0000"
+                  autoComplete="tel"
                   value={form.reporter_phone}
                   onChange={(e) => set('reporter_phone', e.target.value)}
                 />
@@ -421,8 +431,8 @@ function AsReceiptModal({ onClose, onSubmit }) {
 
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
-          <button className="btn btn--primary" onClick={handleSubmit}>
-            <Icon name="check" size={13}/> 접수 등록
+          <button className="btn btn--primary" onClick={handleSubmit} disabled={isSubmitting}>
+            <Icon name="check" size={13}/> {isSubmitting ? '등록 중…' : '접수 등록'}
           </button>
         </div>
       </div>

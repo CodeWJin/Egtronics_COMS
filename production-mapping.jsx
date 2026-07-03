@@ -196,9 +196,9 @@ function CompletedView({ order }) {
       <SalesReadOnly order={order}/>
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card__head">
-          <h3 className="card__title">
+          <h2 className="card__title">
             <Icon name="factory" size={14}/> 생산 실적
-          </h3>
+          </h2>
           <span className="badge badge--complete"><Icon name="check" size={10}/>저장됨</span>
         </div>
         <div className="card__body">
@@ -509,9 +509,9 @@ function MappingForm({ order }) {
 
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card__head">
-          <h3 className="card__title">
+          <h2 className="card__title">
             <Icon name="factory" size={14}/> 생산 실적 입력
-          </h3>
+          </h2>
           <span className="card__sub">tb_production_info · 7 columns</span>
         </div>
         <div className="card__body">
@@ -521,10 +521,11 @@ function MappingForm({ order }) {
               <label className="field__label" htmlFor="pm-prod-date"><Icon name="calendar" size={11}/>생산일자 <span className="field__req">*</span></label>
               <input id="pm-prod-date" type="date"
                      className={`input ${showErr('prod_date') ? 'input--error' : ''}`}
+                     aria-invalid={showErr('prod_date')}
                      value={form.prod_date}
                      onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); update('lot_no', ''); }}/>
               <div className="field__hint">공장 조립 및 최종 자체 검사 완료일</div>
-              {showErr('prod_date') && <div className="field__err"><Icon name="alert" size={12}/>{errors.prod_date}</div>}
+              {showErr('prod_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.prod_date}</div>}
             </div>
 
             {/* 로트 */}
@@ -532,20 +533,25 @@ function MappingForm({ order }) {
               <label className="field__label" htmlFor="pm-lot-no"><Icon name="package" size={11}/>로트번호 <span className="field__req">*</span></label>
               <input id="pm-lot-no"
                      className={`input ${showErr('lot_no') ? 'input--error' : ''}`}
+                     aria-invalid={showErr('lot_no')}
                      style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
                      placeholder="예: L26-W22-A"
                      value={form.lot_no}
                      onChange={(e) => { update('lot_no', e.target.value); setTouched(t => ({ ...t, lot_no: 1 })); }}/>
               <div className="field__hint">생산일자 기준 자동 제안 · 수정 가능</div>
-              {showErr('lot_no') && <div className="field__err"><Icon name="alert" size={12}/>{errors.lot_no}</div>}
+              {showErr('lot_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.lot_no}</div>}
             </div>
 
             {/* 시리얼 */}
             <div className="field">
-              <label className="field__label" htmlFor="pm-serial-no"><Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span></label>
+              <label className="field__label" htmlFor="pm-serial-no">
+                <Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span>
+                <button type="button" className="helpdot" title="형식: 그룹코드-타입코드-연월코드-순번 (예: G00-00S-D6-0001). 연도는 A=2023·B=2024…, 월은 1-9·A=10·B=11·C=12. 자동 제안 버튼으로 채번하거나 직접 입력 후 중복 확인.">?</button>
+              </label>
               <div className="input-group">
                 <input id="pm-serial-no"
                        className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
+                       aria-invalid={showErr('serial_no')}
                        style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
                        placeholder="예: G00-00S-D6-0001"
                        value={form.serial_no}
@@ -564,7 +570,7 @@ function MappingForm({ order }) {
                   추천: {suggestSerial}
                 </button>
               </div>
-              {showErr('serial_no') && dupState !== 'dup' && <div className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
+              {showErr('serial_no') && dupState !== 'dup' && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
             </div>
 
             {/* 검정일자 — 공용 충전기만 표시 */}
@@ -573,10 +579,11 @@ function MappingForm({ order }) {
                 <label className="field__label" htmlFor="pm-inspection-date"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
                 <input id="pm-inspection-date" type="date"
                        className={`input ${showErr('inspection_date') ? 'input--error' : ''}`}
+                       aria-invalid={showErr('inspection_date')}
                        value={form.inspection_date}
                        onChange={(e) => { update('inspection_date', e.target.value); setTouched(t => ({ ...t, inspection_date: 1 })); }}/>
                 <div className="field__hint">KTC 등 공인기관 형식승인 · 검정 완료일 · 유효기간 7년</div>
-                {showErr('inspection_date') && <div className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
+                {showErr('inspection_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
               </div>
             )}
 
@@ -623,7 +630,7 @@ function MappingForm({ order }) {
                 </div>
               )}
               <div className="field__hint">목록에서 선택하거나 <strong>버전 추가</strong>로 직접 등록 </div>
-              {showErr('sw_version') && <div className="field__err"><Icon name="alert" size={12}/>{errors.sw_version}</div>}
+              {showErr('sw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.sw_version}</div>}
             </div>
 
             {/* F/W 버전 */}  
@@ -669,7 +676,7 @@ function MappingForm({ order }) {
                 </div>
               )}
               <div className="field__hint">목록에서 선택하거나 <strong>버전 추가</strong>로 직접 등록 </div>
-              {showErr('fw_version') && <div className="field__err"><Icon name="alert" size={12}/>{errors.fw_version}</div>}
+              {showErr('fw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.fw_version}</div>}
             </div>
 
             {/* 기능 검사 성적서 */}

@@ -180,8 +180,9 @@ function ProductionCompleteScreen() {
           {models.map(m => <option key={m.name} value={m.name}>{m.model || m.name}</option>)}
         </select>
         <button className={`toolbar__filter ${search || filterModel !== 'all' ? 'toolbar__filter--active' : ''}`}
-                onClick={() => { setSearch(''); setFilterModel('all'); }}>
-          <Icon name="filter" size={12}/> 초기화
+                onClick={() => { setSearch(''); setFilterModel('all'); }}
+                aria-label="필터 초기화">
+          <Icon name="filter" size={12}/><span aria-hidden="true"> 초기화</span>
         </button>
         <div style={{ flex: 1 }}/>
         <span style={{ fontSize: 12, color: 'var(--ink-3)', marginRight: 4 }}>

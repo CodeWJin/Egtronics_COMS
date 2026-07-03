@@ -255,7 +255,7 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
           role="dialog" aria-modal="true" aria-label="사진 라이트박스"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
-            zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setLightbox(null)}
           onKeyDown={e => {
@@ -267,17 +267,17 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
           <button aria-label="닫기"
             style={{
-              position: 'absolute', top: 16, right: 16, width: 40, height: 40,
+              position: 'absolute', top: 16, right: 16, width: 44, height: 44,
               background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
-              color: '#fff', fontSize: 20, cursor: 'pointer',
+              color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer',
             }}
             onClick={() => setLightbox(null)}>×</button>
           {lightbox > 0 && (
             <button aria-label="이전 사진"
               style={{
                 position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
-                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
-                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+                width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer',
               }}
               onClick={e => { e.stopPropagation(); setLightbox(lightbox - 1); }}>‹</button>
           )}
@@ -285,8 +285,8 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
             <button aria-label="다음 사진"
               style={{
                 position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)',
-                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
-                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+                width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer',
               }}
               onClick={e => { e.stopPropagation(); setLightbox(lightbox + 1); }}>›</button>
           )}
@@ -1060,7 +1060,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
           role="dialog" aria-modal="true" aria-label="사진 라이트박스"
           style={{
             position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
-            zIndex: 900, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setLightbox(null)}
           onKeyDown={e => {
@@ -1072,17 +1072,17 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
           <button aria-label="닫기"
             style={{
-              position: 'absolute', top: 16, right: 16, width: 40, height: 40,
+              position: 'absolute', top: 16, right: 16, width: 44, height: 44,
               background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%',
-              color: '#fff', fontSize: 20, cursor: 'pointer',
+              color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer',
             }}
             onClick={() => setLightbox(null)}>×</button>
           {lightbox > 0 && (
             <button aria-label="이전 사진"
               style={{
                 position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
-                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
-                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+                width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer',
               }}
               onClick={e => { e.stopPropagation(); setLightbox(lightbox - 1); }}>‹</button>
           )}
@@ -1090,8 +1090,8 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
             <button aria-label="다음 사진"
               style={{
                 position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)',
-                width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none',
-                borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer',
+                width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer',
               }}
               onClick={e => { e.stopPropagation(); setLightbox(lightbox + 1); }}>›</button>
           )}

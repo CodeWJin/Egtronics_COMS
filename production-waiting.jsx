@@ -103,8 +103,9 @@ function ProductionWaitingScreen() {
           {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
         </select>
         <button className={`toolbar__filter ${filterModel !== 'all' || search ? 'toolbar__filter--active' : ''}`}
-                onClick={() => { setSearch(''); setFilterModel('all'); }}>
-          <Icon name="filter" size={12}/> 초기화
+                onClick={() => { setSearch(''); setFilterModel('all'); }}
+                aria-label="필터 초기화">
+          <Icon name="filter" size={12}/><span aria-hidden="true"> 초기화</span>
         </button>
         <div style={{ flex: 1 }}/>
         <span style={{ fontSize: 12, color: 'var(--ink-3)', marginRight: 8 }}>
@@ -119,8 +120,10 @@ function ProductionWaitingScreen() {
           ].map((v) => (
             <button key={v.k}
                     className={`toolbar__view__btn ${s.waitingView === v.k ? 'toolbar__view__btn--active' : ''}`}
-                    onClick={() => window.actions.setWaitingView(v.k)}>
-              <Icon name={v.icon} size={12}/> {v.label}
+                    onClick={() => window.actions.setWaitingView(v.k)}
+                    aria-label={v.label}
+                    aria-pressed={s.waitingView === v.k}>
+              <Icon name={v.icon} size={12}/><span aria-hidden="true"> {v.label}</span>
             </button>
           ))}
         </div>
@@ -130,9 +133,26 @@ function ProductionWaitingScreen() {
         {filtered.length === 0 ? (
           <div className="table-wrap">
             <div className="emptystate">
-              <Icon name="package" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
-              <div className="emptystate__title">조건에 맞는 오더가 없습니다</div>
-              <div className="emptystate__sub">검색어 또는 필터를 변경해 보세요</div>
+              <Icon name="package" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }} aria-hidden="true"/>
+              {s.orders.filter(o => o.status !== 'COMPLETED').length === 0 ? (
+                <>
+                  <div className="emptystate__title">생산 대기 중인 오더가 없습니다</div>
+                  <div className="emptystate__sub">영업 부서에서 오더를 등록하면 이 목록에 표시됩니다</div>
+                  {isSales && (
+                    <button className="btn btn--primary" style={{ marginTop: 12 }} onClick={() => window.actions.setView('sales')}>
+                      <Icon name="plus" size={13}/> 신규 오더 등록
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="emptystate__title">조건에 맞는 오더가 없습니다</div>
+                  <div className="emptystate__sub">검색어 또는 필터를 변경해 보세요</div>
+                  <button className="btn btn--ghost btn--sm" style={{ marginTop: 10 }} onClick={() => { setSearch(''); setFilterModel('all'); }}>
+                    필터 초기화
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -165,14 +185,14 @@ function ViewTable({ orders, onPick, completingId, editedIds }) {
           </colgroup>
         <thead>
           <tr>
-            <th>오더 #</th>
-            <th>고객사</th>
-            <th>모델</th>
-            <th>충전소 ID</th>
-            <th>설치주소</th>
-            <th>납품일</th>
-            <th>상태</th>
-            <th></th>
+            <th scope="col">오더 #</th>
+            <th scope="col">고객사</th>
+            <th scope="col">모델</th>
+            <th scope="col">충전소 ID</th>
+            <th scope="col">설치주소</th>
+            <th scope="col">납품일</th>
+            <th scope="col">상태</th>
+            <th scope="col"></th>
           </tr>
         </thead>
         <tbody>

@@ -32,6 +32,7 @@ function ComboField({ value, onChange, options, placeholder, error, displayKey =
                className={`input ${error ? 'input--error' : ''}`}
                placeholder={placeholder}
                aria-label={ariaLabel}
+               aria-invalid={!!error}
                role="combobox"
                aria-expanded={open}
                aria-haspopup="listbox"
@@ -183,6 +184,8 @@ function SalesInputScreen() {
   const [managers, setManagers] = useStateSI([]);
   const [modal, setModal] = useStateSI(null); // 'mgr'|'history'|'add-customer'|'customer-mgr'|'add-model'|'model-mgr'|'cable-mgr'|'add-cpo'|'cpo-mgr'|'csv'
   const [useCpo, setUseCpo] = useStateSI(false);
+  const DRAFT_KEY = 'pm_si_draft';
+  const [draftBanner, setDraftBanner] = useStateSI(null); // null | 'ask' | 'dismissed'
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
@@ -196,6 +199,25 @@ function SalesInputScreen() {
     window.addEventListener('masterLoaded', syncMaster);
     return () => window.removeEventListener('masterLoaded', syncMaster);
   }, []);
+
+  // 초안 복원 여부 확인 — 신규 입력 모드 첫 마운트 시
+  useEffectSI(() => {
+    if (isEdit) return;
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (Object.values(draft).some(v => v && v !== '')) setDraftBanner('ask');
+    } catch (e) { /* ignore */ }
+  }, []);
+
+  // 폼 변경 시 자동 저장 — 신규 입력 모드에서만
+  useEffectSI(() => {
+    if (isEdit) return;
+    const isBlank = Object.keys(form).every(k => (form[k] || '') === (empty[k] || ''));
+    if (isBlank) { localStorage.removeItem(DRAFT_KEY); return; }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(form)); } catch (e) { /* ignore */ }
+  }, [form, isEdit]);
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -225,6 +247,8 @@ function SalesInputScreen() {
       setForm(empty); setUseCpo(false); setTouched({}); setShowAll(false);
     }
   }, [s.editingOrderId]);
+
+  const submittingRef = useRefSI(false);
 
   // 고객사별 담당자 로드 (DB 관리)
   const refreshManagers = useRefSI(null);
@@ -272,20 +296,26 @@ function SalesInputScreen() {
   const completionPct = Math.round((reqFilled / REQUIRED_PROGRESS.length) * 70 + (optFilled / OPTIONAL_PROGRESS.length) * 30);
 
   const submit = () => {
+    if (submittingRef.current) return;
     setTouched({ customer_name: 1, customer_manager: 1, model_name: 1, delivery_date: 1, cable_length: 1, station_id: 1, router_no: 1, usim_no: 1, install_address: 1 });
     setShowAll(true);
     if (hasErr) return;
+    submittingRef.current = true;
     const { install_address_detail, ...payload } = form;
     payload.install_address = [form.install_address.trim(), install_address_detail.trim()].filter(Boolean).join(' ');
     if (isEdit) {
       const ok = window.actions.updateOrder(editing.order_id, payload);
+      submittingRef.current = false;
       if (ok) window.actions.setView('waiting');
       return;
     }
     window.actions.addOrder(payload);
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftBanner(null);
     setForm(empty);
     setTouched({});
     setShowAll(false);
+    submittingRef.current = false;
   };
 
   const showErr = (k) => (showAll || touched[k]) && errors[k];
@@ -319,7 +349,7 @@ function SalesInputScreen() {
               <button className="btn btn--secondary" onClick={() => setModal('csv')}>
                 <Icon name="arrow-right" size={13}/> CSV 업로드
               </button>
-              <button className="btn btn--secondary" onClick={() => { setForm(empty); setTouched({}); setShowAll(false); }}>
+              <button className="btn btn--secondary" onClick={() => { localStorage.removeItem(DRAFT_KEY); setDraftBanner(null); setForm(empty); setTouched({}); setShowAll(false); }}>
                 <Icon name="refresh" size={13}/> 초기화
               </button>
             </>)}
@@ -337,15 +367,33 @@ function SalesInputScreen() {
         </div>
       </div>
 
+      {draftBanner === 'ask' && !isEdit && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', background: 'var(--primary-50)', border: '1px solid var(--primary)', borderRadius: 'var(--r-md)', marginBottom: 14, fontSize: 13 }}>
+          <Icon name="save" size={14} style={{ color: 'var(--primary)', flexShrink: 0 }}/>
+          <span style={{ flex: 1, color: 'var(--ink-2)' }}>이전에 작성하던 오더 초안이 있습니다.</span>
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => {
+            try {
+              const raw = localStorage.getItem(DRAFT_KEY);
+              if (raw) setForm(f => ({ ...f, ...JSON.parse(raw) }));
+            } catch (e) { /* ignore */ }
+            setDraftBanner('dismissed');
+          }}>복원</button>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
+            localStorage.removeItem(DRAFT_KEY);
+            setDraftBanner('dismissed');
+          }}>무시</button>
+        </div>
+      )}
+
       <div className="sales-layout">
         <div className="card-grid">
           {/* Section 1 — 발주 정보 */}
           <div className="card">
             <div className="card__head">
-              <h3 className="card__title">
+              <h2 className="card__title">
                 <span className="section-title__num">1</span>
                 발주 정보
-              </h3>
+              </h2>
               <span className="card__sub">고객사 · 모델 · 납기</span>
             </div>
             <div className="card__body">
@@ -372,7 +420,7 @@ function SalesInputScreen() {
                       <Icon name="settings" size={13}/> 관리
                     </button>
                   </div>
-                  {showErr('customer_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.customer_name}</div>}
+                  {showErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.customer_name}</div>}
                 </div>
                 <div className="field">
                   <div className="field__label"><label htmlFor="si-customer-manager">고객사 담당자 <span className="field__req">*</span></label><button type="button" className="helpdot" title="담당자 관리 버튼에서 고객사별 담당자를 추가·수정할 수 있습니다" aria-label="도움말: 담당자 관리 버튼에서 고객사별 담당자를 추가·수정할 수 있습니다">?</button></div>
@@ -395,7 +443,7 @@ function SalesInputScreen() {
                       <Icon name="user" size={13}/> 관리
                     </button>
                   </div>
-                  {showErr('customer_manager') && <div className="field__err"><Icon name="alert" size={12}/> {errors.customer_manager}</div>}
+                  {showErr('customer_manager') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.customer_manager}</div>}
                   {!showErr('customer_manager') && form.customer_name && (
                     <div className="field__hint" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <span><Icon name="info" size={11}/> {managers.length}명 등록됨 · 관리에서 담당자를 추가·수정할 수 있습니다</span>
@@ -470,18 +518,20 @@ function SalesInputScreen() {
                                 displayKey="model"
                                 metaKey="name"
                                 error={showErr('model_name')}/>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setModal('add-model')}
-                            title="신규 모델 등록">
-                      <Icon name="plus" size={13}/> 추가
-                    </button>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setModal('model-mgr')}
-                            title="모델 목록 관리">
-                      <Icon name="settings" size={13}/> 관리
-                    </button>
+                    {s.currentUser?.role === 'admin' && (<>
+                      <button type="button" className="btn btn--secondary mgr-field__manage"
+                              onClick={() => setModal('add-model')}
+                              title="신규 모델 등록">
+                        <Icon name="plus" size={13}/> 추가
+                      </button>
+                      <button type="button" className="btn btn--secondary mgr-field__manage"
+                              onClick={() => setModal('model-mgr')}
+                              title="모델 목록 관리">
+                        <Icon name="settings" size={13}/> 관리
+                      </button>
+                    </>)}
                   </div>
-                  {showErr('model_name') && <div className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
+                  {showErr('model_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
                 </div>
                 <div className="field">
                   <div className="field__label">케이블 길이 <span className="field__req">*</span></div>
@@ -502,27 +552,29 @@ function SalesInputScreen() {
                       <Icon name="settings" size={13}/> 관리
                     </button>
                   </div>
-                  {showErr('cable_length') && <div className="field__err"><Icon name="alert" size={12}/> {errors.cable_length}</div>}
+                  {showErr('cable_length') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.cable_length}</div>}
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="si-delivery-date">납품일자 <span className="field__req">*</span></label>
                   <div className="input-group">
                     <input id="si-delivery-date" type="date"
                            className={`input ${showErr('delivery_date') ? 'input--error' : ''}`}
+                           aria-invalid={showErr('delivery_date')}
                            value={form.delivery_date}
                            onChange={(e) => { update('delivery_date', e.target.value); setTouched((t) => ({ ...t, delivery_date: 1 })); }}/>
                   </div>
-                  {showErr('delivery_date') && <div className="field__err"><Icon name="alert" size={12}/> {errors.delivery_date}</div>}
+                  {showErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.delivery_date}</div>}
                 </div>
                 <div className="field">
                   <div className="field__label"><label htmlFor="si-station-id">충전소 ID</label><button type="button" className="helpdot" title="환경부 또는 자체 관제용 충전소 고유 식별자" aria-label="도움말: 충전소 고유 식별자 설명">?</button></div>
                   <input id="si-station-id" className={`input ${showErr('station_id') ? 'input--error' : ''}`}
+                         aria-invalid={showErr('station_id')}
                          placeholder="예: CT3006"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.station_id}
                          onChange={(e) => { update('station_id', e.target.value); setTouched((t) => ({ ...t, station_id: 1 })); }}
                          onBlur={() => setTouched((t) => ({ ...t, station_id: 1 }))}/>
-                  {showErr('station_id') && <div className="field__err"><Icon name="alert" size={12}/> {errors.station_id}</div>}
+                  {showErr('station_id') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.station_id}</div>}
                   {!showErr('station_id') && <div className="field__hint"><Icon name="info" size={11}/> 영문+숫자 조합 · 환경부 MEA 또는 자체 관제 ID (예: CT3006, ME0001)</div>}
                 </div>
                 <div className="field">
@@ -540,10 +592,10 @@ function SalesInputScreen() {
           {/* Section 2 — 통신 모듈 */}
           <div className="card">
             <div className="card__head">
-              <h3 className="card__title">
+              <h2 className="card__title">
                 <span className="section-title__num">2</span>
                 통신 모듈
-              </h3>
+              </h2>
               <span className="card__sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icon name="wifi" size={12}/> LTE 라우터 · USIM
               </span>
@@ -551,19 +603,21 @@ function SalesInputScreen() {
             <div className="card__body">
               <div className="form-grid">
                 <div className="field">
-                  <label className="field__label" htmlFor="si-router-no">라우터번호 (S/N)</label>
+                  <div className="field__label"><label htmlFor="si-router-no">라우터번호 (S/N)</label><button type="button" className="helpdot" title="충전기에 장착된 LTE 라우터의 시리얼 번호. 라우터 하단 스티커 S/N 항목 참조." aria-label="도움말: 라우터 시리얼 번호 설명">?</button></div>
                   <input id="si-router-no" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
+                         aria-invalid={showErr('router_no')}
                          placeholder="예: RTR-2024-00001"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.router_no}
                          onChange={(e) => { update('router_no', e.target.value); setTouched((t) => ({ ...t, router_no: 1 })); }}
                          onBlur={() => setTouched((t) => ({ ...t, router_no: 1 }))}/>
-                  {showErr('router_no') && <div className="field__err"><Icon name="alert" size={12}/> {errors.router_no}</div>}
+                  {showErr('router_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.router_no}</div>}
                   {!showErr('router_no') && <div className="field__hint"><Icon name="info" size={11}/> LTE 라우터 하단 스티커 S/N 참조</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label" htmlFor="si-usim-no">USIM번호 (ICCID)</label>
+                  <div className="field__label"><label htmlFor="si-usim-no">USIM번호 (ICCID)</label><button type="button" className="helpdot" title="USIM 카드 고유 식별번호(ICCID). 19~20자리 숫자. SIM 카드 봉투 또는 칩 뒷면 바코드 하단에 표시." aria-label="도움말: USIM ICCID 설명">?</button></div>
                   <input id="si-usim-no" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
+                         aria-invalid={showErr('usim_no')}
                          placeholder="예: 89820012345678901234"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
                          value={form.usim_no}
@@ -571,7 +625,7 @@ function SalesInputScreen() {
                          onBlur={() => setTouched((t) => ({ ...t, usim_no: 1 }))}
                          maxLength={20}
                          inputMode="numeric"/>
-                  {showErr('usim_no') && <div className="field__err"><Icon name="alert" size={12}/> {errors.usim_no}</div>}
+                  {showErr('usim_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.usim_no}</div>}
                   {!showErr('usim_no') && <div className="field__hint"><Icon name="info" size={11}/> USIM 칩 뒷면 또는 SIM 카드 봉투의 ICCID 19~20자리 숫자</div>}
                 </div>
               </div>
@@ -581,10 +635,10 @@ function SalesInputScreen() {
           {/* Section 3 — 설치 정보 */}
           <div className="card">
             <div className="card__head">
-              <h3 className="card__title">
+              <h2 className="card__title">
                 <span className="section-title__num">3</span>
                 설치 정보
-              </h3>
+              </h2>
               <span className="card__sub">현장 설치 주소</span>
             </div>
             <div className="card__body">
@@ -600,7 +654,7 @@ function SalesInputScreen() {
                          value={form.install_address_detail}
                          onChange={(e) => update('install_address_detail', e.target.value)}/>
                   <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 선택하세요</div>
-                  {showErr('install_address') && <div className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
+                  {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="si-field-mgr-name">현장담당자 이름</label>
@@ -611,9 +665,10 @@ function SalesInputScreen() {
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="si-field-mgr-phone">현장담당자 연락처</label>
-                  <input id="si-field-mgr-phone" className="input"
+                  <input id="si-field-mgr-phone" type="tel" className="input"
                          style={{ fontFamily: 'var(--font-mono)' }}
                          placeholder="010-0000-0000"
+                         autoComplete="tel"
                          value={form.field_manager_phone}
                          onChange={(e) => {
                            const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
@@ -631,7 +686,7 @@ function SalesInputScreen() {
         <aside className="sales-preview" style={{ position: 'sticky', top: 0 }}>
           <div className="card">
             <div className="card__head">
-              <h3 className="card__title"><Icon name="eye" size={14}/> 입력 미리보기</h3>
+              <h2 className="card__title"><Icon name="eye" size={14}/> 입력 미리보기</h2>
             </div>
             <div className="card__body">
               <dl className="kv">
@@ -843,7 +898,7 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-customer-mgr-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-customer-mgr-title" className="modal__title">고객사 담당자 관리</h3>
+          <h2 id="modal-customer-mgr-title" className="modal__title">고객사 담당자 관리</h2>
           <p className="modal__sub"><strong style={{ color: 'var(--ink-1)' }}>{customerName}</strong></p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -901,7 +956,7 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
                        onChange={(e) => setDraft(d => ({ ...d, is_primary: e.target.checked }))}/>
                 대표 담당자로 지정
               </label>
-              {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
                 <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
@@ -935,7 +990,7 @@ function OrderHistoryModal({ orderId, onClose }) {
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-order-history-title" style={{ width: 560, maxWidth: '96vw' }}>
         <div className="modal__head">
-          <h3 id="modal-order-history-title" className="modal__title"><Icon name="clock" size={14}/> 수정 이력</h3>
+          <h2 id="modal-order-history-title" className="modal__title"><Icon name="clock" size={14}/> 수정 이력</h2>
           <p className="modal__sub">오더 #{orderId} · {history.length}건</p>
         </div>
         <div className="modal__body" style={{ maxHeight: 440, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -1006,7 +1061,7 @@ function AddCustomerModal({ onClose, onAdded }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-add-customer-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-add-customer-title" className="modal__title">고객사 추가</h3>
+          <h2 id="modal-add-customer-title" className="modal__title">고객사 추가</h2>
           <p className="modal__sub">신규 고객사를 마스터 목록에 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1024,7 +1079,7 @@ function AddCustomerModal({ onClose, onAdded }) {
                    placeholder="예: CAS"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
           </div>
-          {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+          {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
@@ -1069,7 +1124,7 @@ function CustomerManageModal({ onClose, onChanged }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-manage-customer-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-manage-customer-title" className="modal__title">고객사 관리</h3>
+          <h2 id="modal-manage-customer-title" className="modal__title">고객사 관리</h2>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="mgr-list">
@@ -1110,7 +1165,7 @@ function CustomerManageModal({ onClose, onChanged }) {
                          onChange={(e) => { setDraft(d => ({ ...d, code: e.target.value })); setErr(''); }}/>
                 </div>
               </div>
-              {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
                 <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
@@ -1148,7 +1203,7 @@ function AddModelModal({ onClose, onAdded }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-add-model-title" style={{ width: 420, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-add-model-title" className="modal__title">모델 추가</h3>
+          <h2 id="modal-add-model-title" className="modal__title">모델 추가</h2>
           <p className="modal__sub">신규 모델을 마스터 목록에 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1177,7 +1232,7 @@ function AddModelModal({ onClose, onAdded }) {
                    placeholder="예: 50kW"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
           </div>
-          {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+          {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
@@ -1220,7 +1275,7 @@ function ModelManageModal({ onClose, onChanged }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-manage-model-title" style={{ width: 560, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-manage-model-title" className="modal__title">모델 관리</h3>
+          <h2 id="modal-manage-model-title" className="modal__title">모델 관리</h2>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="mgr-list">
@@ -1273,7 +1328,7 @@ function ModelManageModal({ onClose, onChanged }) {
                          onChange={(e) => { setDraft(d => ({ ...d, description: e.target.value })); setErr(''); }}/>
                 </div>
               </div>
-              {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
                 <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
@@ -1320,7 +1375,7 @@ function CableLengthManageModal({ onClose, onChanged }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-cable-length-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-cable-length-title" className="modal__title">케이블 길이 관리</h3>
+          <h2 id="modal-cable-length-title" className="modal__title">케이블 길이 관리</h2>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="mgr-list">
@@ -1352,7 +1407,7 @@ function CableLengthManageModal({ onClose, onChanged }) {
                 <Icon name="plus" size={13}/> 추가
               </button>
             </div>
-            {err && <div className="field__err" style={{ marginTop: 4 }}><Icon name="alert" size={12}/> {err}</div>}
+            {err && <div role="alert" className="field__err" style={{ marginTop: 4 }}><Icon name="alert" size={12}/> {err}</div>}
           </div>
         </div>
         <div className="modal__foot">
@@ -1385,7 +1440,7 @@ function AddCpoModal({ onClose, onAdded }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-add-cpo-title" style={{ width: 400, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-add-cpo-title" className="modal__title">CPO 운영사 추가</h3>
+          <h2 id="modal-add-cpo-title" className="modal__title">CPO 운영사 추가</h2>
           <p className="modal__sub">신규 CPO 운영사를 마스터 목록에 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1403,7 +1458,7 @@ function AddCpoModal({ onClose, onAdded }) {
                    placeholder="예: KEPCO"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
           </div>
-          {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+          {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
@@ -1447,7 +1502,7 @@ function CpoManageModal({ onClose, onChanged }) {
     <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-manage-cpo-title" style={{ width: 520, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-manage-cpo-title" className="modal__title">CPO 운영사 관리</h3>
+          <h2 id="modal-manage-cpo-title" className="modal__title">CPO 운영사 관리</h2>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="mgr-list">
@@ -1487,7 +1542,7 @@ function CpoManageModal({ onClose, onChanged }) {
                          onChange={(e) => { setDraft(d => ({ ...d, code: e.target.value })); setErr(''); }}/>
                 </div>
               </div>
-              {err && <div className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
                 <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
@@ -1514,22 +1569,47 @@ const CSV_CELL_OPTIONS = {
 
 function CsvCellInput({ value, onChange, options, mono }) {
   const [open, setOpen] = useStateSI(false);
+  const [highlight, setHighlight] = useStateSI(0);
+  const [menuPos, setMenuPos] = useStateSI(null);
   const ref = useRefSI(null);
+  const menuIdRef = useRefSI(null);
+  if (menuIdRef.current === null) menuIdRef.current = `csv-combo-${Math.random().toString(36).slice(2, 7)}`;
+  const menuId = menuIdRef.current;
   useEffectSI(() => {
     const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, []);
+  useEffectSI(() => {
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 120) });
+    }
+  }, [open]);
   const opts = typeof options === 'function' ? options() : (options || []);
   const filtered = value
     ? opts.filter(o => String(o).toLowerCase().includes(value.toLowerCase()))
     : opts;
+  const visible = filtered.slice(0, 8);
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <input
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-autocomplete="list"
+        aria-controls={menuId}
+        aria-activedescendant={open && visible.length > 0 ? `${menuId}-${highlight}` : undefined}
         value={value || ''}
-        onChange={(e) => { onChange(e.target.value); if (opts.length) setOpen(true); }}
+        onChange={(e) => { onChange(e.target.value); setHighlight(0); if (opts.length) setOpen(true); }}
         onFocus={() => opts.length && setOpen(true)}
+        onKeyDown={(e) => {
+          if (!open) return;
+          if (e.key === 'ArrowDown') { setHighlight(h => Math.min(h + 1, visible.length - 1)); e.preventDefault(); }
+          if (e.key === 'ArrowUp')   { setHighlight(h => Math.max(h - 1, 0)); e.preventDefault(); }
+          if (e.key === 'Enter' && visible[highlight] !== undefined) { onChange(String(visible[highlight])); setOpen(false); e.preventDefault(); }
+          if (e.key === 'Escape')    { setOpen(false); }
+        }}
         style={{
           width: '100%', border: 'none', background: 'transparent',
           fontFamily: mono ? 'var(--font-mono)' : 'inherit',
@@ -1537,11 +1617,14 @@ function CsvCellInput({ value, onChange, options, mono }) {
           boxSizing: 'border-box', color: 'inherit',
         }}
       />
-      {open && filtered.length > 0 && (
-        <div className="combo__menu" style={{ position: 'absolute', top: '100%', left: 0, zIndex: 200, minWidth: 120 }}>
-          {filtered.slice(0, 8).map(o => (
-            <div key={o} className="combo__item"
-                 onMouseDown={(e) => { e.preventDefault(); onChange(String(o)); setOpen(false); }}>
+      {open && visible.length > 0 && menuPos && (
+        <div role="listbox" id={menuId} className="combo__menu"
+             style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, width: menuPos.width, zIndex: 'var(--z-lightbox)' }}>
+          {visible.map((o, i) => (
+            <div key={o} id={`${menuId}-${i}`} role="option" aria-selected={i === highlight}
+                 className={`combo__item${i === highlight ? ' combo__item--active' : ''}`}
+                 onMouseDown={(e) => { e.preventDefault(); onChange(String(o)); setOpen(false); }}
+                 onMouseEnter={() => setHighlight(i)}>
               {o}
             </div>
           ))}
@@ -1627,7 +1710,7 @@ function CsvUploadModal({ onClose, onImport }) {
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-csv-upload-title"
            style={{ width: '92vw', maxWidth: 1100, maxHeight: '90dvh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
-          <h3 id="modal-csv-upload-title" className="modal__title">CSV 일괄 등록</h3>
+          <h2 id="modal-csv-upload-title" className="modal__title">CSV 일괄 등록</h2>
           <p className="modal__sub">CSV 파일로 여러 오더를 한 번에 등록합니다 · <button type="button" className="btn btn--ghost btn--sm" style={{ padding: '1px 8px', fontSize: 12 }} onClick={downloadCsvTemplate}><Icon name="doc" size={11}/> 양식 다운로드</button></p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>

@@ -33,6 +33,7 @@ function OrderLookupScreen() {
   const [sortKey, setSortKey] = useStateOL('order_id');
   const [sortDir, setSortDir] = useStateOL('desc');
   const [fAsOnly, setFAsOnly] = useStateOL(false);
+  const [showAdvanced, setShowAdvanced] = useStateOL(false);
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
   const modelMap  = useMemoOL(() => { const m = {}; models.forEach(mdl => { m[mdl.name] = mdl; }); return m; }, [models]);
@@ -108,69 +109,120 @@ function OrderLookupScreen() {
       {/* Filter panel */}
       <div className="card" style={{ marginBottom: 16, borderRadius: 'var(--r-xl)' }}>
         <div className="card__body" style={{ padding: '16px 18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Icon name="sliders" size={14} style={{ color: 'var(--ink-3)' }}/>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>검색 조건</span>
-            {activeFilters > 0 && <span className="badge badge--info" style={{ marginLeft: 2 }}>{activeFilters}개 적용</span>}
+          {/* 헤더 행 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Icon name="search" size={14} style={{ color: 'var(--ink-3)' }}/>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>검색</span>
+            {activeFilters > 0 && (
+              <span className="badge badge--info" style={{ marginLeft: 2 }}>{activeFilters}개 필터 적용</span>
+            )}
             <div style={{ flex: 1 }}/>
-            <button className="btn btn--ghost btn--sm" onClick={reset} disabled={activeFilters === 0}>
-              <Icon name="refresh" size={12}/> 조건 초기화
+            <button
+              className="btn btn--ghost btn--sm"
+              style={{ fontSize: 12 }}
+              onClick={() => setShowAdvanced(v => !v)}
+              aria-expanded={showAdvanced}
+              aria-controls="ol-advanced-filters"
+            >
+              <Icon name={showAdvanced ? 'chevron-up' : 'sliders'} size={12}/>
+              {showAdvanced ? '필터 접기' : `고급 필터${activeFilters > 0 ? ` (${activeFilters})` : ''}`}
+            </button>
+            <button className="btn btn--ghost btn--sm" onClick={reset} disabled={activeFilters === 0}
+                    style={{ fontSize: 12 }}>
+              <Icon name="refresh" size={12}/> 초기화
             </button>
           </div>
-          <div className="filter-grid">
-            <div className="field col-span-2">
-              <label className="field__label" htmlFor="ol-search"><Icon name="search" size={11}/>통합 검색</label>
-              <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 주소 …"
-                     value={search} onChange={(e) => setSearch(e.target.value)}/>
+
+          {/* 항상 표시: 통합 검색 */}
+          <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 주소 · 납품일 …"
+                 value={search} onChange={(e) => setSearch(e.target.value)}
+                 aria-label="통합 검색"/>
+
+          {/* 고급 필터 — 접기/펼치기 */}
+          {showAdvanced && (
+            <div id="ol-advanced-filters" style={{ marginTop: 14 }}>
+              <div className="filter-grid">
+                <div className="field">
+                  <label className="field__label" htmlFor="ol-model">모델</label>
+                  <select id="ol-model" className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
+                    <option value="all">모델 전체</option>
+                    {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="ol-customer">고객사</label>
+                  <select id="ol-customer" className="select" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)}>
+                    <option value="all">고객사 전체</option>
+                    {customers.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="ol-date-field">기간 기준</label>
+                  <select id="ol-date-field" className="select" value={dateField} onChange={(e) => setDateField(e.target.value)}>
+                    <option value="delivery">납품일자</option>
+                    <option value="prod">생산일자</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="ol-date-from">시작일</label>
+                  <input id="ol-date-from" type="date" className="input"
+                         style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
+                         value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="ol-date-to">종료일</label>
+                  <input id="ol-date-to" type="date" className="input"
+                         style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
+                         value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
+                  {dateRangeErr && (
+                    <span className="field__err" role="alert"><Icon name="x" size={11}/>종료일이 시작일보다 앞입니다</span>
+                  )}
+                </div>
+                <div className="field" style={{ justifyContent: 'flex-end' }}>
+                  <div className="field__label">A/S 필터</div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, cursor: 'pointer',
+                                  padding: '0 12px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)',
+                                  background: fAsOnly ? 'var(--warning-50)' : 'var(--surface)',
+                                  color: fAsOnly ? 'var(--warning-700)' : 'var(--ink-2)', fontSize: 13.5 }}>
+                    <input type="checkbox" checked={fAsOnly} onChange={e => setFAsOnly(e.target.checked)}
+                           style={{ accentColor: 'var(--warning-700)', width: 15, height: 15 }}/>
+                    A/S 이력 있는 오더만
+                  </label>
+                </div>
+              </div>
             </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-model">모델</label>
-              <select id="ol-model" className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
-                <option value="all">모델 전체</option>
-                {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-customer">고객사</label>
-              <select id="ol-customer" className="select" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)}>
-                <option value="all">고객사 전체</option>
-                {customers.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-date-field">기간 기준</label>
-              <select id="ol-date-field" className="select" value={dateField} onChange={(e) => setDateField(e.target.value)}>
-                <option value="delivery">납품일자</option>
-                <option value="prod">생산일자</option>
-              </select>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-date-from">시작일</label>
-              <input id="ol-date-from" type="date" className="input"
-                     style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
-                     value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor="ol-date-to">종료일</label>
-              <input id="ol-date-to" type="date" className="input"
-                     style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
-                     value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
-              {dateRangeErr && (
-                <span className="field__err"><Icon name="x" size={11}/>종료일이 시작일보다 앞입니다</span>
+          )}
+
+          {/* 활성 필터 칩 — 검색어 제외 고급 필터가 적용된 경우 */}
+          {(fModel !== 'all' || fCustomer !== 'all' || dateFrom || dateTo || fAsOnly) && (
+            <div className="chips" style={{ marginTop: 10 }}>
+              {fModel !== 'all' && (
+                <button type="button" className="chip chip--active" onClick={() => setFModel('all')}
+                        style={{ fontSize: 12, padding: '4px 10px' }}>
+                  모델: {fModel} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                </button>
+              )}
+              {fCustomer !== 'all' && (
+                <button type="button" className="chip chip--active" onClick={() => setFCustomer('all')}
+                        style={{ fontSize: 12, padding: '4px 10px' }}>
+                  고객사: {fCustomer} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                </button>
+              )}
+              {(dateFrom || dateTo) && (
+                <button type="button" className="chip chip--active"
+                        onClick={() => { setDateFrom(''); setDateTo(''); }}
+                        style={{ fontSize: 12, padding: '4px 10px' }}>
+                  {dateField === 'delivery' ? '납품일' : '생산일'}: {dateFrom || '—'} ~ {dateTo || '—'} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                </button>
+              )}
+              {fAsOnly && (
+                <button type="button" className="chip chip--active" onClick={() => setFAsOnly(false)}
+                        style={{ fontSize: 12, padding: '4px 10px' }}>
+                  A/S 이력 있는 오더 <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                </button>
               )}
             </div>
-            <div className="field" style={{ justifyContent: 'flex-end' }}>
-              <div className="field__label">A/S 필터</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, cursor: 'pointer',
-                              padding: '0 12px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)',
-                              background: fAsOnly ? 'var(--warning-50)' : 'var(--surface)',
-                              color: fAsOnly ? 'var(--warning-700)' : 'var(--ink-2)', fontSize: 13.5 }}>
-                <input type="checkbox" checked={fAsOnly} onChange={e => setFAsOnly(e.target.checked)}
-                       style={{ accentColor: 'var(--warning-700)', width: 15, height: 15 }}/>
-                A/S 이력 있는 오더만
-              </label>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -681,16 +733,16 @@ function OrderDrawer({ order, onClose }) {
           <img src={shipPhotos[shipPhotoLightbox]?.url} alt={shipPhotos[shipPhotoLightbox]?.filename}
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
           <button aria-label="닫기"
-            style={{ position: 'absolute', top: 16, right: 16, width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+            style={{ position: 'absolute', top: 16, right: 16, width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer' }}
             onClick={() => setShipPhotoLightbox(null)}>×</button>
           {shipPhotoLightbox > 0 && (
             <button aria-label="이전 사진"
-              style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+              style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer' }}
               onClick={e => { e.stopPropagation(); setShipPhotoLightbox(shipPhotoLightbox - 1); }}>‹</button>
           )}
           {shipPhotoLightbox < shipPhotos.length - 1 && (
             <button aria-label="다음 사진"
-              style={{ position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+              style={{ position: 'absolute', right: 64, top: '50%', transform: 'translateY(-50%)', width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer' }}
               onClick={e => { e.stopPropagation(); setShipPhotoLightbox(shipPhotoLightbox + 1); }}>›</button>
           )}
           <div style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>

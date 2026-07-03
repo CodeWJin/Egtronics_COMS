@@ -80,8 +80,9 @@ window.actions = {
     const duration = Math.max(2400, text.length * 80);
     setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, duration);
   },
-  login(userId, password) {
-    const u = window.PMDB.authenticate(userId, password);
+  async login(userId, password) {
+    let u;
+    try { u = await window.PMDB.authenticate(userId, password); } catch (e) { console.error('[login]', e); return false; }
     if (!u) return false;
     const s = window[STORE_KEY];
     s.currentUser = u;
@@ -344,13 +345,13 @@ function UserMenu({ user }) {
         <Icon name="chevron-down" size={20} style={{ color: 'var(--ink-4)' }}/>
       </button>
       {open && (
-        <div className="usermenu__pop" role="menu" aria-label="사용자 메뉴">
-          <div className="usermenu__head" role="presentation">
+        <div className="usermenu__pop">
+          <div className="usermenu__head">
             <div className="usermenu__head__name">{user.name}</div>
             <div className="usermenu__head__sub">{user.dept} · @{user.user_id}</div>
           </div>
-          <div className="usermenu__divider" role="separator"/>
-          <button className="usermenu__item" role="menuitem" onClick={() => { setOpen(false); window.actions.logout(); }}>
+          <div className="usermenu__divider"/>
+          <button className="usermenu__item" onClick={() => { setOpen(false); window.actions.logout(); }}>
             <Icon name="external" size={20}/> 로그아웃
           </button>
         </div>
@@ -369,6 +370,7 @@ function useModalKeyboard(onClose) {
   const containerRef = React.useRef(null);
 
   React.useEffect(() => {
+    const trigger = document.activeElement;
     const FOCUSABLE = 'button:not(:disabled),[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])';
 
     const handler = (e) => {
@@ -399,7 +401,13 @@ function useModalKeyboard(onClose) {
       first?.focus();
     }, 30);
 
-    return () => { document.removeEventListener('keydown', handler); clearTimeout(t); };
+    return () => {
+      document.removeEventListener('keydown', handler);
+      clearTimeout(t);
+      if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
+        trigger.focus();
+      }
+    };
   }, []);
 
   return containerRef;

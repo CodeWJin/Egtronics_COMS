@@ -7,6 +7,33 @@
 (function () {
   const TODAY = new Date().toISOString().slice(0, 10);
 
+  // ── 비밀번호 해싱 (Web Crypto API — PBKDF2/SHA-256) ──────────────────────
+  // 저장 형식: "pbkdf2:<16바이트 salt hex>:<32바이트 hash hex>"
+  // 평문("pbkdf2:" 미시작)이면 마이그레이션 전 데이터로 간주해 평문 비교 후 자동 변환.
+  async function hashPassword(password) {
+    const enc = new TextEncoder();
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, key, 256
+    );
+    const toHex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    return `pbkdf2:${toHex(salt)}:${toHex(bits)}`;
+  }
+
+  async function verifyPassword(password, stored) {
+    if (!stored || !stored.startsWith('pbkdf2:')) return password === stored;
+    const [, saltHex, hashHex] = stored.split(':');
+    const salt = new Uint8Array(saltHex.match(/../g).map(h => parseInt(h, 16)));
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, key, 256
+    );
+    const newHex = [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('');
+    return newHex === hashHex;
+  }
+
   // ============================================================
   // DB 로거 — 브라우저 콘솔 + window.PMDB_LOGS 배열에 저장
   // 조회: window.pmdbLogs() 또는 window.pmdbLogs('ERROR')
@@ -388,14 +415,26 @@
         dbWrite('tb_customer_manager', 'delete', () => client.from('tb_customer_manager').delete().eq('manager_id', id));
       },
 
-      authenticate(userId, password) {
-        const u = cache.users.find(x => x.user_id === userId && x.password === password);
-        if (u) {
+      async authenticate(userId, password) {
+        const u = cache.users.find(x => x.user_id === userId);
+        if (!u) { dbLog('WARN', 'auth', `로그인 실패 — user_id=${userId}`); return null; }
+        try {
+          const ok = await verifyPassword(password, u.password);
+          if (!ok) { dbLog('WARN', 'auth', `로그인 실패 — user_id=${userId}`); return null; }
+          // 평문 비밀번호면 첫 로그인 시 자동 해시 변환
+          if (!u.password.startsWith('pbkdf2:')) {
+            try {
+              const hashed = await hashPassword(password);
+              u.password = hashed;
+              dbWrite('users', 'update', () => client.from('users').update({ password: hashed }).eq('user_id', userId));
+            } catch (he) { dbLog('WARN', 'auth', `해시 변환 실패 — user_id=${userId}`, he); }
+          }
           dbLog('SUCCESS', 'auth', `로그인 성공 — user_id=${userId}, role=${u.role}`);
-        } else {
-          dbLog('WARN', 'auth', `로그인 실패 — user_id=${userId}`);
+          return { user_id: u.user_id, name: u.name, role: u.role, dept: u.dept, phone: u.phone, email: u.email || '' };
+        } catch (e) {
+          dbLog('ERROR', 'auth', `인증 오류 — user_id=${userId}`, e);
+          return null;
         }
-        return u ? { user_id: u.user_id, name: u.name, role: u.role, dept: u.dept, phone: u.phone, email: u.email || '' } : null;
       },
 
       getUser(userId) {
@@ -416,12 +455,13 @@
         return (u.email || '').toLowerCase().trim() === (email || '').toLowerCase().trim();
       },
 
-      changePassword(userId, newPw) {
+      async changePassword(userId, newPw) {
         const u = cache.users.find(x => x.user_id === userId);
         if (!u) return false;
-        u.password = newPw;
+        const hashed = await hashPassword(newPw);
+        u.password = hashed;
         dbLog('INFO', 'write:users', `비밀번호 변경 — user_id=${userId}`);
-        dbWrite('users', 'update', () => client.from('users').update({ password: newPw }).eq('user_id', userId));
+        dbWrite('users', 'update', () => client.from('users').update({ password: hashed }).eq('user_id', userId));
         return true;
       },
 
@@ -432,20 +472,21 @@
         }));
       },
 
-      addUser(data) {
+      async addUser(data) {
         if (cache.users.find(x => x.user_id === data.user_id)) return { ok: false, msg: '이미 존재하는 아이디입니다' };
-        const row = { user_id: data.user_id, password: data.password || '1234', name: data.name, role: data.role, dept: data.dept || '', phone: data.phone || '', email: data.email || '' };
+        const hashed = await hashPassword(data.password || '1234');
+        const row = { user_id: data.user_id, password: hashed, name: data.name, role: data.role, dept: data.dept || '', phone: data.phone || '', email: data.email || '' };
         cache.users.push(row);
         dbLog('INFO', 'write:users', `사용자 추가 — user_id=${data.user_id}, role=${data.role}`);
         dbWrite('users', 'insert', () => client.from('users').insert(row));
         return { ok: true };
       },
 
-      updateUser(userId, data) {
+      async updateUser(userId, data) {
         const u = cache.users.find(x => x.user_id === userId);
         if (!u) return { ok: false, msg: '사용자를 찾을 수 없습니다' };
         const upd = { name: data.name, role: data.role, dept: data.dept || '', phone: data.phone || '', email: data.email || '' };
-        if (data.password) upd.password = data.password;
+        if (data.password) upd.password = await hashPassword(data.password);
         Object.assign(u, upd);
         dbLog('INFO', 'write:users', `사용자 수정 — user_id=${userId}`);
         dbWrite('users', 'update', () => client.from('users').update(upd).eq('user_id', userId));
@@ -919,6 +960,7 @@
       dbLog('INFO', 'init', `Supabase 연결 중 — ${url}`);
       window.updateBootStatus?.('Supabase 연결 중…');
       const client = window.supabase.createClient(url, key);
+      window._supabaseClient = client;  // 이메일 OTP 인증용 전역 노출
       const backend = makeSupabaseBackend(client);
 
       window.updateBootStatus?.('데이터 로드 중…');
@@ -1007,14 +1049,14 @@
     addManager(m)            { return this.backend.addManager(m); },
     updateManager(id, m)     { return this.backend.updateManager(id, m); },
     deleteManager(id)        { return this.backend.deleteManager(id); },
-    authenticate(id, pw)     { return this.backend.authenticate(id, pw); },
-    getUser(id)              { return this.backend.getUser(id); },
-    verifyUserPhone(id, ph)  { return this.backend.verifyUserPhone(id, ph); },
-    verifyUserEmail(id, em)  { return this.backend.verifyUserEmail(id, em); },
-    changePassword(id, pw)   { return this.backend.changePassword(id, pw); },
-    getAllUsers()             { return this.backend.getAllUsers(); },
-    addUser(data)            { return this.backend.addUser(data); },
-    updateUser(id, data)     { return this.backend.updateUser(id, data); },
+    async authenticate(id, pw)     { return this.backend.authenticate(id, pw); },
+    getUser(id)                    { return this.backend.getUser(id); },
+    verifyUserPhone(id, ph)        { return this.backend.verifyUserPhone(id, ph); },
+    verifyUserEmail(id, em)        { return this.backend.verifyUserEmail(id, em); },
+    async changePassword(id, pw)   { return this.backend.changePassword(id, pw); },
+    getAllUsers()                   { return this.backend.getAllUsers(); },
+    async addUser(data)            { return this.backend.addUser(data); },
+    async updateUser(id, data)     { return this.backend.updateUser(id, data); },
     deleteUser(id)           { return this.backend.deleteUser(id); },
     query()                  { return []; },
     addHistory(id, by, at, f, a) { return this.backend.addHistory(id, by, at, f, a); },

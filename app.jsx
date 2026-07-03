@@ -65,7 +65,7 @@ function App() {
 
   React.useEffect(() => {
     const map = { compact: 12.5, regular: 14, comfy: 15 };
-    document.body.style.fontSize = map[t.density] + 'px';
+    document.documentElement.style.setProperty('--base-font-size', map[t.density] + 'px');
   }, [t.density]);
 
   React.useEffect(() => {
@@ -121,6 +121,7 @@ function App() {
       <Toast/>
       <ConfirmModal/>
 
+      {s.currentUser?.role === 'admin' && (
       <TweaksPanel>
         <TweakSection label="테마" />
         <TweakColor label="강조색"
@@ -155,6 +156,7 @@ function App() {
           }
         }}/>
       </TweaksPanel>
+      )}
     </div>
   );
 }

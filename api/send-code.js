@@ -1,12 +1,25 @@
 const { Resend } = require('resend');
+const crypto = require('crypto');
+
+const VALID_MS = 3 * 60 * 1000;
+
+function makeToken(code, email, issuedAt) {
+  const secret = process.env.HMAC_SECRET || 'dev-secret-change-in-prod';
+  const payload = `${code}:${email.toLowerCase().trim()}:${issuedAt}`;
+  return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+}
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { to, name, code } = req.body;
-  if (!to || !name || !code) {
+  const { to, name } = req.body;
+  if (!to || !name) {
     return res.status(400).json({ error: '필수 항목 누락' });
   }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const issuedAt = Date.now();
+  const token = makeToken(code, to, issuedAt);
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const MAIL_FROM = process.env.MAIL_FROM || '이지트로닉스 <evcharger@egtronics.com>';
@@ -26,5 +39,7 @@ module.exports = async function handler(req, res) {
   });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true, id: data.id });
+
+  // 코드는 이메일로만 전달 — 응답에는 token과 issuedAt만 반환
+  res.json({ ok: true, token, issuedAt, emailId: data.id });
 };

@@ -20,16 +20,20 @@ function LoginScreen() {
   const [showDemo, setShowDemo] = useStateAU(false);
   const [showReset, setShowReset] = useStateAU(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     if (e) e.preventDefault();
     setErr('');
     if (!userId || !pw) { setErr('아이디와 비밀번호를 입력하세요'); return; }
     setBusy(true);
-    setTimeout(() => {
-      const ok = window.actions.login(userId.trim(), pw);
-      setBusy(false);
+    try {
+      const ok = await window.actions.login(userId.trim(), pw);
       if (!ok) setErr('아이디 또는 비밀번호가 올바르지 않습니다');
-    }, 380);
+    } catch (e) {
+      console.error('[Login]', e);
+      setErr('로그인 중 오류가 발생했습니다. 다시 시도하세요.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const fillDemo = (id) => { setUserId(id); setPw('1234'); setErr(''); };
@@ -99,9 +103,9 @@ function LoginScreen() {
   );
 }
 
-/* ────────── 비밀번호 변경 (Resend API → hiworks 수신) ────────── */
+/* ────────── 비밀번호 변경 (Supabase Auth OTP — api/send-code.js 는 유지) ────────── */
 
-const MAIL_API = `${window.location.origin}/api/send-code`;
+const MAIL_API = `${window.location.origin}/api/send-code`; // 유지 (미사용)
 
 function PasswordResetModal({ onClose }) {
   window.useLockScroll();
@@ -109,29 +113,28 @@ function PasswordResetModal({ onClose }) {
   const [step, setStep] = useStateAU(1); // 1: 본인확인  2: 인증번호  3: 새 비밀번호  4: 완료
   const [userId, setUserId] = useStateAU('');
   const [email, setEmail] = useStateAU('');
-  const [sentCode, setSentCode] = useStateAU('');
+  const [issuedAt, setIssuedAt] = useStateAU(null);      // OTP 발급 시각 (타이머 표시용)
   const [code, setCode] = useStateAU('');
   const [newPw, setNewPw] = useStateAU('');
   const [confirmPw, setConfirmPw] = useStateAU('');
   const [err, setErr] = useStateAU('');
   const [busy, setBusy] = useStateAU(false);
-  const [sentAt, setSentAt] = useStateAU(null);
   const [left, setLeft] = useStateAU(0);
 
   const VALID_MS = 3 * 60 * 1000; // 유효시간 3분
 
-  // sentAt 기준으로 남은 시간 계산 — 재전송 시 자동 재시작
+  // issuedAt 기준으로 남은 시간 계산 — 재전송 시 자동 재시작
   React.useEffect(() => {
-    if (!sentAt) return;
+    if (!issuedAt) return;
     const id = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((sentAt + VALID_MS - Date.now()) / 1000));
+      const remaining = Math.max(0, Math.ceil((issuedAt + VALID_MS - Date.now()) / 1000));
       setLeft(remaining);
       if (remaining === 0) clearInterval(id);
     }, 500);
     return () => clearInterval(id);
-  }, [sentAt]);
+  }, [issuedAt]);
 
-  // ── 인증번호 생성 + hiworks SMTP 전송 (신규 · 재전송 공통) ───────────────
+  // ── 인증번호 이메일 전송 (신규 · 재전송 공통) ──────────────────────────
   const sendCode = async () => {
     setErr('');
     if (!userId.trim()) { setErr('아이디를 입력하세요'); return; }
@@ -141,81 +144,85 @@ function PasswordResetModal({ onClose }) {
 
     const u = window.PMDB.getUser(userId.trim());
     if (!u) { setBusy(false); setErr('존재하지 않는 아이디입니다'); return; }
+    if (!u.email) {
+      setBusy(false);
+      setErr('이 계정에는 등록된 이메일이 없습니다. 관리자에게 이메일 등록을 요청하세요.');
+      return;
+    }
     if (!window.PMDB.verifyUserEmail(userId.trim(), email.trim())) {
       setBusy(false); setErr('등록된 이메일과 일치하지 않습니다'); return;
     }
 
-    const c = String(Math.floor(100000 + Math.random() * 900000));
-    setSentCode(c);
     setCode('');
 
+    // Supabase Auth OTP 발송
     try {
-      const res = await fetch(MAIL_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: email.trim(), name: u.name, code: c }),
+      const sb = window._supabaseClient;
+      if (!sb) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다');
+      const { error } = await sb.auth.signInWithOtp({
+        email: email.trim(),
+        options: { shouldCreateUser: true },
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
+      if (error) {
+        console.error('[OTP] Supabase signInWithOtp error:', error);
+        const msg = error.message || error.msg || error.code || JSON.stringify(error);
+        throw new Error(msg);
       }
+      setIssuedAt(Date.now());
     } catch (e) {
-      const isNetworkError = e instanceof TypeError && e.message === 'Failed to fetch';
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        endpoint: MAIL_API,
-        errorType: isNetworkError ? 'NetworkError' : 'APIError',
-        errorMessage: e.message,
-        userId: userId.trim(),
-        emailDomain: email.trim().split('@')[1] || '(unknown)',
-        cause: isNetworkError
-          ? '백엔드 서버(4000)에 연결할 수 없음 — node server.js 실행 여부 확인'
-          : 'API 응답 오류',
-      };
-      console.group('%c[Mail] 메일 전송 실패', 'color:#ef4444;font-weight:bold');
-      console.error('시각:', logEntry.timestamp);
-      console.error('엔드포인트:', logEntry.endpoint);
-      console.error('에러 유형:', logEntry.errorType);
-      console.error('메시지:', logEntry.errorMessage);
-      console.error('원인 추정:', logEntry.cause);
-      console.error('전체 에러 객체:', e);
-      console.groupEnd();
-      try {
-        const prev = JSON.parse(localStorage.getItem('mail_error_log') || '[]');
-        prev.push(logEntry);
-        if (prev.length > 20) prev.splice(0, prev.length - 20);
-        localStorage.setItem('mail_error_log', JSON.stringify(prev));
-      } catch (_) {}
+      console.error('[OTP] 이메일 전송 실패', e);
       setBusy(false);
-      setErr(isNetworkError
-        ? '메일 서버에 연결할 수 없습니다. 백엔드 서버(npm run server)가 실행 중인지 확인하세요.'
-        : `메일 전송 실패: ${e.message}`);
+      setErr(`이메일 전송 실패: ${e.message}`);
       return;
     }
 
-    setSentAt(Date.now());
     setLeft(VALID_MS / 1000);
     setBusy(false);
     setStep(2);
   };
 
-  // ── 인증번호 검증 (현재 시각으로 유효시간 체크) ─────────────────────────
-  const expired = sentAt !== null && Date.now() - sentAt >= VALID_MS;
+  // ── 인증번호 Supabase Auth 검증 ─────────────────────────────────────────
+  const VERIFY_API = `${window.location.origin}/api/verify-code`; // 유지 (미사용)
+  const expired = issuedAt !== null && Date.now() - issuedAt >= VALID_MS;
 
-  const verifyCode = () => {
+  const verifyCode = async () => {
     setErr('');
-    if (!sentAt || Date.now() - sentAt >= VALID_MS) {
-      setErr('인증 시간(3분)이 만료되었습니다. 인증번호를 재발급하세요'); return;
+    setBusy(true);
+    try {
+      const sb = window._supabaseClient;
+      const { error } = await sb.auth.verifyOtp({
+        email: email.trim(),
+        token: code.trim(),
+        type: 'email',
+      });
+      if (error) {
+        setBusy(false);
+        const msg = error.message || '';
+        if (msg.toLowerCase().includes('expired') || msg.includes('Token has expired')) {
+          setErr('인증 시간이 만료되었습니다. 재발급하세요');
+        } else {
+          setErr('인증번호가 일치하지 않습니다');
+        }
+        return;
+      }
+      // 인증 성공 후 Supabase Auth 세션 정리 (앱 자체 세션과 무관)
+      sb.auth.signOut().catch(() => {});
+    } catch {
+      setBusy(false);
+      setErr('인증 확인 중 오류가 발생했습니다. 다시 시도하세요');
+      return;
     }
-    if (code.trim() !== sentCode) { setErr('인증번호가 일치하지 않습니다'); return; }
+    setBusy(false);
     setStep(3);
   };
 
-  const savePw = () => {
+  const savePw = async () => {
     setErr('');
     if (newPw.length < 4) { setErr('비밀번호는 4자 이상이어야 합니다'); return; }
     if (newPw !== confirmPw) { setErr('새 비밀번호가 일치하지 않습니다'); return; }
-    window.PMDB.changePassword(userId.trim(), newPw);
+    setBusy(true);
+    await window.PMDB.changePassword(userId.trim(), newPw);
+    setBusy(false);
     setStep(4);
   };
 
@@ -227,7 +234,7 @@ function PasswordResetModal({ onClose }) {
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-pw-reset-title" style={{ width: 420, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h3 id="modal-pw-reset-title" className="modal__title">{step === 4 ? '변경 완료' : '비밀번호 변경'}</h3>
+          <h2 id="modal-pw-reset-title" className="modal__title">{step === 4 ? '변경 완료' : '비밀번호 변경'}</h2>
           <p className="modal__sub">이메일 본인확인 후 새 비밀번호를 설정합니다</p>
         </div>
 
@@ -273,34 +280,15 @@ function PasswordResetModal({ onClose }) {
                 <span><strong style={{ fontFamily: 'var(--font-mono)' }}>{email}</strong> 로 인증번호를 발송했습니다.</span>
               </div>
 
-              <div className="reset-demo" style={{ fontSize: 15 }}>
-                인증번호&nbsp;
-                <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 22, letterSpacing: '0.2em' }}>
-                  {sentCode}
-                </strong>
-              </div>
-
               <div className="field">
                 <label className="field__label" htmlFor="au-otp-code">인증번호 6자리 입력</label>
                 <input id="au-otp-code" className="input otp-input" autoFocus inputMode="numeric" maxLength={6}
-                       placeholder="000000" disabled={expired}
+                       placeholder="000000"
                        value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setErr(''); }}/>
 
                 <div className="field__hint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  {expired ? (
-                    <strong style={{ color: 'var(--danger-700)' }}>
-                      <Icon name="alert" size={11}/> 인증 시간 만료 — 재발급하세요
-                    </strong>
-                  ) : (
-                    <span>남은 시간&nbsp;
-                      <strong style={{
-                        color: left <= 60 ? 'var(--danger-700)' : 'var(--primary-600)',
-                        fontVariantNumeric: 'tabular-nums',
-                        animation: left > 0 && left <= 30 ? 'pulse 1s infinite' : 'none',
-                      }}>{fmtTime(left)}</strong>
-                    </span>
-                  )}
-                  <button type="button" className="reset-resend" onClick={sendCode}>
+                  <span>유효시간 1시간</span>
+                  <button type="button" className="reset-resend" onClick={sendCode} disabled={busy}>
                     인증번호 재발급
                   </button>
                 </div>
@@ -344,12 +332,16 @@ function PasswordResetModal({ onClose }) {
             </button>
           </>}
           {step === 2 && <>
-            <button className="btn btn--secondary" onClick={() => { setStep(1); setSentAt(null); setSentCode(''); setCode(''); setErr(''); }}>이전</button>
-            <button className="btn btn--primary" disabled={expired || code.length < 6} onClick={verifyCode}>인증 확인</button>
+            <button className="btn btn--secondary" onClick={() => { setStep(1); setIssuedAt(null); setCode(''); setErr(''); }}>이전</button>
+            <button className="btn btn--primary" disabled={busy || code.length < 6} onClick={verifyCode}>
+              {busy ? '확인 중…' : '인증 확인'}
+            </button>
           </>}
           {step === 3 && <>
             <button className="btn btn--secondary" onClick={() => { setStep(2); setErr(''); }}>이전</button>
-            <button className="btn btn--primary" onClick={savePw}><Icon name="check" size={13}/> 비밀번호 변경</button>
+            <button className="btn btn--primary" disabled={busy} onClick={savePw}>
+              {busy ? '저장 중…' : <><Icon name="check" size={13}/> 비밀번호 변경</>}
+            </button>
           </>}
           {step === 4 && <button className="btn btn--primary" onClick={onClose}>로그인으로 돌아가기</button>}
         </div>
