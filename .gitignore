@@ -41,5 +41,8 @@ logs/
 
 # Misc
 .claude/
+.agents/
+.impeccable/
+skills-lock.json
 screenshots/
 .vercel
