@@ -561,7 +561,14 @@ function OrderDrawer({ order, onClose }) {
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 접수 {order.created}</div>
-            <div className="drawer__title" style={{ margin: '5px 0 10px' }}>오더 #{order.order_id}</div>
+            <div className="drawer__title" style={{ margin: '5px 0 10px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              오더 #{order.order_id}
+              {role === 'production' && p && (
+                <button className="btn btn--secondary btn--sm" onClick={goMapping}>
+                  <Icon name="doc" size={13}/> 생산 기록 열기
+                </button>
+              )}
+            </div>
             {statusBadge(order)}
           </div>
           <button className="drawer__close" onClick={handleClose} aria-label="닫기"><Icon name="x" size={16}/></button>
@@ -661,9 +668,11 @@ function OrderDrawer({ order, onClose }) {
           )}
           {canMap && (
             p ? (
-              <button className="btn btn--secondary" onClick={goMapping}>
-                <Icon name="doc" size={13}/> 생산 기록 열기
-              </button>
+              role !== 'production' && (
+                <button className="btn btn--secondary" onClick={goMapping}>
+                  <Icon name="doc" size={13}/> 생산 기록 열기
+                </button>
+              )
             ) : (
               <button className="btn btn--primary" onClick={goMapping}>
                 <Icon name="factory" size={13}/> 생산 입력으로 이동
