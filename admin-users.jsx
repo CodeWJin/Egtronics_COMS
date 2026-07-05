@@ -243,7 +243,7 @@ function AdminUsersScreen() {
         </div>
 
         <div className="table-wrap">
-          <table className="table">
+          <table className="table" style={{ minWidth: 860 }}>
             <thead>
               <tr>
                 <th scope="col" style={{ width: 200 }}>이름</th>

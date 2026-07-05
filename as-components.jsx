@@ -77,7 +77,7 @@ function ChargerSearchModal({ onSelect, onClose }) {
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="table-wrap" style={{ maxHeight: 340, marginTop: 10 }}>
-            <table className="table">
+            <table className="table" style={{ minWidth: 580 }}>
               <thead>
                 <tr>
                   <th scope="col">오더번호</th>

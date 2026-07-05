@@ -92,7 +92,7 @@ function AsReceiptScreen() {
 
       {/* 접수 목록 */}
       <div className="table-wrap">
-        <table className="table">
+        <table className="table" style={{ minWidth: 1000 }}>
             <caption className="sr-only">AS 접수 목록</caption>
             <thead>
               <tr>

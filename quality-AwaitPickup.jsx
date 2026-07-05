@@ -200,7 +200,7 @@ function ProductionCompleteScreen() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table">
+          <table className="table" style={{ minWidth: 700 }}>
             <thead>
               <tr>
                 <th scope="col">고객사 / 모델</th>
