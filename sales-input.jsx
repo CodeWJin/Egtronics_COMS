@@ -399,7 +399,7 @@ function SalesInputScreen() {
             <div className="card__body">
               <div className="form-grid">
                 <div className="field">
-                  <div className="field__label"><label htmlFor="si-customer-name">고객사 <span className="field__req">*</span></label><button type="button" className="helpdot" title="자주 사용하는 고객사는 드롭다운에서 선택" aria-label="도움말: 자주 사용하는 고객사는 드롭다운에서 선택">?</button></div>
+                  <div className="field__label"><label htmlFor="si-customer-name">고객사 <span className="field__req">*</span></label><HelpDot text="자주 사용하는 고객사는 드롭다운에서 선택"/></div>
                   <div className="mgr-field">
                     <ComboField id="si-customer-name"
                                 value={form.customer_name}
@@ -423,7 +423,7 @@ function SalesInputScreen() {
                   {showErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.customer_name}</div>}
                 </div>
                 <div className="field">
-                  <div className="field__label"><label htmlFor="si-customer-manager">고객사 담당자 <span className="field__req">*</span></label><button type="button" className="helpdot" title="담당자 관리 버튼에서 고객사별 담당자를 추가·수정할 수 있습니다" aria-label="도움말: 담당자 관리 버튼에서 고객사별 담당자를 추가·수정할 수 있습니다">?</button></div>
+                  <div className="field__label"><label htmlFor="si-customer-manager">고객사 담당자 <span className="field__req">*</span></label><HelpDot text="담당자 관리 버튼에서 고객사별 담당자를 추가·수정할 수 있습니다"/></div>
                   <div className="mgr-field">
                     <ComboField id="si-customer-manager"
                                 value={form.customer_manager}
@@ -482,7 +482,7 @@ function SalesInputScreen() {
                                style={{ width: 15, height: 15, accentColor: 'var(--primary)', cursor: 'pointer' }}/>
                         CPO 운영사 사용
                       </label>
-                      <button type="button" className="helpdot" title="공용 충전기를 운영·관리하는 CPO(Charge Point Operator) 사업자" aria-label="도움말: CPO(Charge Point Operator) 설명">?</button>
+                      <HelpDot text="공용 충전기를 운영·관리하는 CPO(Charge Point Operator) 사업자"/>
                     </div>
                     {useCpo && (
                       <div className="mgr-field" style={{ marginTop: 6 }}>
@@ -566,7 +566,7 @@ function SalesInputScreen() {
                   {showErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.delivery_date}</div>}
                 </div>
                 <div className="field">
-                  <div className="field__label"><label htmlFor="si-station-id">충전소 ID</label><button type="button" className="helpdot" title="환경부 또는 자체 관제용 충전소 고유 식별자" aria-label="도움말: 충전소 고유 식별자 설명">?</button></div>
+                  <div className="field__label"><label htmlFor="si-station-id">충전소 ID</label><HelpDot text="환경부 또는 자체 관제용 충전소 고유 식별자"/></div>
                   <input id="si-station-id" className={`input ${showErr('station_id') ? 'input--error' : ''}`}
                          aria-invalid={showErr('station_id')}
                          placeholder="예: CT3006"
@@ -578,7 +578,7 @@ function SalesInputScreen() {
                   {!showErr('station_id') && <div className="field__hint"><Icon name="info" size={11}/> 영문+숫자 조합 · 환경부 MEA 또는 자체 관제 ID (예: CT3006, ME0001)</div>}
                 </div>
                 <div className="field">
-                  <div className="field__label"><label htmlFor="si-charger-no">충전기 번호</label><button type="button" className="helpdot" title="충전소 내 충전기 식별 번호 (예: 01, 02)" aria-label="도움말: 충전기 식별 번호 설명">?</button></div>
+                  <div className="field__label"><label htmlFor="si-charger-no">충전기 번호</label><HelpDot text="충전소 내 충전기 식별 번호 (예: 01, 02)"/></div>
                   <input id="si-charger-no" className="input"
                          placeholder="예: 01"
                          style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
@@ -603,7 +603,7 @@ function SalesInputScreen() {
             <div className="card__body">
               <div className="form-grid">
                 <div className="field">
-                  <div className="field__label"><label htmlFor="si-router-no">라우터번호 (S/N)</label><button type="button" className="helpdot" title="충전기에 장착된 LTE 라우터의 시리얼 번호. 라우터 하단 스티커 S/N 항목 참조." aria-label="도움말: 라우터 시리얼 번호 설명">?</button></div>
+                  <div className="field__label"><label htmlFor="si-router-no">라우터번호 (S/N)</label><HelpDot text="충전기에 장착된 LTE 라우터의 시리얼 번호. 라우터 하단 스티커 S/N 항목 참조."/></div>
                   <input id="si-router-no" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
                          aria-invalid={showErr('router_no')}
                          placeholder="예: RTR-2024-00001"
@@ -615,7 +615,7 @@ function SalesInputScreen() {
                   {!showErr('router_no') && <div className="field__hint"><Icon name="info" size={11}/> LTE 라우터 하단 스티커 S/N 참조</div>}
                 </div>
                 <div className="field">
-                  <div className="field__label"><label htmlFor="si-usim-no">USIM번호 (ICCID)</label><button type="button" className="helpdot" title="USIM 카드 고유 식별번호(ICCID). 19~20자리 숫자. SIM 카드 봉투 또는 칩 뒷면 바코드 하단에 표시." aria-label="도움말: USIM ICCID 설명">?</button></div>
+                  <div className="field__label"><label htmlFor="si-usim-no">USIM번호 (ICCID)</label><HelpDot text="USIM 카드 고유 식별번호(ICCID). 19~20자리 숫자. SIM 카드 봉투 또는 칩 뒷면 바코드 하단에 표시."/></div>
                   <input id="si-usim-no" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
                          aria-invalid={showErr('usim_no')}
                          placeholder="예: 89820012345678901234"
@@ -1567,7 +1567,7 @@ const CSV_CELL_OPTIONS = {
   customer_name: () => window.PMDB.getCustomers().map(c => c.name),
 };
 
-function CsvCellInput({ value, onChange, options, mono }) {
+function CsvCellInput({ value, onChange, options, mono, ariaLabel }) {
   const [open, setOpen] = useStateSI(false);
   const [highlight, setHighlight] = useStateSI(0);
   const [menuPos, setMenuPos] = useStateSI(null);
@@ -1595,6 +1595,7 @@ function CsvCellInput({ value, onChange, options, mono }) {
     <div ref={ref} style={{ position: 'relative' }}>
       <input
         role="combobox"
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-autocomplete="list"
@@ -1720,7 +1721,10 @@ function CsvUploadModal({ onClose, onImport }) {
               textAlign: 'center', cursor: 'pointer', background: 'var(--surface-2)',
               transition: 'border-color 120ms',
             }}
+              role="button" tabIndex={0}
+              aria-label="CSV 파일 업로드 — 클릭하거나 파일을 끌어다 놓으세요"
               onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}>
               <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
@@ -1767,6 +1771,7 @@ function CsvUploadModal({ onClose, onImport }) {
                             onChange={(val) => updateCell(i, c.key, val)}
                             options={CSV_CELL_OPTIONS[c.key]}
                             mono={monoKeys.has(c.key)}
+                            ariaLabel={`${i + 2}행 ${c.label}`}
                           />
                         </td>
                       ))}

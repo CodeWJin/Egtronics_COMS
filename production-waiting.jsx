@@ -19,7 +19,7 @@ function daysUntil(date) {
 function deliveryHint(d) {
   const n = daysUntil(d);
   if (n <= 0) return { text: `D+${Math.abs(n)}`, color: 'var(--danger-700)', bg: 'var(--danger-50)' };
-  else if (n <= 7) return { text: `D-${n}`, color: 'var(--danger)', bg: 'var(--danger-50)' };
+  else if (n <= 7) return { text: `D-${n}`, color: 'var(--danger-700)', bg: 'var(--danger-50)' };
   else if (n <= 14) return { text: `D-${n}`, color: 'var(--warning-700)', bg: 'var(--warning-50)' };
   return { text: `D-${n}`, color: 'var(--ink-3)', bg: 'var(--surface-3)' };
 }
@@ -39,7 +39,11 @@ function ProductionWaitingScreen() {
   const filtered = useMemoPW(() => {
     return s.orders.filter(o => {
       if (o.status === 'COMPLETED') return false;
-      if (filterModel !== 'all' && o.model_name !== filterModel) return false;
+      if (filterModel !== 'all') {
+        // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
+        const mName = window.findModelInfo(o.model_name)?.name || o.model_name;
+        if (mName !== filterModel) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         if (!o.customer_name.toLowerCase().includes(q) &&
@@ -202,7 +206,9 @@ function ViewTable({ orders, onPick, completingId, editedIds }) {
             return (
               <tr key={o.order_id}
                   className={`row--clickable ${completing ? 'row--completing' : ''}`}
-                  onClick={() => onPick(o.order_id)}>
+                  tabIndex={0}
+                  onClick={() => onPick(o.order_id)}
+                  onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPick(o.order_id); } }}>
                 <td className="cell-mono">#{o.order_id}</td>
                 <td>
                   <div className="cell-strong">
@@ -251,7 +257,7 @@ function ViewCards({ orders, onPick, completingId, editedIds }) {
                  className={`ordercard ${completing ? 'row--completing' : ''}`}
                  role="button" tabIndex={0}
                  onClick={() => onPick(o.order_id)}
-                 onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onPick(o.order_id)}>
+                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o.order_id); } }}>
               <div className="ordercard__top">
                 <span className="ordercard__id">#{o.order_id} · {o.created}</span>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -332,7 +338,7 @@ function ViewKanban({ orders, onPick, completingId, editedIds }) {
                      className={`kanban__card ${completing ? 'row--completing' : ''}`}
                      role="button" tabIndex={0}
                      onClick={() => onPick(o.order_id)}
-                     onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onPick(o.order_id)}>
+                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o.order_id); } }}>
                   <div className="kanban__card__top">
                     <span className="kanban__card__id">#{o.order_id}</span>
                     <div style={{ display: 'flex', gap: 4 }}>
@@ -397,7 +403,7 @@ function ViewTimeline({ orders, onPick, completingId, editedIds }) {
                        className={`timeline__item ${completing ? 'row--completing' : ''}`}
                        role="button" tabIndex={0}
                        onClick={() => onPick(o.order_id)}
-                       onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onPick(o.order_id)}>
+                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o.order_id); } }}>
                     <div className="timeline__item__main">
                       <div className="timeline__item__title">{o.customer_name} · {o.model_name}</div>
                       <div className="timeline__item__sub">

@@ -228,9 +228,12 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>
           {photos.map((photo, idx) => (
             <div key={photo.storage_path} className="photo-thumb">
-              <img src={photo.url} alt={photo.filename} loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'zoom-in' }}
-                onClick={() => setLightbox(idx)}/>
+              <button type="button" className="photo-thumb__view"
+                aria-label={`${photo.filename} 크게 보기`}
+                onClick={() => setLightbox(idx)}>
+                <img src={photo.url} alt="" loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
+              </button>
               {confirmDel === photo.storage_path ? (
                 <div className="photo-thumb__confirm">
                   <span>삭제할까요?</span>
@@ -259,6 +262,7 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
           }}
           onClick={() => setLightbox(null)}
           onKeyDown={e => {
+            e.stopPropagation(); // 뒤의 드로어·다이얼로그 Escape 핸들러로 전파 방지
             if (e.key === 'Escape') setLightbox(null);
             if (e.key === 'ArrowLeft' && lightbox > 0) setLightbox(lightbox - 1);
             if (e.key === 'ArrowRight' && lightbox < photos.length - 1) setLightbox(lightbox + 1);
@@ -345,11 +349,8 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
     setTimeout(onClose, 200);
   }, [onClose]);
 
-  React.useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape') handleClose(); };
-    window.addEventListener('keydown', fn);
-    return () => window.removeEventListener('keydown', fn);
-  }, [handleClose]);
+  // Escape 닫기 + Tab 포커스 트랩 + 닫힘 시 트리거로 포커스 복원
+  const dialogRef = window.useModalKeyboard(handleClose);
 
   window.useLockScroll();
 
@@ -370,7 +371,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
-      <aside className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="출하 검사 성적서">
+      <aside ref={dialogRef} className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="출하 검사 성적서">
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 오더 #{order.order_id}</div>
@@ -549,7 +550,7 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
   const [closing, setClosing] = React.useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const p = order.production || {};
-  const modelInfo = modelInfoProp || window.PMDB?.getModels?.()?.find(m => m.name === order.model_name);
+  const modelInfo = modelInfoProp || window.findModelInfo(order.model_name);
 
   const [inspDate, setInspDate] = React.useState(
     existingData?.insp_date || p.inspection_date || today
@@ -587,11 +588,8 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
     setTimeout(onClose, 200);
   }, [onClose]);
 
-  React.useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape') handleClose(); };
-    window.addEventListener('keydown', fn);
-    return () => window.removeEventListener('keydown', fn);
-  }, [handleClose]);
+  // Escape 닫기 + Tab 포커스 트랩 + 닫힘 시 트리거로 포커스 복원
+  const dialogRef = window.useModalKeyboard(handleClose);
 
   window.useLockScroll();
 
@@ -612,7 +610,7 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
-      <aside className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="기능 검사 성적서 입력">
+      <aside ref={dialogRef} className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="기능 검사 성적서 입력">
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 오더 #{order.order_id}</div>
@@ -744,12 +742,13 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
 /* ────────── 기능 검사 성적서 (printable document) ────────── */
 function InspectionReport({ order, inspectionData, onClose }) {
   const p = order.production;
-  const modelInfo = window.PMDB?.getModels?.()?.find(m => m.name === order.model_name);
+  const modelInfo = window.findModelInfo(order.model_name);
 
   // inspectionData prop이 없으면 DB / localStorage 캐시에서 로드
   const funcData = inspectionData || window.getFuncInspection?.(order.order_id) || null;
 
   window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
 
   const displayChecklist = funcData?._checklist || FUNC_CHECKLIST_DEFAULT;
 
@@ -766,7 +765,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
   const funcAllPassed = !!funcData && displayChecklist.every(item => isItemComplete(item, funcData.checks?.[item.key]));
 
   return ReactDOM.createPortal(
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="report" role="dialog" aria-modal="true" aria-label="기능 검사 성적서 미리보기">
         <div className="report__bar">
           <span className="report__bar__label"><Icon name="doc" size={14}/> 기능 검사 성적서 미리보기</span>
@@ -821,7 +820,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                 </tr>
                 <tr>
                   <th>케이블 길이</th>
-                  <td>{p.cable_length}</td>
+                  <td>{order.cable_length}</td>
                   <th>검사자</th>
                   <td>{funcData?.inspector || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
                 </tr>
@@ -915,9 +914,10 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
   }, [lightbox]);
 
   window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
 
   return ReactDOM.createPortal(
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="report" role="dialog" aria-modal="true" aria-label="출하 검사 성적서 미리보기">
         <div className="report__bar">
           <span className="report__bar__label"><Icon name="doc" size={14}/> 출하 검사 성적서 미리보기</span>
@@ -1028,14 +1028,16 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                   border: '1px solid var(--border-1)', borderRadius: '0 0 var(--r-sm) var(--r-sm)',
                 }}>
                   {photos.map((photo, idx) => (
-                    <div key={photo.storage_path} style={{
-                      aspectRatio: '1', borderRadius: 'var(--r-sm)', overflow: 'hidden',
-                      background: 'var(--surface-2)', cursor: 'zoom-in',
-                    }}
+                    <button type="button" key={photo.storage_path} className="photo-thumb__view"
+                      aria-label={`${photo.filename} 크게 보기`}
+                      style={{
+                        aspectRatio: '1', borderRadius: 'var(--r-sm)', overflow: 'hidden',
+                        background: 'var(--surface-2)',
+                      }}
                       onClick={() => setLightbox(idx)}>
-                      <img src={photo.url} alt={photo.filename} loading="lazy"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
-                    </div>
+                      <img src={photo.url} alt="" loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1064,6 +1066,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
           }}
           onClick={() => setLightbox(null)}
           onKeyDown={e => {
+            e.stopPropagation(); // 뒤의 드로어·다이얼로그 Escape 핸들러로 전파 방지
             if (e.key === 'Escape') setLightbox(null);
             if (e.key === 'ArrowLeft' && lightbox > 0) setLightbox(lightbox - 1);
             if (e.key === 'ArrowRight' && lightbox < photos.length - 1) setLightbox(lightbox + 1);
@@ -1111,14 +1114,15 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
 /* ────────── 기능 검사 성적서 미리보기 ────────── */
 function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
   const p = order.production;
-  const modelInfo = window.PMDB?.getModels?.()?.find(m => m.name === order.model_name);
+  const modelInfo = window.findModelInfo(order.model_name);
   const displayChecklist = d._checklist || FUNC_CHECKLIST_DEFAULT;
   const funcAllPassed = displayChecklist.every(item => isItemComplete(item, d.checks?.[item.key]));
 
   window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="report" role="dialog" aria-modal="true" aria-label="기능 검사 성적서 미리보기">
         <div className="report__bar">
           <span className="report__bar__label"><Icon name="shield" size={14}/> 기능 검사 성적서 미리보기</span>

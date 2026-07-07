@@ -53,6 +53,7 @@ function App() {
       return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
     };
     document.documentElement.style.setProperty('--primary-600', darken(t.accent));
+    document.documentElement.style.setProperty('--primary-focus', darken(t.accent));
     // Primary-50 / 100 — lighten via rgba mix
     const hex2rgb = (hex) => {
       const m = hex.replace('#', '').match(/.{2}/g);

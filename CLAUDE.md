@@ -109,11 +109,14 @@ const { useState: useStateAREC, useEffect: useEffectAREC, useMemo: useMemoAREC }
 - `model` — 코드 (예: `EGSW101101`). 시리얼 채번·체크리스트 JSON 파일명에 사용.
 - `name` — 표시명 (예: `SW 1CH 10kW`). `tb_sales_order.model_name`에 저장되는 값.
 
-**`order.model_name` = `tb_master_model.name` (표시명)**, 코드가 필요할 때는 반드시 조회:
+**주의: 기존 데이터에는 `order.model_name`에 표시명(`name`)과 코드(`model`)가 혼재**한다
+(영업 입력 ComboField가 코드를 저장하는 시기가 있었음). 모델 마스터 조회는 반드시
+양쪽을 모두 매칭하는 전역 헬퍼를 사용할 것 (`shell.jsx` 정의):
 ```js
-const modelInfo = window.PMDB.getModels().find(m => m.name === order.model_name);
+const modelInfo = window.findModelInfo(order.model_name); // name·model 모두 매칭
 // UI 표시: modelInfo?.model || order.model_name
 ```
+`getModels().find(m => m.name === ...)` 직접 비교는 코드가 저장된 오더에서 실패하므로 금지.
 
 ### 전역 상태 (`shell.jsx` → `window.__pm_store__`)
 
@@ -136,7 +139,7 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 
 `localStorage` 영속 키:
 - `pm_session` — 로그인 `user_id` (페이지 새로고침 유지)
-- `pm_tweaks_*` — Tweaks 패널 설정값
+- `pm_tweaks` — Tweaks 패널 설정값 (단일 JSON 객체)
 
 ### 역할 기반 라우팅 (`auth.jsx` → `window.ROLE_TABS`)
 

@@ -129,7 +129,7 @@ function AsListCard({ r, active, onClick, staggerIndex = 0 }) {
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
       style={{ '--i': Math.min(staggerIndex, 8) }}
     >
       <div className="as-card__header">
@@ -186,30 +186,28 @@ function AsDetailPanel({ reception: r }) {
 
   const handleSave = () => {
     setBusy(true);
-    setTimeout(() => {
-      try {
-        const updStatus = form.status !== r.status ? form.status : undefined;
-        const updCompleted = form.status === '처리완료' && !form.completed_at
-          ? new Date().toISOString().replace('T', ' ').slice(0, 19)
-          : form.completed_at;
+    try {
+      const updStatus = form.status !== r.status ? form.status : undefined;
+      const updCompleted = form.status === '처리완료' && !form.completed_at
+        ? new Date().toISOString().replace('T', ' ').slice(0, 19)
+        : form.completed_at;
 
-        window.actions.updateAsReception(r.id, {
-          ...form,
-          assignee:    form.assignee.join(', '),
-          action_type: form.action_type.join(', '),
-          completed_at: updCompleted,
-        }, memo || '');
+      window.actions.updateAsReception(r.id, {
+        ...form,
+        assignee:    form.assignee.join(', '),
+        action_type: form.action_type.join(', '),
+        completed_at: updCompleted,
+      }, memo || '');
 
-        if (updStatus) {
-          setLogs(window.PMDB.getAsLogs(r.id));
-        }
-        setMemo('');
-      } catch (err) {
-        console.error('AS 처리 저장 실패:', err);
-      } finally {
-        setBusy(false);
+      if (updStatus) {
+        setLogs(window.PMDB.getAsLogs(r.id));
       }
-    }, 300);
+      setMemo('');
+    } catch (err) {
+      console.error('AS 처리 저장 실패:', err);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const isCompleted = r.status === '처리완료';
@@ -445,24 +443,22 @@ function AsDetailPanel({ reception: r }) {
                     onClick={() => {
                       set('status', '처리완료');
                       setBusy(true);
-                      setTimeout(() => {
-                        try {
-                          const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-                          window.actions.updateAsReception(r.id, {
-                            ...form,
-                            assignee:    form.assignee.join(', '),
-                            action_type: form.action_type.join(', '),
-                            status: '처리완료',
-                            completed_at: form.completed_at || now,
-                          }, memo || '처리 완료');
-                          setLogs(window.PMDB.getAsLogs(r.id));
-                          setMemo('');
-                        } catch (err) {
-                          console.error('처리 완료 저장 실패:', err);
-                        } finally {
-                          setBusy(false);
-                        }
-                      }, 300);
+                      try {
+                        const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+                        window.actions.updateAsReception(r.id, {
+                          ...form,
+                          assignee:    form.assignee.join(', '),
+                          action_type: form.action_type.join(', '),
+                          status: '처리완료',
+                          completed_at: form.completed_at || now,
+                        }, memo || '처리 완료');
+                        setLogs(window.PMDB.getAsLogs(r.id));
+                        setMemo('');
+                      } catch (err) {
+                        console.error('처리 완료 저장 실패:', err);
+                      } finally {
+                        setBusy(false);
+                      }
                     }}>
                     <Icon name="check" size={14}/> 처리 완료
                   </button>
@@ -611,8 +607,7 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
     if (lightbox && lightboxRef.current) lightboxRef.current.focus();
   }, [lightbox]);
 
-  const currentUserId = (window.__pm_store__ && window.__pm_store__.user)
-    ? window.__pm_store__.user.user_id : '';
+  const currentUserId = window.__pm_store__?.currentUser?.user_id || '';
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -683,14 +678,18 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
           {photos.map(ph => (
-            <div key={ph.id} className="photo-thumb"
-              onClick={() => deleteConfirm !== ph.id && setLightbox({ url: ph.url, filename: ph.filename })}>
-              <img
-                src={ph.url}
-                alt={`AS 첨부 사진 — ${ph.filename}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
+            <div key={ph.id} className="photo-thumb">
+              <button type="button" className="photo-thumb__view"
+                aria-label={`${ph.filename} 크게 보기`}
+                onClick={() => deleteConfirm !== ph.id && setLightbox({ url: ph.url, filename: ph.filename })}>
+                <img
+                  src={ph.url}
+                  alt=""
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              </button>
               <div className="photo-thumb__name">{ph.filename}</div>
 
               {deleteConfirm === ph.id ? (
@@ -725,6 +724,7 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
           aria-modal="true"
           onClick={() => setLightbox(null)}
           onKeyDown={(e) => {
+            e.stopPropagation(); // 상위 다이얼로그 Escape 핸들러로 전파 방지
             if (e.key === 'Escape') { setLightbox(null); return; }
             const idx = photos.findIndex(p => p.url === lightbox.url);
             if (e.key === 'ArrowRight' && idx < photos.length - 1)

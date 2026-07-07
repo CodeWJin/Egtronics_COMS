@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EGTRONICS COMS — 사용자 매뉴얼</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --ink: #111827;
+      --ink-2: #374151;
+      --ink-4: #6b7280;
+      --ink-6: #9ca3af;
+      --border: #e5e7eb;
+      --bg: #f9fafb;
+      --white: #ffffff;
+      --green: #16a34a;
+      --orange: #d97706;
+      --red: #dc2626;
+      --badge-pending: #f59e0b;
+      --badge-progress: #3b82f6;
+      --badge-await: #8b5cf6;
+      --badge-done: #10b981;
+      --r: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* ── 레이아웃 ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 0;
+    }
+
+    .sidebar__logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .sidebar__logo-mark {
+      width: 28px; height: 28px;
+      background: var(--primary);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 13px;
+    }
+    .sidebar__logo-text { font-size: 14px; font-weight: 700; color: var(--ink); }
+    .sidebar__logo-sub { font-size: 11px; color: var(--ink-4); margin-top: 1px; }
+
+    .sidebar__section { padding: 0 12px; margin-bottom: 8px; }
+    .sidebar__section-title {
+      font-size: 10px; font-weight: 600;
+      color: var(--ink-6); letter-spacing: .06em; text-transform: uppercase;
+      padding: 6px 8px; margin-bottom: 2px;
+    }
+    .sidebar__link {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: 6px;
+      color: var(--ink-2); text-decoration: none; font-size: 13.5px;
+      transition: background .15s;
+    }
+    .sidebar__link:hover { background: var(--bg); }
+    .sidebar__link.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+    .sidebar__num {
+      margin-left: auto;
+      font-size: 11px; color: var(--ink-6);
+      background: var(--bg); border-radius: 10px;
+      padding: 1px 6px;
+    }
+
+    .main { flex: 1; padding: 48px 56px; max-width: 900px; }
+
+    /* ── 공통 컴포넌트 ── */
+    .cover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 60%, #3b82f6 100%);
+      border-radius: 16px;
+      padding: 48px 48px 44px;
+      color: #fff;
+      margin-bottom: 48px;
+    }
+    .cover__badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 20px;
+      padding: 4px 12px; font-size: 12px; font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .cover__title { font-size: 32px; font-weight: 800; line-height: 1.25; margin-bottom: 12px; }
+    .cover__sub { font-size: 16px; opacity: .85; line-height: 1.6; }
+    .cover__meta {
+      margin-top: 28px; display: flex; gap: 24px; flex-wrap: wrap;
+      font-size: 13px; opacity: .75;
+    }
+    .cover__meta span::before { content: '·'; margin-right: 6px; opacity: .6; }
+    .cover__meta span:first-child::before { content: ''; margin-right: 0; }
+
+    h2.section-title {
+      font-size: 22px; font-weight: 700;
+      color: var(--ink);
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 28px;
+      scroll-margin-top: 32px;
+    }
+    h2.section-title .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      background: var(--primary); color: #fff;
+      border-radius: 6px; font-size: 13px; font-weight: 700;
+      margin-right: 10px; flex-shrink: 0;
+      vertical-align: middle;
+    }
+
+    h3.sub-title {
+      font-size: 16px; font-weight: 700;
+      color: var(--ink);
+      margin: 28px 0 12px;
+    }
+    h3.sub-title::before {
+      content: ''; display: inline-block;
+      width: 3px; height: 14px;
+      background: var(--primary); border-radius: 2px;
+      margin-right: 8px; vertical-align: -2px;
+    }
+
+    .section { margin-bottom: 56px; }
+
+    p { color: var(--ink-2); margin-bottom: 12px; }
+
+    /* ── 화면 설명 블록 ── */
+    .screen-block {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .screen-block__header {
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .screen-block__title { font-size: 14px; font-weight: 700; color: var(--ink); }
+    .screen-block__badge {
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 10px;
+      background: var(--primary-light); color: var(--primary);
+    }
+    .screen-block__body { padding: 20px; }
+
+    /* ── 역할 배지 ── */
+    .role-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+    .role {
+      font-size: 11px; font-weight: 600;
+      padding: 3px 10px; border-radius: 10px;
+      border: 1px solid;
+    }
+    .role--admin  { color: #7c3aed; background: #f5f3ff; border-color: #c4b5fd; }
+    .role--sales  { color: #0369a1; background: #f0f9ff; border-color: #bae6fd; }
+    .role--prod   { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
+    .role--qual   { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+    .role--as     { color: #9d174d; background: #fdf2f8; border-color: #fbcfe8; }
+
+    /* ── 기능 목록 ── */
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .feature-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 14px; color: var(--ink-2);
+    }
+    .feature-list li::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--primary); border-radius: 50%;
+      margin-top: 7px; flex-shrink: 0;
+    }
+
+    /* ── 단계 흐름 ── */
+    .flow {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+      margin: 16px 0;
+    }
+    .flow__step {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid #bfdbfe;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 13px; font-weight: 600;
+    }
+    .flow__arrow {
+      color: var(--ink-6); font-size: 18px;
+      padding: 0 6px;
+    }
+
+    /* ── 상태 배지 ── */
+    .status-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; padding: 5px 12px;
+      border-radius: 20px; font-weight: 600;
+    }
+    .status__dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .status--pending  { background: #fffbeb; color: #92400e; }
+    .status--pending .status__dot  { background: var(--badge-pending); }
+    .status--progress { background: #eff6ff; color: #1d4ed8; }
+    .status--progress .status__dot { background: var(--badge-progress); }
+    .status--await    { background: #faf5ff; color: #6d28d9; }
+    .status--await .status__dot    { background: var(--badge-await); }
+    .status--done     { background: #f0fdf4; color: #166534; }
+    .status--done .status__dot     { background: var(--badge-done); }
+
+    /* ── 뷰 탭 ── */
+    .view-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 16px; }
+    .view-tab {
+      padding: 5px 14px; border-radius: 6px;
+      font-size: 13px; font-weight: 600;
+      background: var(--bg); color: var(--ink-4);
+      border: 1px solid var(--border);
+    }
+    .view-tab.active {
+      background: var(--primary); color: #fff; border-color: var(--primary);
+    }
+
+    /* ── 테이블 ── */
+    .info-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 12px 0; }
+    .info-table th {
+      background: #f8fafc;
+      padding: 9px 14px; text-align: left;
+      font-weight: 600; color: var(--ink-4);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .info-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--ink-2);
+    }
+    .info-table tr:last-child td { border-bottom: none; }
+
+    /* ── 콜아웃 ── */
+    .callout {
+      display: flex; gap: 12px;
+      border-radius: var(--r);
+      padding: 14px 16px;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .callout--info { background: var(--primary-light); border-left: 3px solid var(--primary); }
+    .callout--warn { background: #fffbeb; border-left: 3px solid #f59e0b; }
+    .callout--tip  { background: #f0fdf4; border-left: 3px solid #16a34a; }
+    .callout__icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .callout__body { color: var(--ink-2); line-height: 1.6; }
+    .callout__body strong { color: var(--ink); }
+
+    /* ── 스텝 카드 ── */
+    .steps { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+    .step {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 16px;
+    }
+    .step__num {
+      width: 26px; height: 26px; flex-shrink: 0;
+      background: var(--primary); color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; margin-top: 1px;
+    }
+    .step__content { flex: 1; }
+    .step__title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+    .step__desc { font-size: 13px; color: var(--ink-4); line-height: 1.55; }
+
+    /* ── 목차 ── */
+    .toc {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 24px 28px;
+      margin-bottom: 48px;
+    }
+    .toc__title { font-size: 13px; font-weight: 700; color: var(--ink-4); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .06em; }
+    .toc__list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .toc__item a {
+      color: var(--ink-2); text-decoration: none; font-size: 14px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 3px 0;
+    }
+    .toc__item a:hover { color: var(--primary); }
+    .toc__num { color: var(--ink-6); font-size: 12px; width: 18px; }
+
+    /* ── 반응형 ── */
+    @media (max-width: 800px) {
+      .sidebar { display: none; }
+      .main { padding: 24px 20px; }
+    }
+
+    @media print {
+      .sidebar { display: none; }
+      .main { padding: 24px; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- 사이드바 -->
+  <nav class="sidebar">
+    <div class="sidebar__logo">
+      <div class="sidebar__logo-mark">EG</div>
+      <div>
+        <div class="sidebar__logo-text">COMS 매뉴얼</div>
+        <div class="sidebar__logo-sub">v1.0 · 2026</div>
+      </div>
+    </div>
+
+    <div class="sidebar__section">
+      <div class="sidebar__section-title">시작하기</div>
+      <a href="#overview" class="sidebar__link">시스템 개요</a>
+      <a href="#roles" class="sidebar__link">역할 및 권한</a>
+      <a href="#login" class="sidebar__link">로그인</a>
+    </div>
+
+    <div class="sidebar__section">
+      <div class="sidebar__section-title">화면별 사용법</div>
+      <a href="#sales" class="sidebar__link">영업 입력 <span class="sidebar__num">1</span></a>
+      <a href="#waiting" class="sidebar__link">생산 대기 <span class="sidebar__num">2</span></a>
+      <a href="#mapping" class="sidebar__link">생산 입력 <span class="sidebar__num">3</span></a>
+      <a href="#await-pickup" class="sidebar__link">출하대기 <span class="sidebar__num">4</span></a>
+      <a href="#lookup" class="sidebar__link">오더 조회 <span class="sidebar__num">5</span></a>
+      <a href="#as-receipt" class="sidebar__link">AS 접수 <span class="sidebar__num">6</span></a>
+      <a href="#as-processing" class="sidebar__link">AS 처리 <span class="sidebar__num">7</span></a>
+      <a href="#admin" class="sidebar__link">사용자 관리 <span class="sidebar__num">8</span></a>
+    </div>
+
+    <div class="sidebar__section">
+      <div class="sidebar__section-title">참고</div>
+      <a href="#order-flow" class="sidebar__link">오더 상태 흐름</a>
+      <a href="#faq" class="sidebar__link">자주 묻는 질문</a>
+    </div>
+  </nav>
+
+  <!-- 본문 -->
+  <main class="main">
+
+    <!-- 커버 -->
+    <div class="cover">
+      <div class="cover__badge">📋 사용자 매뉴얼</div>
+      <div class="cover__title">EGTRONICS COMS<br>사용 가이드</div>
+      <div class="cover__sub">EV 충전기 영업·생산 통합 관리 시스템(COMS)의 전체 기능을 화면별로 설명합니다.<br>역할에 맞는 챕터를 참고하여 업무에 활용하세요.</div>
+      <div class="cover__meta">
+        <span>이지트로닉스</span>
+        <span>버전 v1.0</span>
+        <span>최종 수정 2026-07-07</span>
+        <span>대상 : 내부 직원 전체</span>
+      </div>
+    </div>
+
+    <!-- 목차 -->
+    <div class="toc">
+      <div class="toc__title">목차</div>
+      <ul class="toc__list">
+        <li class="toc__item"><a href="#overview"><span class="toc__num">00</span>시스템 개요</a></li>
+        <li class="toc__item"><a href="#roles"><span class="toc__num">00</span>역할 및 권한</a></li>
+        <li class="toc__item"><a href="#login"><span class="toc__num">00</span>로그인</a></li>
+        <li class="toc__item"><a href="#sales"><span class="toc__num">01</span>영업 입력</a></li>
+        <li class="toc__item"><a href="#waiting"><span class="toc__num">02</span>생산 대기</a></li>
+        <li class="toc__item"><a href="#mapping"><span class="toc__num">03</span>생산 입력</a></li>
+        <li class="toc__item"><a href="#await-pickup"><span class="toc__num">04</span>출하대기</a></li>
+        <li class="toc__item"><a href="#lookup"><span class="toc__num">05</span>오더 조회</a></li>
+        <li class="toc__item"><a href="#as-receipt"><span class="toc__num">06</span>AS 접수</a></li>
+        <li class="toc__item"><a href="#as-processing"><span class="toc__num">07</span>AS 처리</a></li>
+        <li class="toc__item"><a href="#admin"><span class="toc__num">08</span>사용자 관리</a></li>
+        <li class="toc__item"><a href="#order-flow"><span class="toc__num">—</span>오더 상태 흐름</a></li>
+        <li class="toc__item"><a href="#faq"><span class="toc__num">—</span>자주 묻는 질문</a></li>
+      </ul>
+    </div>
+
+    <!-- ① 시스템 개요 -->
+    <section class="section" id="overview">
+      <h2 class="section-title">시스템 개요</h2>
+      <p>EGTRONICS COMS(Charge Order Management System)는 EV 충전기의 <strong>수주 → 생산 → 출하 → AS</strong> 전 과정을 한 곳에서 관리하는 사내 업무 시스템입니다.</p>
+      <p>PC 브라우저와 태블릿·모바일 모두에서 사용할 수 있으며, 부서별 역할에 따라 접근 가능한 화면이 다르게 설정됩니다.</p>
+
+      <h3 class="sub-title">주요 업무 흐름</h3>
+      <div class="flow">
+        <div class="flow__step">영업 오더 등록</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">생산 착수</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">생산 완료·검사</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">출하</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">AS 접수·처리</div>
+      </div>
+
+      <h3 class="sub-title">오더 상태 정의</h3>
+      <div class="status-list">
+        <div class="status status--pending"><span class="status__dot"></span>생산대기 (PENDING)</div>
+        <div class="status status--progress"><span class="status__dot"></span>생산진행중 (IN_PROGRESS)</div>
+        <div class="status status--await"><span class="status__dot"></span>출하대기 (AWAIT_PICKUP)</div>
+        <div class="status status--done"><span class="status__dot"></span>출하완료 (COMPLETED)</div>
+      </div>
+    </section>
+
+    <!-- ② 역할 및 권한 -->
+    <section class="section" id="roles">
+      <h2 class="section-title">역할 및 권한</h2>
+      <p>COMS는 5개 역할을 지원합니다. 로그인 후 역할에 따라 상단 탭 메뉴가 자동으로 조정됩니다.</p>
+
+      <table class="info-table">
+        <thead>
+          <tr>
+            <th>역할</th>
+            <th>부서</th>
+            <th>접근 가능 화면</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="role role--admin">관리자</span></td>
+            <td>충전기개발실</td>
+            <td>모든 화면 + 사용자 관리</td>
+          </tr>
+          <tr>
+            <td><span class="role role--sales">영업</span></td>
+            <td>영업부</td>
+            <td>영업 입력, 생산 대기, 조회, AS 접수</td>
+          </tr>
+          <tr>
+            <td><span class="role role--prod">생산</span></td>
+            <td>생산부 / 생산2팀</td>
+            <td>생산 대기, 생산 입력, 출하대기, 조회</td>
+          </tr>
+          <tr>
+            <td><span class="role role--qual">품질</span></td>
+            <td>품질관리본부</td>
+            <td>출하대기, 조회, AS 접수, AS 처리</td>
+          </tr>
+          <tr>
+            <td><span class="role role--as">A/S</span></td>
+            <td>기술지원팀</td>
+            <td>조회 (AS 이력 포함)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ③ 로그인 -->
+    <section class="section" id="login">
+      <h2 class="section-title">로그인</h2>
+      <p>COMS는 이메일 인증 방식으로 로그인합니다. 초기 비밀번호는 관리자에게 문의하세요.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step__num">1</div>
+          <div class="step__content">
+            <div class="step__title">아이디(ID) 입력</div>
+            <div class="step__desc">관리자로부터 발급받은 아이디를 입력합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">2</div>
+          <div class="step__content">
+            <div class="step__title">비밀번호 입력 후 로그인</div>
+            <div class="step__desc">비밀번호를 입력하고 로그인 버튼을 누릅니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">3</div>
+          <div class="step__content">
+            <div class="step__title">역할별 시작 화면으로 이동</div>
+            <div class="step__desc">로그인 성공 시 역할에 맞는 기본 화면으로 자동 이동됩니다. 화면 우측 상단에 이름·역할이 표시됩니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout--info">
+        <div class="callout__icon">ℹ️</div>
+        <div class="callout__body">비밀번호를 분실한 경우 <strong>관리자(박우진)</strong>에게 초기화를 요청하세요. 이메일 인증 코드 발송도 지원합니다.</div>
+      </div>
+    </section>
+
+    <!-- 01 영업 입력 -->
+    <section class="section" id="sales">
+      <h2 class="section-title"><span class="num">1</span>영업 입력</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
+      </div>
+      <p>고객으로부터 수주한 EV 충전기 오더를 신규 등록합니다. 등록 즉시 <strong>생산 대기</strong> 큐에 추가됩니다.</p>
+
+      <div class="screen-block">
+        <div class="screen-block__header">
+          <div class="screen-block__title">화면 구성</div>
+          <div class="screen-block__badge">영업 부서 · 신규 오더 등록</div>
+        </div>
+        <div class="screen-block__body">
+          <table class="info-table">
+            <thead><tr><th>섹션</th><th>입력 항목</th><th>필수</th></tr></thead>
+            <tbody>
+              <tr><td>① 발주 정보</td><td>고객사, 고객 담당자, 충전기 용도(공용/비공용), 모델, 케이블 길이, 납품일자, 충전소 ID, 충전기 번호, CPO 운영사</td><td>고객사·모델·케이블·납품일</td></tr>
+              <tr><td>② 통신 모듈</td><td>라우터번호(S/N), USIM번호(ICCID)</td><td>—</td></tr>
+              <tr><td>③ 설치 정보</td><td>설치주소, 현장 담당자 이름·전화번호</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 class="sub-title">고객사 / 담당자 추가</h3>
+      <p>목록에 없는 고객사는 <strong>+ 추가</strong> 버튼으로 즉시 마스터에 등록할 수 있습니다. 담당자도 동일하게 <strong>관리</strong> 버튼을 통해 추가합니다.</p>
+
+      <h3 class="sub-title">입력 미리보기</h3>
+      <p>화면 우측의 <strong>입력 미리보기</strong> 패널이 실시간으로 입력 값을 요약 표시합니다. 등록 전 내용을 최종 확인할 때 활용하세요.</p>
+
+      <h3 class="sub-title">CSV 업로드</h3>
+      <p>다수 오더를 한 번에 등록할 때는 <strong>CSV 업로드</strong> 버튼을 사용합니다. 템플릿 파일은 <code>docs/order_test.csv</code>를 참고하세요.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step__num">1</div>
+          <div class="step__content">
+            <div class="step__title">고객사 선택 또는 입력</div>
+            <div class="step__desc">드롭다운에서 기존 고객사를 선택하거나, 새 이름을 직접 입력 후 <strong>+ 추가</strong>를 누릅니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">2</div>
+          <div class="step__content">
+            <div class="step__title">충전기 용도 선택</div>
+            <div class="step__desc"><strong>공용</strong>: 환경부 CPO 등록 대상 · 검정일자 입력 필요 / <strong>비공용</strong>: 독립 운영</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">3</div>
+          <div class="step__content">
+            <div class="step__title">모델 및 케이블 길이 선택</div>
+            <div class="step__desc">드롭다운에서 모델 라인업을 선택하고, 케이블 길이(3m / 5m / 7m / 10m 또는 직접 입력)를 지정합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">4</div>
+          <div class="step__content">
+            <div class="step__title">오더 등록</div>
+            <div class="step__desc">우측 상단 <strong>오더 등록</strong> 버튼을 누릅니다. 오더 ID가 자동 채번되고 생산 대기 목록에 추가됩니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__icon">⚠️</div>
+        <div class="callout__body"><strong>충전소 ID</strong>는 영문·숫자 조합이며, 환경부 ME카 또는 자체 관제 ID(예: CT3006, ME0001) 형식을 따릅니다.</div>
+      </div>
+    </section>
+
+    <!-- 02 생산 대기 -->
+    <section class="section" id="waiting">
+      <h2 class="section-title"><span class="num">2</span>생산 대기</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
+        <span class="role role--prod">생산</span>
+      </div>
+      <p>등록된 오더의 생산 현황을 확인하고 오더를 선택해 <strong>생산 입력</strong> 화면으로 이동합니다. 4가지 뷰(칸반·카드·타임라인·테이블)를 지원합니다.</p>
+
+      <h3 class="sub-title">뷰 전환</h3>
+      <div class="view-tabs">
+        <div class="view-tab active">칸반</div>
+        <div class="view-tab">카드</div>
+        <div class="view-tab">타임라인</div>
+        <div class="view-tab">테이블</div>
+      </div>
+      <table class="info-table">
+        <thead><tr><th>뷰</th><th>특징</th><th>추천 상황</th></tr></thead>
+        <tbody>
+          <tr><td><strong>칸반</strong></td><td>신규접수 / 긴급 / 작업중 / 출하대기 컬럼으로 상태별 분류</td><td>생산팀 현황판 · 상태별 빠른 파악</td></tr>
+          <tr><td><strong>카드</strong></td><td>오더를 카드 형태로 격자 배치, 수정됨·긴급 태그 표시</td><td>태블릿·모바일에서 터치 접근</td></tr>
+          <tr><td><strong>타임라인</strong></td><td>납품일 기준 시간순 정렬, 날짜 강조</td><td>납기 준수 여부 한눈에 파악</td></tr>
+          <tr><td><strong>테이블</strong></td><td>오더#·고객사·모델·충전소ID·주소·납품일·상태 컬럼</td><td>다수 오더 비교·정렬·검색</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="sub-title">D-day 색상 규칙</h3>
+      <ul class="feature-list">
+        <li><strong style="color:var(--red)">빨간색 (D-7 이하)</strong> — 긴급. 즉시 조치 필요</li>
+        <li><strong style="color:var(--orange)">주황색 (D-8 ~ D-14)</strong> — 주의. 생산 착수 확인</li>
+        <li><strong>검정 (D-15 이상)</strong> — 여유</li>
+      </ul>
+
+      <h3 class="sub-title">검색 및 필터</h3>
+      <ul class="feature-list">
+        <li>상단 검색창에서 고객사·모델·충전소 ID·오더번호로 검색</li>
+        <li>모델 드롭다운으로 특정 모델만 필터링 가능</li>
+        <li><strong>초기화</strong> 버튼으로 검색 조건을 모두 지웁니다</li>
+      </ul>
+
+      <div class="callout callout--tip">
+        <div class="callout__icon">💡</div>
+        <div class="callout__body">영업 담당자는 생산대기 목록에서 <strong>수정됨</strong> 태그가 붙은 오더를 클릭해 발주 정보를 수정할 수 있습니다.</div>
+      </div>
+    </section>
+
+    <!-- 03 생산 입력 -->
+    <section class="section" id="mapping">
+      <h2 class="section-title"><span class="num">3</span>생산 입력</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--prod">생산</span>
+      </div>
+      <p>생산 대기 목록에서 오더를 선택하면 이 화면으로 진입합니다. 생산 실적 7개 항목을 입력하고 기능 검사 성적서를 작성합니다.</p>
+
+      <div class="screen-block">
+        <div class="screen-block__header">
+          <div class="screen-block__title">생산 실적 입력 항목</div>
+        </div>
+        <div class="screen-block__body">
+          <table class="info-table">
+            <thead><tr><th>#</th><th>항목</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>생산일자 <span style="color:var(--red)">*</span></td><td>공장 조립 및 최종 자체 검사 완료일</td></tr>
+              <tr><td>2</td><td>로트번호 <span style="color:var(--red)">*</span></td><td>생산일자 기준 자동 제안, 수정 가능 (예: L26-W28-A)</td></tr>
+              <tr><td>3</td><td>시리얼 <span style="color:var(--red)">*</span></td><td>외형/제어보드 고유 시리얼 — 추천값 클릭으로 자동 입력, 중복 확인 내장</td></tr>
+              <tr><td>4</td><td>검정일자 <span style="color:var(--red)">*</span></td><td>KTC 등 공인기관 형식승인·검정 완료일 (유효기간 7년)</td></tr>
+              <tr><td>5</td><td>S/W 버전 <span style="color:var(--red)">*</span></td><td>버전 칩에서 클릭 선택 또는 직접 입력</td></tr>
+              <tr><td>6</td><td>F/W 버전 <span style="color:var(--red)">*</span></td><td>버전 칩에서 클릭 선택 또는 직접 입력 (BETA 버전 별도 표시)</td></tr>
+              <tr><td>7</td><td>기능 검사 성적서 <span style="color:var(--red)">*</span></td><td>작성하기 버튼으로 체크리스트 작성 — 출하대기 등록 전 필수</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 class="sub-title">생산 단계 흐름</h3>
+      <div class="flow">
+        <div class="flow__step">생산대기(PENDING)</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">생산 시작 클릭</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">실적 입력(IN_PROGRESS)</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">출하대기 등록</div>
+        <div class="flow__arrow">→</div>
+        <div class="flow__step">AWAIT_PICKUP</div>
+      </div>
+
+      <div class="callout callout--warn">
+        <div class="callout__icon">⚠️</div>
+        <div class="callout__body"><strong>기능 검사 성적서</strong>를 작성하지 않으면 출하대기 등록 버튼이 비활성화됩니다. 반드시 체크리스트를 완료한 뒤 저장하세요.</div>
+      </div>
+
+      <h3 class="sub-title">수정 이력</h3>
+      <p>영업 담당자가 발주 정보를 변경한 경우 <strong>수정이력 N건</strong> 배지가 표시됩니다. 클릭하면 변경 내용을 확인할 수 있습니다.</p>
+    </section>
+
+    <!-- 04 출하대기 -->
+    <section class="section" id="await-pickup">
+      <h2 class="section-title"><span class="num">4</span>출하대기</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--prod">생산</span>
+        <span class="role role--qual">품질</span>
+      </div>
+      <p>생산·검정이 완료되어 출하 대기 중인 오더를 관리합니다. 출하 전 검사 성적서 확인 후 <strong>출하 완료</strong> 처리합니다.</p>
+
+      <div class="screen-block">
+        <div class="screen-block__header">
+          <div class="screen-block__title">상단 통계 카드</div>
+        </div>
+        <div class="screen-block__body">
+          <table class="info-table">
+            <thead><tr><th>카드</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td>총 출하대기</td><td>기능 검사 성적서 발급 완료 건수</td></tr>
+              <tr><td>금주 완료</td><td>이번 주(월~오늘) 출하 완료 건수</td></tr>
+              <tr><td>평균 리드타임</td><td>영업 접수 → 생산 완료 평균 일수</td></tr>
+              <tr><td>평균 검정 소요</td><td>생산 → 검정 완료 평균 일수</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 class="sub-title">출하 처리 절차</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step__num">1</div>
+          <div class="step__content">
+            <div class="step__title">기능 검사 성적서 확인</div>
+            <div class="step__desc">목록의 <strong>기능검사성적서</strong> 버튼을 클릭해 생산팀이 작성한 내용을 검토합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">2</div>
+          <div class="step__content">
+            <div class="step__title">출하 전 검사 작성</div>
+            <div class="step__desc"><strong>출하검사 N항</strong> 버튼을 클릭해 출하 전 체크리스트를 작성합니다. 사진 첨부도 가능합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">3</div>
+          <div class="step__content">
+            <div class="step__title">출하 완료</div>
+            <div class="step__desc"><strong>출하 완료</strong> 버튼을 클릭하면 상태가 COMPLETED로 전환되고 조회 화면으로 이동됩니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout--tip">
+        <div class="callout__icon">💡</div>
+        <div class="callout__body">CSV 내보내기 버튼으로 출하대기 목록 전체를 Excel 파일로 다운로드할 수 있습니다 (한국어 UTF-8 BOM 포함).</div>
+      </div>
+    </section>
+
+    <!-- 05 오더 조회 -->
+    <section class="section" id="lookup">
+      <h2 class="section-title"><span class="num">5</span>오더 조회</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
+        <span class="role role--prod">생산</span>
+        <span class="role role--qual">품질</span>
+        <span class="role role--as">A/S</span>
+      </div>
+      <p>출하 완료된 오더를 검색하고 전체 이력을 조회합니다. A/S 역할은 AS 접수·처리 이력도 함께 확인할 수 있습니다.</p>
+
+      <h3 class="sub-title">검색 방법</h3>
+      <ul class="feature-list">
+        <li>검색창에 <strong>고객사 · 충전소 ID · 시리얼 · 주소 · 납품일</strong> 등 키워드를 자유롭게 입력</li>
+        <li><strong>고급 필터</strong>로 모델, 날짜 범위, 상태를 세분화</li>
+        <li>상단 <strong>출하완료 오더만 표시</strong> 토글로 전체/완료만 전환</li>
+      </ul>
+
+      <h3 class="sub-title">상세 정보 확인</h3>
+      <p>목록 행을 클릭하면 우측에 상세 패널이 열리고 <strong>기본 정보 · 생산 정보 · 성적서 · 변경 이력</strong> 탭을 확인할 수 있습니다.</p>
+    </section>
+
+    <!-- 06 AS 접수 -->
+    <section class="section" id="as-receipt">
+      <h2 class="section-title"><span class="num">6</span>AS 접수</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
+        <span class="role role--qual">품질</span>
+      </div>
+      <p>현장에서 발생한 충전기 고장·이상을 접수합니다. 접수번호는 <code>AS-{연도월일}-{순번}</code> 형식으로 자동 채번됩니다.</p>
+
+      <div class="screen-block">
+        <div class="screen-block__header">
+          <div class="screen-block__title">접수 목록 상태 탭</div>
+        </div>
+        <div class="screen-block__body">
+          <table class="info-table">
+            <thead><tr><th>탭</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td>전체</td><td>모든 AS 접수 건</td></tr>
+              <tr><td>접수대기</td><td>접수 후 담당자 미배정 상태</td></tr>
+              <tr><td>담당자배정</td><td>담당자가 배정되어 출동 예정</td></tr>
+              <tr><td>처리중</td><td>현장 처리 진행 중</td></tr>
+              <tr><td>처리완료</td><td>조치 완료 및 종결</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 class="sub-title">새 접수 등록</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step__num">1</div>
+          <div class="step__content">
+            <div class="step__title">새 접수 등록 버튼 클릭</div>
+            <div class="step__desc">우측 상단 <strong>+ 새 접수 등록</strong>을 클릭합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">2</div>
+          <div class="step__content">
+            <div class="step__title">고객사·충전소·고장 유형 입력</div>
+            <div class="step__desc">고객사, 충전소 ID, 고장 유형, 긴급도(일반/긴급), 접수자 정보를 입력합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">3</div>
+          <div class="step__content">
+            <div class="step__title">등록</div>
+            <div class="step__desc">저장하면 접수번호가 자동 발번되고 상태가 <strong>접수대기</strong>로 설정됩니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <p>목록의 <strong>처리 →</strong> 버튼을 누르면 AS 처리 화면으로 이동해 담당자 배정 및 조치를 진행합니다.</p>
+    </section>
+
+    <!-- 07 AS 처리 -->
+    <section class="section" id="as-processing">
+      <h2 class="section-title"><span class="num">7</span>AS 처리</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--qual">품질</span>
+      </div>
+      <p>좌측 목록에서 AS 건을 선택하면 우측에 처리 패널이 열립니다. 담당자 배정, 상태 변경, 조치 내용 입력, 사진 첨부까지 한 화면에서 처리합니다.</p>
+
+      <div class="screen-block">
+        <div class="screen-block__header">
+          <div class="screen-block__title">처리 패널 탭 구성</div>
+        </div>
+        <div class="screen-block__body">
+          <table class="info-table">
+            <thead><tr><th>탭</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td>처리 현황</td><td>담당자 배정, 출동 예정일, 처리 상태, 조치 유형, 발생 비용, 조치 상세 내용 입력</td></tr>
+              <tr><td>접수 정보</td><td>최초 접수 시 입력한 고장 내용·고객 연락처 등 원본 정보</td></tr>
+              <tr><td>처리 이력</td><td>상태 변경 이력 (타임라인 형식)</td></tr>
+              <tr><td>사진</td><td>현장 사진 첨부 및 조회</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 class="sub-title">조치 유형 분류</h3>
+      <ul class="feature-list">
+        <li><strong>하드웨어(HW) 및 부품 관리</strong> — 부품 교체, 배선 교체, 외형 교체, 하드웨어 교체, 제품교체</li>
+        <li><strong>소프트웨어(SW) 및 설정 관리</strong> — 펌웨어 업데이트, HMI 업데이트, 설정 변경, 원격 리셋</li>
+        <li><strong>통신 및 네트워크</strong> — 통신연결불량, 무선모뎀 문제</li>
+        <li><strong>인프라 설치 및 외부 요인</strong> — 설치 문제, 차량 이상 진단, 사용자 사용 문제</li>
+        <li><strong>원인 분석 및 기타</strong> — 원인분석, 특이사항없음</li>
+      </ul>
+
+      <div class="callout callout--info">
+        <div class="callout__icon">ℹ️</div>
+        <div class="callout__body">상태를 <strong>처리완료</strong>로 변경하면 처리 이력에 완료 시각이 자동 기록됩니다. 완료 후에도 사진 추가 및 내용 수정이 가능합니다.</div>
+      </div>
+    </section>
+
+    <!-- 08 사용자 관리 -->
+    <section class="section" id="admin">
+      <h2 class="section-title"><span class="num">8</span>사용자 관리</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자 전용</span>
+      </div>
+      <p>시스템 계정을 추가하고 역할·권한을 설정합니다. 관리자(admin) 역할만 접근할 수 있습니다.</p>
+
+      <h3 class="sub-title">역할 카드</h3>
+      <p>화면 상단에 역할별 카드가 표시되며, 각 카드에 접근 가능한 탭 목록과 현재 인원 수가 요약됩니다.</p>
+
+      <h3 class="sub-title">사용자 추가</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step__num">1</div>
+          <div class="step__content">
+            <div class="step__title">사용자 추가 버튼 클릭</div>
+            <div class="step__desc">우측 상단 <strong>+ 사용자 추가</strong>를 클릭합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">2</div>
+          <div class="step__content">
+            <div class="step__title">정보 입력</div>
+            <div class="step__desc">이름, 아이디(ID), 역할, 부서, 전화번호, 이메일을 입력하고 임시 비밀번호를 설정합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">3</div>
+          <div class="step__content">
+            <div class="step__title">저장</div>
+            <div class="step__desc">저장 즉시 해당 계정으로 로그인이 가능합니다. 사용자에게 아이디와 임시 비밀번호를 전달하세요.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="sub-title">사용자 수정 / 삭제</h3>
+      <p>각 행의 <strong>✏️ 편집</strong> 버튼으로 정보를 수정하고, <strong>🗑️ 삭제</strong> 버튼으로 계정을 삭제합니다. 자기 자신의 계정은 삭제할 수 없습니다.</p>
+    </section>
+
+    <!-- 오더 상태 흐름 -->
+    <section class="section" id="order-flow">
+      <h2 class="section-title">오더 상태 흐름</h2>
+
+      <div class="flow" style="flex-direction:column;align-items:flex-start;gap:16px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow__step">영업 오더 등록</div>
+          <div class="flow__arrow">→</div>
+          <div class="status status--pending"><span class="status__dot"></span>PENDING (생산대기)</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
+          <div class="flow__arrow">↓ 생산 시작</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow__step">생산 실적 입력</div>
+          <div class="flow__arrow">→</div>
+          <div class="status status--progress"><span class="status__dot"></span>IN_PROGRESS (생산진행중)</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
+          <div class="flow__arrow">↓ 출하대기 등록</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow__step">출하 검사</div>
+          <div class="flow__arrow">→</div>
+          <div class="status status--await"><span class="status__dot"></span>AWAIT_PICKUP (출하대기)</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
+          <div class="flow__arrow">↓ 출하 완료</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow__step">완료</div>
+          <div class="flow__arrow">→</div>
+          <div class="status status--done"><span class="status__dot"></span>COMPLETED (출하완료)</div>
+        </div>
+      </div>
+
+      <h3 class="sub-title">상태 되돌리기 (관리자 전용)</h3>
+      <table class="info-table">
+        <thead><tr><th>액션</th><th>전환</th><th>데이터 처리</th></tr></thead>
+        <tbody>
+          <tr><td>전체 초기화</td><td>어느 상태 → PENDING</td><td>시리얼 초기화, 기능·출하 검사 삭제, 출하 사진 삭제</td></tr>
+          <tr><td>출하대기로 되돌리기</td><td>COMPLETED → AWAIT_PICKUP</td><td>모든 데이터 유지</td></tr>
+          <tr><td>생산중으로 되돌리기</td><td>COMPLETED → IN_PROGRESS</td><td>모든 데이터 유지</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout--warn">
+        <div class="callout__icon">⚠️</div>
+        <div class="callout__body">되돌리기 기능은 COMPLETED 상태에서만 사용 가능합니다. 전체 초기화는 시리얼·성적서 데이터가 삭제되므로 신중하게 사용하세요.</div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <h2 class="section-title">자주 묻는 질문</h2>
+
+      <h3 class="sub-title">Q. 오더 등록 후 수정이 가능한가요?</h3>
+      <p>영업 역할은 오더가 <strong>PENDING · IN_PROGRESS</strong> 상태일 때 발주 정보를 수정할 수 있습니다. 수정 시 생산 화면에 <strong>수정이력 N건</strong> 배지가 표시됩니다.</p>
+
+      <h3 class="sub-title">Q. 시리얼 번호 추천값은 어떻게 계산되나요?</h3>
+      <p>모델 코드 + 연도/월 알파벳 코드(2023년=A, 이후 +1) + 로트 내 순번으로 자동 생성됩니다. 동일 시리얼이 이미 존재하면 중복 경고가 표시됩니다.</p>
+
+      <h3 class="sub-title">Q. 기능 검사 체크리스트는 어디서 관리하나요?</h3>
+      <p><code>docs/func/{모델코드}.json</code> 파일로 모델별 체크리스트를 관리합니다. 파일이 없으면 시스템 기본 체크리스트가 사용됩니다.</p>
+
+      <h3 class="sub-title">Q. 출하 전 사진은 어떻게 첨부하나요?</h3>
+      <p>출하대기 목록에서 <strong>성적서 보기</strong> → 출하 검사 드로어의 사진 첨부 영역에서 파일을 선택하면 Supabase Storage(<code>ship-photos</code> 버킷)에 자동 업로드됩니다.</p>
+
+      <h3 class="sub-title">Q. CSV 내보내기 시 한국어가 깨집니다.</h3>
+      <p>파일을 Excel에서 열 때는 <strong>데이터 → 텍스트/CSV에서 가져오기</strong>를 사용하고 인코딩을 <strong>UTF-8</strong>로 선택하세요. 직접 파일을 열면 인코딩이 자동으로 인식되지 않을 수 있습니다.</p>
+
+      <h3 class="sub-title">Q. 비밀번호를 잊었을 때는?</h3>
+      <p>관리자(박우진, admin)에게 비밀번호 초기화를 요청하세요. 사용자 관리 화면에서 즉시 처리가 가능합니다.</p>
+
+      <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; color: var(--ink-6); font-size: 12px;">
+        EGTRONICS CO., LTD. · COMS v1.0 · 2026 · 내부 배포용
+      </div>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>

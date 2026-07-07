@@ -37,18 +37,11 @@ function useStore() {
 window.useStore = useStore;
 window.notify = notify;
 
-// pm_ship_inspections localStorage 공유 헬퍼 — production-mapping / quality-AwaitPickup / order-lookup 공용
-window.getShipInspection = function(orderId) {
-  try {
-    return new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]')).get(orderId) || null;
-  } catch(_) { return null; }
-};
-window.setShipInspection = function(orderId, data) {
-  try {
-    const m = new Map(JSON.parse(localStorage.getItem('pm_ship_inspections') || '[]'));
-    if (data == null) m.delete(orderId); else m.set(orderId, data);
-    localStorage.setItem('pm_ship_inspections', JSON.stringify([...m]));
-  } catch(_) {}
+// 모델 마스터 조회 — order.model_name에 표시명(name) 또는 코드(model)가
+// 저장된 데이터가 혼재하므로 양쪽 모두 매칭한다 (전 화면 공용)
+window.findModelInfo = function (modelName) {
+  if (!modelName || !window.PMDB || !window.PMDB.getModels) return null;
+  return window.PMDB.getModels().find(m => m.name === modelName || m.model === modelName) || null;
 };
 
 // main 스크롤 잠금 훅 — 드로어·모달 공용
@@ -282,6 +275,32 @@ window.actions = {
     notify();
   },
 };
+
+// 도움말 팝오버 — title 툴팁은 태블릿 터치에서 표시되지 않으므로 클릭·탭 토글로 제공
+function HelpDot({ text }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <span className="helpdot-wrap" ref={ref}>
+      <button type="button" className="helpdot" aria-expanded={open}
+              aria-label={`도움말: ${text}`}
+              onClick={() => setOpen(v => !v)}>?</button>
+      {open && <span role="tooltip" className="helpdot-pop">{text}</span>}
+    </span>
+  );
+}
+window.HelpDot = HelpDot;
 
 function TopNav() {
   const s = useStore();

@@ -74,8 +74,6 @@ function ProductionCompleteScreen() {
     );
   }, []);
 
-  const modelMap = useMemoPC(() => new Map(models.map(m => [m.name, m])), [models]);
-
   const completed = useMemoPC(
     () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.production?.serial_no),
     [s.orders]
@@ -83,7 +81,11 @@ function ProductionCompleteScreen() {
 
   const filtered = useMemoPC(() => {
     return completed.filter(o => {
-      if (filterModel !== 'all' && o.model_name !== filterModel) return false;
+      if (filterModel !== 'all') {
+        // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
+        const mName = window.findModelInfo(o.model_name)?.name || o.model_name;
+        if (mName !== filterModel) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         const hay = [o.customer_name, o.model_name, o.station_id, o.production.serial_no, o.production.lot_no, o.production.doc_no, String(o.order_id)].join(' ').toLowerCase();
@@ -111,7 +113,7 @@ function ProductionCompleteScreen() {
       o.order_id, o.customer_name, o.model_name, o.station_id,
       o.production.prod_date, o.production.lot_no, o.production.serial_no,
       o.production.inspection_date, o.production.sw_version, o.production.fw_version,
-      o.production.cable_length, o.delivery_date,
+      o.cable_length, o.delivery_date,
     ]))];
     downloadCSV(rows, `출하대기_${new Date().toISOString().slice(0, 10)}.csv`);
     window.actions.flashToast?.(`${filtered.length}건 CSV 내보내기 완료`);
@@ -213,21 +215,25 @@ function ProductionCompleteScreen() {
             </thead>
             <tbody>
               {filtered.map(o => {
-                const modelInfo = modelMap.get(o.model_name);
+                const modelInfo = window.findModelInfo(o.model_name);
                 const shipInsp = shipInspections.get(o.order_id);
                 const shipAllDone = !!shipInsp &&
                   Object.keys(shipInsp.checks || {}).length > 0 &&
                   Object.values(shipInsp.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+                const openRow = () => {
+                  const role = s.currentUser?.role;
+                  if (role === 'admin' || role === 'production') {
+                    window.actions.selectOrder(o.order_id);
+                    window.actions.setView('mapping');
+                  } else {
+                    setShipInspectOrder(o);
+                  }
+                };
                 return (
-                  <tr key={o.order_id} className="row--clickable" onClick={() => {
-                    const role = s.currentUser?.role;
-                    if (role === 'admin' || role === 'production') {
-                      window.actions.selectOrder(o.order_id);
-                      window.actions.setView('mapping');
-                    } else {
-                      setShipInspectOrder(o);
-                    }
-                  }}>
+                  <tr key={o.order_id} className="row--clickable"
+                    tabIndex={0}
+                    onClick={openRow}
+                    onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow(); } }}>
                     <td>
                       <div className="cell-strong">{o.customer_name}</div>
                       <div className="cell-muted">{modelInfo?.model || o.model_name}</div>
@@ -296,7 +302,7 @@ function ProductionCompleteScreen() {
         <ShipInspectionDrawer
           order={shipInspectOrder}
           existingData={shipInspections.get(shipInspectOrder.order_id)}
-          modelInfo={modelMap.get(shipInspectOrder.model_name)}
+          modelInfo={window.findModelInfo(shipInspectOrder.model_name)}
           onSave={(data) => {
             const ord = shipInspectOrder;
             saveShipInspection(ord.order_id, data);
@@ -309,7 +315,7 @@ function ProductionCompleteScreen() {
         <ShipInspectionReport
           order={shipReport.order}
           inspectionData={shipReport.inspectionData}
-          modelInfo={modelMap.get(shipReport.order.model_name)}
+          modelInfo={window.findModelInfo(shipReport.order.model_name)}
           onClose={() => setShipReport(null)}
         />
       )}

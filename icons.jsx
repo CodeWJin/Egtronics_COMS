@@ -5,6 +5,7 @@ const Icon = ({ name, size = 16, stroke = 1.6, ...rest }) => {
     width: S, height: S, viewBox: '0 0 24 24',
     fill: 'none', stroke: 'currentColor', strokeWidth: stroke,
     strokeLinecap: 'round', strokeLinejoin: 'round',
+    'aria-hidden': true,
     ...rest,
   };
   switch (name) {

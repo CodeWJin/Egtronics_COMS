@@ -36,7 +36,6 @@ function OrderLookupScreen() {
   const [showAdvanced, setShowAdvanced] = useStateOL(false);
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
-  const modelMap  = useMemoOL(() => { const m = {}; models.forEach(mdl => { m[mdl.name] = mdl; }); return m; }, [models]);
 
   const dateRangeErr = dateFrom && dateTo && dateTo < dateFrom;
   const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
@@ -45,7 +44,11 @@ function OrderLookupScreen() {
     const allReceptions = fAsOnly ? safeLoadAsReceptions() : [];
     let list = s.orders.filter(o => {
       if (fStatus !== 'all' && o.status !== fStatus) return false;
-      if (fModel !== 'all' && o.model_name !== fModel) return false;
+      if (fModel !== 'all') {
+        // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
+        const mName = window.findModelInfo(o.model_name)?.name || o.model_name;
+        if (mName !== fModel) return false;
+      }
       if (fCustomer !== 'all' && o.customer_name !== fCustomer) return false;
       const dv = dateField === 'prod' ? (o.production && o.production.prod_date) : o.delivery_date;
       if (dateFrom && (!dv || dv < dateFrom)) return false;
@@ -94,9 +97,9 @@ function OrderLookupScreen() {
     <div className="screen">
       <div className="screen__head">
         <div>
-          <div className="screen__crumbs">통합 조회 · 전체 오더</div>
+          <div className="screen__crumbs">통합 조회 · 출하완료 오더</div>
           <h1 className="screen__title">오더 통합 조회</h1>
-          <p className="screen__sub">영업·생산 전 과정의 오더를 한 곳에서 검색합니다. 행을 선택하면 우측에 전체 상세가 열립니다.</p>
+          <p className="screen__sub">출하완료된 오더를 검색합니다. 행을 선택하면 우측에 전체 상세가 열립니다.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <span className="badge badge--complete" style={{ fontSize: 11 }}><Icon name="check" size={10}/>출하완료 오더만 표시</span>
@@ -256,28 +259,33 @@ function OrderLookupScreen() {
             </colgroup>
             <thead>
               <tr>
-                <th scope="col" className="th--sort"
+                <th scope="col" className="th--sort" tabIndex={0}
                     aria-sort={sortKey === 'order_id' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    onClick={() => toggleSort('order_id')}>오더 #{sortArrow('order_id')}</th>
-                <th scope="col" className="th--sort"
+                    onClick={() => toggleSort('order_id')}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('order_id'); } }}>오더 #{sortArrow('order_id')}</th>
+                <th scope="col" className="th--sort" tabIndex={0}
                     aria-sort={sortKey === 'customer_name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    onClick={() => toggleSort('customer_name')}>고객사{sortArrow('customer_name')}</th>
+                    onClick={() => toggleSort('customer_name')}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('customer_name'); } }}>고객사{sortArrow('customer_name')}</th>
                 <th scope="col">모델</th>
                 <th scope="col">충전소 ID</th>
-                <th scope="col" className="th--sort"
+                <th scope="col" className="th--sort" tabIndex={0}
                     aria-sort={sortKey === 'delivery_date' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    onClick={() => toggleSort('delivery_date')}>납품일{sortArrow('delivery_date')}</th>
+                    onClick={() => toggleSort('delivery_date')}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('delivery_date'); } }}>납품일{sortArrow('delivery_date')}</th>
                 <th scope="col">생산일</th>
                 <th scope="col"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(o => (
+              {filtered.map(o => {
+                const mi = window.findModelInfo(o.model_name);
+                return (
                 <tr key={o.order_id}
                     className={`row--clickable ${o.order_id === selId ? 'row--selected' : ''}`}
                     tabIndex={0}
                     onClick={() => setSelId(o.order_id)}
-                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelId(o.order_id)}>
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelId(o.order_id); } }}>
                   <td className="cell-mono">#{o.order_id}</td>
                   <td>
                     <div className="cell-strong">{o.customer_name}</div>
@@ -285,10 +293,10 @@ function OrderLookupScreen() {
                   </td>
                   <td>
                     <span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.3px' }}>
-                      {modelMap[o.model_name]?.model || o.model_name}
+                      {mi?.model || o.model_name}
                     </span>
-                    {modelMap[o.model_name]?.model && (
-                      <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{o.model_name}</div>
+                    {mi?.name && mi.name !== (mi.model || o.model_name) && (
+                      <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{mi.name}</div>
                     )}
                   </td>
                   <td className="cell-mono">{o.station_id}</td>
@@ -298,7 +306,8 @@ function OrderLookupScreen() {
                   </td>
                   <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -528,17 +537,23 @@ function OrderDrawer({ order, onClose }) {
 
   window.useLockScroll();
 
+  // 드로어 열림 시 초기 포커스 이동
+  const asideRef = React.useRef(null);
+  React.useEffect(() => { asideRef.current?.focus(); }, []);
+
   React.useEffect(() => {
-    const fn = (e) => { if (e.key === 'Escape') handleClose(); };
+    const fn = (e) => {
+      if (e.key !== 'Escape') return;
+      // 하위 다이얼로그(검사 드로어·성적서·라이트박스)가 열려 있으면 그쪽이 먼저 닫힘
+      if (funcDrawerOpen || shipDrawerOpen || funcReportVisible || shipReportVisible || shipPhotoLightbox !== null) return;
+      handleClose();
+    };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
-  }, [handleClose]);
+  }, [handleClose, funcDrawerOpen, shipDrawerOpen, funcReportVisible, shipReportVisible, shipPhotoLightbox]);
 
   const p = order.production;
-  const modelObj = React.useMemo(() => {
-    const ms = window.PMDB?.getModels?.() || [];
-    return ms.find(m => m.name === order.model_name) || null;
-  }, [order.model_name]);
+  const modelObj = React.useMemo(() => window.findModelInfo(order.model_name), [order.model_name]);
   const s = window.useStore();
   const role = s.currentUser ? s.currentUser.role : null;
 
@@ -557,7 +572,7 @@ function OrderDrawer({ order, onClose }) {
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
-      <aside className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="오더 상세">
+      <aside ref={asideRef} tabIndex={-1} className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="오더 상세">
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="drawer__eyebrow">{order.customer_name} · 접수 {order.created}</div>
@@ -635,12 +650,13 @@ function OrderDrawer({ order, onClose }) {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 6 }}>
                 {shipPhotos.map((photo, idx) => (
-                  <div key={photo.storage_path}
-                    style={{ borderRadius: 'var(--r-sm)', overflow: 'hidden', aspectRatio: '1', background: 'var(--surface-2)', cursor: 'zoom-in' }}>
-                    <img src={photo.url} alt={photo.filename}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onClick={() => setShipPhotoLightbox(idx)}/>
-                  </div>
+                  <button type="button" key={photo.storage_path} className="photo-thumb__view"
+                    aria-label={`${photo.filename} 크게 보기`}
+                    style={{ borderRadius: 'var(--r-sm)', overflow: 'hidden', aspectRatio: '1', background: 'var(--surface-2)' }}
+                    onClick={() => setShipPhotoLightbox(idx)}>
+                    <img src={photo.url} alt="" loading="lazy"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}/>
+                  </button>
                 ))}
               </div>
             </section>
@@ -652,12 +668,16 @@ function OrderDrawer({ order, onClose }) {
 
         <div className="drawer__foot">
           {p && (
-            <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}>
+            <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}
+              disabled={!funcInspection}
+              title={!funcInspection ? '기능 검사 성적서가 아직 작성되지 않았습니다' : ''}>
               <Icon name="doc" size={13}/> 기능검사성적서
             </button>
           )}
           {p && (
-            <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}>
+            <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}
+              disabled={!shipInspection}
+              title={!shipInspection ? '출하 검사 성적서가 아직 작성되지 않았습니다' : ''}>
               <Icon name="doc" size={13}/> 출하검사성적서
             </button>
           )}
@@ -735,6 +755,7 @@ function OrderDrawer({ order, onClose }) {
           }}
           onClick={() => setShipPhotoLightbox(null)}
           onKeyDown={e => {
+            e.stopPropagation(); // 뒤의 드로어 Escape 핸들러로 전파 방지
             if (e.key === 'Escape') setShipPhotoLightbox(null);
             if (e.key === 'ArrowLeft' && shipPhotoLightbox > 0) setShipPhotoLightbox(shipPhotoLightbox - 1);
             if (e.key === 'ArrowRight' && shipPhotoLightbox < shipPhotos.length - 1) setShipPhotoLightbox(shipPhotoLightbox + 1);

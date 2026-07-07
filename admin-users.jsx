@@ -146,7 +146,7 @@ function DeleteConfirmModal({ user, onConfirm, onClose }) {
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
-          <button className="btn" style={{ background: 'var(--danger)', color: 'var(--surface)', border: 'none' }} onClick={onConfirm}>
+          <button className="btn btn--danger" onClick={onConfirm}>
             <Icon name="alert" size={14}/> 삭제
           </button>
         </div>
@@ -262,7 +262,10 @@ function AdminUsersScreen() {
                 </td></tr>
               )}
               {filtered.map(u => (
-                <tr key={u.user_id} className="row--clickable" onClick={() => setModal({ mode: 'edit', user: u })}>
+                <tr key={u.user_id} className="row--clickable"
+                  tabIndex={0}
+                  onClick={() => setModal({ mode: 'edit', user: u })}
+                  onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setModal({ mode: 'edit', user: u }); } }}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="cell-strong">{u.name}</span>

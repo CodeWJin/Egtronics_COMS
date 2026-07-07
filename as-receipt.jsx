@@ -185,11 +185,6 @@ function AsReceiptModal({ onClose, onSubmit }) {
   const clrErr = (key) => setErr(e => ({ ...e, [key]: '' }));
 
   const orders = useMemoAREC(() => window.PMDB ? window.PMDB.loadOrders() : [], []);
-  const modelMap = useMemoAREC(() => {
-    const map = {};
-    (window.PMDB ? window.PMDB.getModels() : []).forEach(m => { map[m.name] = m.model; });
-    return map;
-  }, []);
   const filtered = useMemoAREC(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -318,7 +313,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
                             <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {o.install_address || '—'}
                             </td>
-                            <td>{(o.model_name && (modelMap[o.model_name] || o.model_name)) || '—'}</td>
+                            <td>{(o.model_name && (window.findModelInfo(o.model_name)?.model || o.model_name)) || '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -328,7 +323,25 @@ function AsReceiptModal({ onClose, onSubmit }) {
               </div>
             )}
           </div>
-          
+
+          {/* 고객사 — 필수. 충전기 검색 선택 시 자동 입력 */}
+          <div className="field">
+            <label className="field__label" htmlFor="ar-customer-name">
+              고객사 <span className="field__req">*</span>
+            </label>
+            <input
+              id="ar-customer-name"
+              className={`input ${err.customer_name ? 'input--error' : ''}`}
+              required
+              aria-required="true"
+              aria-invalid={!!err.customer_name}
+              placeholder="고객사명 입력 — 충전기 검색으로 선택하면 자동 입력됩니다"
+              value={form.customer_name}
+              onChange={(e) => { set('customer_name', e.target.value); clrErr('customer_name'); }}
+            />
+            {err.customer_name && <div className="field__err" role="alert">{err.customer_name}</div>}
+          </div>
+
           {/* 고장 유형 / 긴급도 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start',
                         borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>

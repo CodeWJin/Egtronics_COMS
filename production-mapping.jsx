@@ -234,7 +234,7 @@ function SalesReadOnly({ order }) {
   const [history, setHistory] = React.useState([]);
   const [showHist, setShowHist] = React.useState(false);
   const modelCode = React.useMemo(
-    () => window.PMDB.getModels().find(m => m.name === order.model_name)?.model || order.model_name,
+    () => window.findModelInfo(order.model_name)?.model || order.model_name,
     [order.model_name]
   );
 
@@ -369,7 +369,10 @@ function MappingForm({ order }) {
   const [addingFwVer, setAddingFwVer] = useStatePM(false);
   const [newFwVerTag, setNewFwVerTag] = useStatePM('');
   const [newFwVerStable, setNewFwVerStable] = useStatePM(true);
-  const [funcInspectionData, setfuncInspectionData] = useStatePM(null);
+  // 되돌리기 등으로 재진입 시 저장된 기능검사 성적서를 복원
+  const [funcInspectionData, setfuncInspectionData] = useStatePM(
+    () => window.getFuncInspection?.(order.order_id) ?? null
+  );
   const [openFuncInspect, setOpenFuncInspect] = useStatePM(false);
 
   const funcAllDone = funcInspectionData != null &&
@@ -377,15 +380,14 @@ function MappingForm({ order }) {
     Object.values(funcInspectionData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
 
   const modelInfo = useMemoPM(
-    () => window.PMDB.getModels().find(m => m.name === order.model_name),
+    () => window.findModelInfo(order.model_name),
     [order.model_name]
   );
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const suggestSerial = useMemoPM(() => {
-    const models = window.PMDB.getModels();
-    const entry = models.find(m => m.name === order.model_name);
+    const entry = window.findModelInfo(order.model_name);
     const modelCode = entry ? entry.model : order.model_name;
     const codes = SERIAL_MODEL_CODES[modelCode];
     if (!codes) return 'G00-00S-D1-0001';
@@ -411,11 +413,8 @@ function MappingForm({ order }) {
 
   const checkDup = () => {
     if (!form.serial_no) return;
-    setDupState('checking');
-    setTimeout(() => {
-      const dup = window.PMDB.serialExists(form.serial_no, order.order_id);
-      setDupState(dup ? 'dup' : 'ok');
-    }, 600);
+    const dup = window.PMDB.serialExists(form.serial_no, order.order_id);
+    setDupState(dup ? 'dup' : 'ok');
   };
 
   const useSuggestion = () => {
@@ -546,7 +545,7 @@ function MappingForm({ order }) {
             <div className="field">
               <label className="field__label" htmlFor="pm-serial-no">
                 <Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span>
-                <button type="button" className="helpdot" title="형식: 그룹코드-타입코드-연월코드-순번 (예: G00-00S-D6-0001). 연도는 A=2023·B=2024…, 월은 1-9·A=10·B=11·C=12. 자동 제안 버튼으로 채번하거나 직접 입력 후 중복 확인.">?</button>
+                <HelpDot text="형식: 그룹코드-타입코드-연월코드-순번 (예: G00-00S-D6-0001). 연도는 A=2023·B=2024…, 월은 1-9·A=10·B=11·C=12. 자동 제안 버튼으로 채번하거나 직접 입력 후 중복 확인."/>
               </label>
               <div className="input-group">
                 <input id="pm-serial-no"
@@ -556,8 +555,8 @@ function MappingForm({ order }) {
                        placeholder="예: G00-00S-D6-0001"
                        value={form.serial_no}
                        onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
-                <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no || dupState === 'checking'}>
-                  {dupState === 'checking' ? '확인 중…' : '중복 확인'}
+                <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no}>
+                  중복 확인
                 </button>
               </div>
               <div className="field__hint" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -589,8 +588,8 @@ function MappingForm({ order }) {
 
             {/* S/W 버전 */}  
             <div className="field col-span-2">
-              <div className="field__label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
-              <div className="tagpicker">
+              <div className="field__label" id="pm-sw-version-label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
+              <div className="tagpicker" role="group" aria-labelledby="pm-sw-version-label">
                 {swVersions.map(v => (
                   <button key={v.tag}
                           type="button"
@@ -612,6 +611,7 @@ function MappingForm({ order }) {
                     className="input"
                     style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
                     placeholder="예: v1.8.0-core"
+                    aria-label="새 S/W 버전 태그"
                     value={newSwVerTag}
                     onChange={e => setNewSwVerTag(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') addVersionSW(); if (e.key === 'Escape') setAddingSwVer(false); }}
@@ -635,8 +635,8 @@ function MappingForm({ order }) {
 
             {/* F/W 버전 */}  
             <div className="field col-span-2">
-              <div className="field__label"><Icon name="bolt" size={11}/>F/W 버전 <span className="field__req">*</span></div>
-              <div className="tagpicker">
+              <div className="field__label" id="pm-fw-version-label"><Icon name="bolt" size={11}/>F/W 버전 <span className="field__req">*</span></div>
+              <div className="tagpicker" role="group" aria-labelledby="pm-fw-version-label">
                 {fwVersions.map(v => (
                   <button key={v.tag}
                           type="button"
@@ -658,6 +658,7 @@ function MappingForm({ order }) {
                     className="input"
                     style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
                     placeholder="예: v1.8.0-core"
+                    aria-label="새 F/W 버전 태그"
                     value={newFwVerTag}
                     onChange={e => setNewFwVerTag(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') addVersionFW(); if (e.key === 'Escape') setAddingFwVer(false); }}

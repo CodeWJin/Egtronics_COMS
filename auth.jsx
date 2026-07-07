@@ -7,7 +7,7 @@ window.ROLE_TABS = {
   production: ['waiting', 'mapping', 'AwaitPickup', 'lookup'],
   quality:    ['AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
-window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질'};
+window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질', as: 'A/S' };
 
 const { useState: useStateAU } = React;
 
@@ -287,7 +287,9 @@ function PasswordResetModal({ onClose }) {
                        value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setErr(''); }}/>
 
                 <div className="field__hint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>유효시간 1시간</span>
+                  <span style={expired ? { color: 'var(--danger-700)' } : undefined}>
+                    {expired ? '인증번호가 만료되었습니다 — 재발급하세요' : `남은 유효시간 ${fmtTime(left)}`}
+                  </span>
                   <button type="button" className="reset-resend" onClick={sendCode} disabled={busy}>
                     인증번호 재발급
                   </button>
@@ -333,7 +335,7 @@ function PasswordResetModal({ onClose }) {
           </>}
           {step === 2 && <>
             <button className="btn btn--secondary" onClick={() => { setStep(1); setIssuedAt(null); setCode(''); setErr(''); }}>이전</button>
-            <button className="btn btn--primary" disabled={busy || code.length < 6} onClick={verifyCode}>
+            <button className="btn btn--primary" disabled={busy || code.length < 6 || expired} onClick={verifyCode}>
               {busy ? '확인 중…' : '인증 확인'}
             </button>
           </>}
