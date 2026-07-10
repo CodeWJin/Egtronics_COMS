@@ -29,6 +29,7 @@ function ProductionWaitingScreen() {
   const [search, setSearch] = useStatePW('');
   const [filterModel, setFilterModel] = useStatePW('all');
   const [models, setModels] = useStatePW(() => window.PMDB.getModels());
+  const [selectedIds, setSelectedIds] = useStatePW(() => new Set());
 
   React.useEffect(() => {
     const sync = () => setModels(window.PMDB.getModels());
@@ -41,7 +42,7 @@ function ProductionWaitingScreen() {
       if (o.status === 'COMPLETED') return false;
       if (filterModel !== 'all') {
         // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
-        const mName = window.findModelInfo(o.model_name)?.name || o.model_name;
+        const mName = window.findModelInfo(o.model_name)?.model || o.model_name;
         if (mName !== filterModel) return false;
       }
       if (search) {
@@ -77,6 +78,36 @@ function ProductionWaitingScreen() {
 
   const isSales = s.currentUser && s.currentUser.role === 'sales';
 
+  // ── 다중선택 → 일괄 처리 (영업 역할 제외) ──────────────────────
+  const selectableStatuses = useMemoPW(() => new Set(['PENDING', 'IN_PROGRESS']), []);
+  const selectedOrders = useMemoPW(
+    () => [...selectedIds].map(id => s.orders.find(o => o.order_id === id)).filter(Boolean),
+    [selectedIds, s.orders]
+  );
+  const selectionGroup = selectedOrders[0]
+    ? { model: selectedOrders[0].model_name, usage: selectedOrders[0].usage_type || '공용' }
+    : null;
+
+  const canSelect = (order) => {
+    if (!selectableStatuses.has(order.status)) return false;
+    if (!selectionGroup) return true;
+    return order.model_name === selectionGroup.model && (order.usage_type || '공용') === selectionGroup.usage;
+  };
+
+  const toggleSelect = (order) => {
+    if (!canSelect(order) && !selectedIds.has(order.order_id)) return;
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(order.order_id)) next.delete(order.order_id); else next.add(order.order_id);
+      return next;
+    });
+  };
+
+  const startBatch = () => {
+    window.actions.startBatchMapping([...selectedIds]);
+    setSelectedIds(new Set());
+  };
+
   return (
     <div className="screen">
       <div className="screen__head">
@@ -104,7 +135,7 @@ function ProductionWaitingScreen() {
         <select className="select" aria-label="모델 필터" style={{ width: 160 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
-          {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+          {models.map(m => <option key={m.model} value={m.model}>{m.description || m.model}</option>)}
         </select>
         <button className={`toolbar__filter ${filterModel !== 'all' || search ? 'toolbar__filter--active' : ''}`}
                 onClick={() => { setSearch(''); setFilterModel('all'); }}
@@ -132,6 +163,20 @@ function ProductionWaitingScreen() {
           ))}
         </div>
       </div>
+
+      {!isSales && s.waitingView === 'table' && selectedIds.size > 0 && (
+        <div className="toolbar" style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-100)' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-700, var(--primary))' }}>
+            <Icon name="check" size={13}/> {selectedIds.size}건 선택됨
+            {selectionGroup && <span style={{ fontWeight: 400, color: 'var(--ink-3)', marginLeft: 6 }}>· {selectionGroup.model} / {selectionGroup.usage}</span>}
+          </span>
+          <div style={{ flex: 1 }}/>
+          <button className="btn btn--ghost btn--sm" onClick={() => setSelectedIds(new Set())}>선택 해제</button>
+          <button className="btn btn--primary btn--sm" onClick={startBatch}>
+            <Icon name="copy" size={13}/> 선택 {selectedIds.size}건 일괄 처리
+          </button>
+        </div>
+      )}
 
       <div key={s.waitingView} className="view-enter">
         {filtered.length === 0 ? (
@@ -161,7 +206,10 @@ function ProductionWaitingScreen() {
           </div>
         ) : (
           <>
-            {s.waitingView === 'table' && <ViewTable orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
+            {s.waitingView === 'table' && (
+              <ViewTable orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}
+                selectable={!isSales} selectedIds={selectedIds} canSelect={canSelect} onToggleSelect={toggleSelect}/>
+            )}
             {s.waitingView === 'card' && <ViewCards orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
             {s.waitingView === 'kanban' && <ViewKanban orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
             {s.waitingView === 'timeline' && <ViewTimeline orders={filtered} onPick={onPick} completingId={s.completingOrderId} editedIds={editedIds}/>}
@@ -173,11 +221,12 @@ function ProductionWaitingScreen() {
 }
 
 /* ────────── Table view ────────── */
-function ViewTable({ orders, onPick, completingId, editedIds }) {
+function ViewTable({ orders, onPick, completingId, editedIds, selectable, selectedIds, canSelect, onToggleSelect }) {
   return (
     <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
         <colgroup>
+              {selectable && <col style={{ width: 40 }}/>}
               <col style={{ textAlign: 'left', width: 86 }}/>
               <col style={{ textAlign: 'left', width: 150 }}/>
               <col style={{ textAlign: 'left', width: 150 }}/>
@@ -189,6 +238,7 @@ function ViewTable({ orders, onPick, completingId, editedIds }) {
           </colgroup>
         <thead>
           <tr>
+            {selectable && <th scope="col"></th>}
             <th scope="col">오더 #</th>
             <th scope="col">고객사</th>
             <th scope="col">모델</th>
@@ -203,12 +253,23 @@ function ViewTable({ orders, onPick, completingId, editedIds }) {
           {orders.map(o => {
             const d = deliveryHint(o.delivery_date);
             const completing = completingId === o.order_id;
+            const checked = selectable && selectedIds?.has(o.order_id);
+            const selDisabled = selectable && !checked && canSelect && !canSelect(o);
             return (
               <tr key={o.order_id}
                   className={`row--clickable ${completing ? 'row--completing' : ''}`}
                   tabIndex={0}
                   onClick={() => onPick(o.order_id)}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPick(o.order_id); } }}>
+                {selectable && (
+                  <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                    <input type="checkbox" aria-label={`오더 #${o.order_id} 일괄 처리 선택`}
+                      checked={!!checked} disabled={selDisabled}
+                      title={selDisabled ? '같은 모델·용도의 오더만 함께 선택할 수 있습니다' : ''}
+                      onChange={() => onToggleSelect(o)}
+                      style={{ width: 17, height: 17, accentColor: 'var(--primary)', cursor: selDisabled ? 'not-allowed' : 'pointer' }}/>
+                  </td>
+                )}
                 <td className="cell-mono">#{o.order_id}</td>
                 <td>
                   <div className="cell-strong">

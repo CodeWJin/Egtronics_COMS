@@ -169,6 +169,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
     station_id:     '',
     charger_no:     '',
     order_id:       null,
+    serial_no:      '',
     fault_type:     '',
     fault_detail:   '',
     priority:       '일반',
@@ -180,6 +181,29 @@ function AsReceiptModal({ onClose, onSubmit }) {
   const [isSubmitting, setIsSubmitting] = useStateAREC(false);
   const [query, setQuery] = useStateAREC('');
   const [selectedOrder, setSelectedOrder] = useStateAREC(null);
+
+  // ── 시리얼번호로 충전기 조회 (tb_chargepoint_infor) ──────────────
+  const [cpQuery, setCpQuery] = useStateAREC('');
+  const [cpResult, setCpResult] = useStateAREC(null);   // null | 충전기 row | 'notfound'
+  const [showAddCp, setShowAddCp] = useStateAREC(false);
+
+  const searchChargepoint = () => {
+    const q = cpQuery.trim();
+    if (!q) return;
+    const found = window.PMDB ? window.PMDB.getChargepointBySerial(q) : null;
+    if (found) {
+      setCpResult(found);
+      set('serial_no', found.serial_no);
+    } else {
+      setCpResult('notfound');
+    }
+  };
+
+  const clearChargepoint = () => {
+    setCpResult(null);
+    setCpQuery('');
+    set('serial_no', '');
+  };
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
   const clrErr = (key) => setErr(e => ({ ...e, [key]: '' }));
@@ -246,6 +270,66 @@ function AsReceiptModal({ onClose, onSubmit }) {
         </div>
 
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
+
+          {/* 시리얼번호로 충전기 조회 (tb_chargepoint_infor) */}
+          <div>
+            <div className="field__label" style={{ marginBottom: 8 }}>
+              시리얼번호 조회
+              <span style={{ color: 'var(--ink-4)', fontWeight: 400, fontSize: 13 }}> (선택)</span>
+            </div>
+            {cpResult && cpResult !== 'notfound' ? (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 12px',
+                background: 'var(--success-50)',
+                border: '1px solid var(--success)',
+                borderRadius: 'var(--r-sm)',
+              }}>
+                <Icon name="check" size={13} style={{ color: 'var(--success-700)', flexShrink: 0 }}/>
+                <span style={{ fontSize: 13, color: 'var(--ink-2)', flex: 1, minWidth: 0 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{cpResult.serial_no}</span>
+                  {cpResult.model_name ? <span style={{ color: 'var(--ink-4)' }}> · {cpResult.model_name}</span> : null}
+                  {cpResult.install_address ? <span style={{ color: 'var(--ink-4)' }}> · {cpResult.install_address}</span> : null}
+                </span>
+                <button type="button" className="btn btn--sm btn--ghost"
+                        style={{ padding: '2px 8px', fontSize: 12 }} onClick={clearChargepoint}>
+                  해제
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div className="input-group">
+                  <input
+                    className="input"
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                    aria-label="시리얼번호로 충전기 조회"
+                    placeholder="시리얼번호 입력 후 조회"
+                    value={cpQuery}
+                    onChange={(e) => { setCpQuery(e.target.value); setCpResult(null); }}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), searchChargepoint())}
+                  />
+                  <button type="button" className="input-group__btn" onClick={searchChargepoint} disabled={!cpQuery.trim()}>
+                    조회
+                  </button>
+                </div>
+                {cpResult === 'notfound' && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+                    padding: '9px 12px', background: 'var(--surface-2)',
+                    border: '1px solid var(--border-1)', borderRadius: 'var(--r-sm)',
+                  }}>
+                    <Icon name="alert" size={13} style={{ color: 'var(--ink-4)', flexShrink: 0 }}/>
+                    <span style={{ fontSize: 13, color: 'var(--ink-3)', flex: 1 }}>
+                      등록된 충전기 정보가 없습니다
+                    </span>
+                    <button type="button" className="btn btn--sm btn--secondary" onClick={() => setShowAddCp(true)}>
+                      <Icon name="plus" size={12}/> 신규 충전기 등록
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* 충전기 검색 */}
           <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 12 }}>
@@ -446,6 +530,99 @@ function AsReceiptModal({ onClose, onSubmit }) {
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
           <button className="btn btn--primary" onClick={handleSubmit} disabled={isSubmitting}>
             <Icon name="check" size={13}/> {isSubmitting ? '등록 중…' : '접수 등록'}
+          </button>
+        </div>
+      </div>
+      {showAddCp && (
+        <AddChargepointModal
+          serialNo={cpQuery.trim()}
+          onClose={() => setShowAddCp(false)}
+          onAdded={(row) => {
+            setCpResult(row);
+            set('serial_no', row.serial_no);
+            setShowAddCp(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── 신규 충전기 등록 모달 (DB: tb_chargepoint_infor) ────────────────
+function AddChargepointModal({ serialNo, onClose, onAdded }) {
+  window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
+  const [modelName, setModelName] = useStateAREC('');
+  const [installAddress, setInstallAddress] = useStateAREC('');
+  const [orderId, setOrderId] = useStateAREC('');
+  const [err, setErr] = useStateAREC({});
+  const [isSaving, setIsSaving] = useStateAREC(false);
+
+  const models = useMemoAREC(() => window.PMDB ? window.PMDB.getModels() : [], []);
+
+  const save = () => {
+    if (isSaving) return;
+    const e = {};
+    if (!modelName) e.model_name = '모델을 선택하세요';
+    if (!installAddress.trim()) e.install_address = '설치 주소를 입력하세요';
+    if (Object.keys(e).length) { setErr(e); return; }
+    setIsSaving(true);
+    const result = window.PMDB.addChargepoint({
+      serial_no: serialNo,
+      model_name: modelName,
+      install_address: installAddress.trim(),
+      order_id: orderId.trim() ? Number(orderId.trim()) : null,
+    });
+    setIsSaving(false);
+    if (!result.ok) { setErr({ serial_no: result.msg }); return; }
+    onAdded({ serial_no: serialNo, model_name: modelName, install_address: installAddress.trim(), order_id: orderId.trim() ? Number(orderId.trim()) : null });
+  };
+
+  return (
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-cp-title" style={{ width: 460, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h2 id="modal-add-cp-title" className="modal__title">신규 충전기 등록</h2>
+          <p className="modal__sub">tb_chargepoint_infor에 시리얼번호 <strong style={{ color: 'var(--ink-1)' }}>{serialNo}</strong>를 등록합니다</p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="field">
+            <label className="field__label">시리얼번호</label>
+            <input className="input input--readonly" style={{ fontFamily: 'var(--font-mono)' }} readOnly value={serialNo}/>
+          </div>
+          <div className="field">
+            <label className="field__label" htmlFor="cp-model">모델 <span className="field__req">*</span></label>
+            <select id="cp-model" className={`select ${err.model_name ? 'input--error' : ''}`}
+                    value={modelName}
+                    onChange={(e) => { setModelName(e.target.value); setErr(er => ({ ...er, model_name: '' })); }}>
+              <option value="">선택하세요</option>
+              {models.map(m => <option key={m.model} value={m.model}>{m.model}{m.description ? ` — ${m.description}` : ''}</option>)}
+            </select>
+            {err.model_name && <div className="field__err" role="alert">{err.model_name}</div>}
+          </div>
+          <div className="field">
+            <label className="field__label" htmlFor="cp-address">설치 주소 <span className="field__req">*</span></label>
+            <input id="cp-address" className={`input ${err.install_address ? 'input--error' : ''}`}
+                   placeholder="설치 주소 입력"
+                   value={installAddress}
+                   onChange={(e) => { setInstallAddress(e.target.value); setErr(er => ({ ...er, install_address: '' })); }}/>
+            {err.install_address && <div className="field__err" role="alert">{err.install_address}</div>}
+          </div>
+          <div className="field">
+            <label className="field__label" htmlFor="cp-order-id">
+              연결 오더 ID <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>(선택)</span>
+            </label>
+            <input id="cp-order-id" className="input" style={{ fontFamily: 'var(--font-mono)' }}
+                   placeholder="예: 25001" inputMode="numeric"
+                   value={orderId}
+                   onChange={(e) => setOrderId(e.target.value.replace(/\D/g, ''))}/>
+          </div>
+          {err.serial_no && <div className="field__err" role="alert">{err.serial_no}</div>}
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>취소</button>
+          <button className="btn btn--primary" onClick={save} disabled={isSaving}>
+            <Icon name="check" size={13}/> {isSaving ? '등록 중…' : '등록'}
           </button>
         </div>
       </div>

@@ -50,7 +50,7 @@ vercel
 5. **환경 변수 설정**
    ```
    RESEND_API_KEY = [Resend 대시보드에서 복사]
-   MAIL_FROM = 이지트로닉스 <evcharger@egtronics.com>
+   MAIL_FROM = 이지트로닉스 <evcharger@egtronics.co.kr>
    PORT = 3000
    ```
 

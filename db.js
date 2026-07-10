@@ -84,10 +84,10 @@
   window.SEED_USERS = SEED_USERS;
 
   const SEED_MASTER_CUSTOMERS = [
-    { name: '카스',     code: 'CAS',     last: '' },
-    { name: '마이크로', code: 'MICRO',   last: '' },
-    { name: 'LG',       code: 'LG',      last: '' },
-    { name: '삼성',     code: 'SAMSUNG', last: '' },
+    { name: '카스',     is_address: '', last: '' },
+    { name: '마이크로', is_address: '', last: '' },
+    { name: 'LG',       is_address: '', last: '' },
+    { name: '삼성',     is_address: '', last: '' },
   ];
 
   const SEED_MASTER_CPOS = [
@@ -97,21 +97,16 @@
     { name: '차지비',         code: 'CHEVI' },
   ];
 
-  const SEED_MASTER_CABLE_LENGTHS = ['3m', '5m', '7m', '10m'];
-
   const TODAY_ISO = new Date().toISOString().slice(0, 10);
-  const SEED_MASTER_SW_VERSIONS = [
-    { tag: 'v1.0.0', released: TODAY_ISO, stable: true },
+  const SEED_PROGRAM_VERSIONS = [
+    { type: 'S/W', tag: 'v1.0.0', released: TODAY_ISO, stable: true },
+    { type: 'F/W', tag: 'v1.0.0', released: TODAY_ISO, stable: true },
   ];
-  const SEED_MASTER_FW_VERSIONS = [
-    { tag: 'v1.0.0', released: TODAY_ISO, stable: true },
-  ];
-  window.MASTER = { CABLE_LENGTHS: [] };
   // ============================================================
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], customers: [], cpos: [], sw_versions: [], fw_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [] };
+    const cache = { orders: [], production: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [], chargepoints: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asRecSeq = 0;
@@ -148,7 +143,7 @@
             client.from('tb_sales_order').select('*'),
             client.from('tb_production_info').select('*'),
             client.from('tb_customer_manager').select('*'),
-            client.from('users').select('*'),
+            client.from('tb_users').select('*'),
             client.from('tb_order_history').select('*'),
           ]),
           deadline,
@@ -165,11 +160,18 @@
         }
         cache.orders     = o.data || [];
         cache.production = p.data || [];
-        cache.managers   = m.data || [];
         cache.users      = u.data || [];
         cache.history    = h.data || [];
-        mgrSeq  = cache.managers.reduce((mx, x) => Math.max(mx, x.manager_id || 0), 0);
         histSeq = cache.history.reduce((mx, x) => Math.max(mx, x.history_id || 0), 0);
+        // 매니저: composite PK (customer_name, name) → 캐시에 로컬 ID 부여
+        mgrSeq = 0;
+        cache.managers = (m.data || []).map(row => ({
+          manager_id:    ++mgrSeq,
+          customer_name: row.customer_name,
+          name:          row.name,
+          phone:         row.phone || '',
+          is_primary:    row.is_primary || 0,
+        }));
 
         // 부속 테이블 병렬 로드 (테이블 미존재 시에도 앱 정상 동작)
         await Promise.allSettled([
@@ -197,28 +199,33 @@
             if (!error) cache.ship_inspections = data || [];
             else dbLog('WARN', 'loadAll', 'tb_ship_inspection 조회 실패 — ' + error.message);
           }).catch(e => dbLog('WARN', 'loadAll', 'tb_ship_inspection 로드 오류 — ' + e.message)),
+
+          client.from('tb_UsageType_Public').select('*').then(({ data, error }) => {
+            if (!error) cache.usage_type_public = data || [];
+            else dbLog('WARN', 'loadAll', 'tb_UsageType_Public 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_UsageType_Public 로드 오류 — ' + e.message)),
+
+          client.from('tb_chargepoint_infor').select('*').then(({ data, error }) => {
+            if (!error) cache.chargepoints = data || [];
+            else dbLog('WARN', 'loadAll', 'tb_chargepoint_infor 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_chargepoint_infor 로드 오류 — ' + e.message)),
         ]);
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
           const mapResult = (r, fn) => r.error ? [] : (r.data || []).map(fn);
-          const [mc, mm, msw, mfw, mcl, mcpo] = await Promise.all([
-            client.from('tb_master_customer').select('*').order('id'),
+          const [mc, mm, mpv, mcpo] = await Promise.all([
+            client.from('tb_master_customer').select('*').order('name'),
             client.from('tb_master_model').select('*').order('id'),
-            client.from('tb_master_sw_version').select('*').order('id'),
-            client.from('tb_master_fw_version').select('*').order('id'),
-            client.from('tb_master_cable_length').select('*').order('id'),
+            client.from('tb_program_version').select('*').order('id'),
             client.from('tb_master_cpo').select('*').order('id'),
           ]);
-          cache.customers = mapResult(mc, c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
+          cache.customers = mapResult(mc, c => ({ name: c.name, is_address: c.is_address || '', last: c.last || '' }));
           cache.cpos = mapResult(mcpo, c => ({ id: c.id, name: c.name, code: c.code }));
-          cache.models = mapResult(mm, m => ({ model: m.model || '', name: m.name || '', description: m.description || '', power: m.power || '' }));
-          cache.sw_versions = mapResult(msw, r => ({ tag: r.tag, released: r.released, stable: r.stable }));
-          cache.fw_versions = mapResult(mfw, r => ({ tag: r.tag, released: r.released, stable: r.stable }));
-          window.MASTER = {
-            CABLE_LENGTHS: mapResult(mcl, c => c.value),
-          };
-          const errs = [mc, mm, msw, mfw, mcl, mcpo].map(r => r.error).filter(Boolean);
+          // model_code → model (하위 호환성 유지)
+          cache.models = mapResult(mm, m => ({ model: m.model_code || '', description: m.description || '', power: m.power || '' }));
+          cache.program_versions = mapResult(mpv, r => ({ type: r.type, tag: r.tag, released: r.released, stable: r.stable }));
+          const errs = [mc, mm, mpv, mcpo].map(r => r.error).filter(Boolean);
           if (errs.length) {
             dbLog('WARN', 'loadAll', `마스터 테이블 일부 조회 실패 (${errs.length}개) — seed.sql 실행 필요: ` + errs.map(e => e.message).join('; '));
           } else {
@@ -243,17 +250,37 @@
       loadOrders() {
         const pmap = {};
         cache.production.forEach(p => { const { order_id, ...rest } = p; pmap[order_id] = rest; });
+        const pubmap = {};
+        cache.usage_type_public.forEach(p => { pubmap[p.order_id] = p; });
         return [...cache.orders]
           .sort((a, b) => (b.created || '').localeCompare(a.created || '') || b.order_id - a.order_id)
-          .map(o => pmap[o.order_id] ? { ...o, production: pmap[o.order_id] } : { ...o });
+          .map(o => {
+            const pub = pubmap[o.order_id] || {};
+            return {
+              ...o,
+              station_id: pub.station_id || '',
+              charger_no: pub.charger_no || '',
+              router_no:  pub.router_no  || '',
+              usim_no:    pub.usim_no    || '',
+              ...(pmap[o.order_id] ? { production: pmap[o.order_id] } : {}),
+            };
+          });
       },
 
       addOrder(form) {
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, charger_no: form.charger_no || '', router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
+        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, install_address: form.install_address || '', field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
         cache.orders.push(row);
         dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
-        dbWrite('tb_sales_order', 'insert', () => client.from('tb_sales_order').insert(row));
+        dbWrite('tb_sales_order', 'insert', async () => {
+          await client.from('tb_sales_order').insert(row);
+          if ((form.usage_type || '공용') === '공용') {
+            const pub = { order_id: id, station_id: form.station_id || '', charger_no: form.charger_no || '', router_no: form.router_no || '', usim_no: form.usim_no || '' };
+            cache.usage_type_public.push(pub);
+            return client.from('tb_UsageType_Public').insert(pub);
+          }
+          return { error: null };
+        });
         return id;
       },
 
@@ -263,10 +290,19 @@
           dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, cable_length: form.cable_length || '', station_id: form.station_id, charger_no: form.charger_no || '', router_no: form.router_no, usim_no: form.usim_no, install_address: form.install_address, field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
+        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, install_address: form.install_address || '', field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
         Object.assign(o, upd);
         dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'update', () => client.from('tb_sales_order').update(upd).eq('order_id', order_id));
+        dbWrite('tb_sales_order', 'update', async () => {
+          await client.from('tb_sales_order').update(upd).eq('order_id', order_id);
+          const pub = { order_id, station_id: form.station_id || '', charger_no: form.charger_no || '', router_no: form.router_no || '', usim_no: form.usim_no || '' };
+          const idx = cache.usage_type_public.findIndex(p => p.order_id === order_id);
+          if (idx !== -1) cache.usage_type_public[idx] = pub; else cache.usage_type_public.push(pub);
+          if ((form.usage_type || '공용') === '공용') {
+            return client.from('tb_UsageType_Public').upsert(pub, { onConflict: 'order_id' });
+          }
+          return { error: null };
+        });
         return true;
       },
 
@@ -386,12 +422,12 @@
       addManager(m) {
         if (m.is_primary) cache.managers.forEach(x => { if (x.customer_name === m.customer_name) x.is_primary = 0; });
         const id = ++mgrSeq;
-        const row = { manager_id: id, customer_name: m.customer_name, name: m.name, phone: m.phone || '', email: m.email || '', is_primary: m.is_primary ? 1 : 0 };
+        const row = { manager_id: id, customer_name: m.customer_name, name: m.name, phone: m.phone || '', is_primary: m.is_primary ? 1 : 0 };
         cache.managers.push(row);
-        dbLog('INFO', 'write:tb_customer_manager', `담당자 추가 — manager_id=${id}, 고객=${m.customer_name}, 이름=${m.name}`);
+        dbLog('INFO', 'write:tb_customer_manager', `담당자 추가 — 고객=${m.customer_name}, 이름=${m.name}`);
         dbWrite('tb_customer_manager', 'insert', async () => {
           if (m.is_primary) await client.from('tb_customer_manager').update({ is_primary: 0 }).eq('customer_name', m.customer_name);
-          return client.from('tb_customer_manager').insert(row);
+          return client.from('tb_customer_manager').insert({ customer_name: m.customer_name, name: m.name, phone: m.phone || '', is_primary: m.is_primary ? 1 : 0 });
         });
         return id;
       },
@@ -400,19 +436,26 @@
         const row = cache.managers.find(x => x.manager_id === id);
         if (!row) return;
         if (m.is_primary) cache.managers.forEach(x => { if (x.customer_name === row.customer_name) x.is_primary = 0; });
-        const upd = { name: m.name, phone: m.phone || '', email: m.email || '', is_primary: m.is_primary ? 1 : 0 };
-        Object.assign(row, upd);
-        dbLog('INFO', 'write:tb_customer_manager', `담당자 수정 — manager_id=${id}`);
+        const oldName = row.name;
+        const upd = { phone: m.phone || '', is_primary: m.is_primary ? 1 : 0 };
+        Object.assign(row, { name: m.name, ...upd });
+        dbLog('INFO', 'write:tb_customer_manager', `담당자 수정 — 고객=${row.customer_name}, 이름=${oldName}→${m.name}`);
         dbWrite('tb_customer_manager', 'update', async () => {
           if (m.is_primary) await client.from('tb_customer_manager').update({ is_primary: 0 }).eq('customer_name', row.customer_name);
-          return client.from('tb_customer_manager').update(upd).eq('manager_id', id);
+          if (m.name !== oldName) {
+            await client.from('tb_customer_manager').delete().eq('customer_name', row.customer_name).eq('name', oldName);
+            return client.from('tb_customer_manager').insert({ customer_name: row.customer_name, name: m.name, ...upd });
+          }
+          return client.from('tb_customer_manager').update(upd).eq('customer_name', row.customer_name).eq('name', oldName);
         });
       },
 
       deleteManager(id) {
+        const row = cache.managers.find(x => x.manager_id === id);
+        if (!row) return;
         cache.managers = cache.managers.filter(x => x.manager_id !== id);
-        dbLog('INFO', 'write:tb_customer_manager', `담당자 삭제 — manager_id=${id}`);
-        dbWrite('tb_customer_manager', 'delete', () => client.from('tb_customer_manager').delete().eq('manager_id', id));
+        dbLog('INFO', 'write:tb_customer_manager', `담당자 삭제 — 고객=${row.customer_name}, 이름=${row.name}`);
+        dbWrite('tb_customer_manager', 'delete', () => client.from('tb_customer_manager').delete().eq('customer_name', row.customer_name).eq('name', row.name));
       },
 
       async authenticate(userId, password) {
@@ -426,7 +469,7 @@
             try {
               const hashed = await hashPassword(password);
               u.password = hashed;
-              dbWrite('users', 'update', () => client.from('users').update({ password: hashed }).eq('user_id', userId));
+              dbWrite('tb_users', 'update', () => client.from('tb_users').update({ password: hashed }).eq('user_id', userId));
             } catch (he) { dbLog('WARN', 'auth', `해시 변환 실패 — user_id=${userId}`, he); }
           }
           dbLog('SUCCESS', 'auth', `로그인 성공 — user_id=${userId}, role=${u.role}`);
@@ -461,7 +504,7 @@
         const hashed = await hashPassword(newPw);
         u.password = hashed;
         dbLog('INFO', 'write:users', `비밀번호 변경 — user_id=${userId}`);
-        dbWrite('users', 'update', () => client.from('users').update({ password: hashed }).eq('user_id', userId));
+        dbWrite('tb_users', 'update', () => client.from('tb_users').update({ password: hashed }).eq('user_id', userId));
         return true;
       },
 
@@ -478,7 +521,7 @@
         const row = { user_id: data.user_id, password: hashed, name: data.name, role: data.role, dept: data.dept || '', phone: data.phone || '', email: data.email || '' };
         cache.users.push(row);
         dbLog('INFO', 'write:users', `사용자 추가 — user_id=${data.user_id}, role=${data.role}`);
-        dbWrite('users', 'insert', () => client.from('users').insert(row));
+        dbWrite('tb_users', 'insert', () => client.from('tb_users').insert(row));
         return { ok: true };
       },
 
@@ -489,7 +532,7 @@
         if (data.password) upd.password = await hashPassword(data.password);
         Object.assign(u, upd);
         dbLog('INFO', 'write:users', `사용자 수정 — user_id=${userId}`);
-        dbWrite('users', 'update', () => client.from('users').update(upd).eq('user_id', userId));
+        dbWrite('tb_users', 'update', () => client.from('tb_users').update(upd).eq('user_id', userId));
         return { ok: true };
       },
 
@@ -498,15 +541,15 @@
         if (idx === -1) return { ok: false, msg: '사용자를 찾을 수 없습니다' };
         cache.users.splice(idx, 1);
         dbLog('INFO', 'write:users', `사용자 삭제 — user_id=${userId}`);
-        dbWrite('users', 'delete', () => client.from('users').delete().eq('user_id', userId));
+        dbWrite('tb_users', 'delete', () => client.from('tb_users').delete().eq('user_id', userId));
         return { ok: true };
       },
 
       query() { return []; },
 
-      addHistory(order_id, changedBy, changedAt, fields, action) {
+      addHistory(order_id, changedBy, changedAt, fields, action, serial_no) {
         const id = ++histSeq;
-        const row = { history_id: id, order_id, changed_at: changedAt, changed_by: changedBy, action: action || 'update', changed_fields: JSON.stringify(fields) };
+        const row = { history_id: id, order_id, serial_no: serial_no || '', changed_at: changedAt, changed_by: changedBy, action: action || 'update', changed_fields: JSON.stringify(fields) };
         cache.history.push(row);
         dbLog('INFO', 'write:tb_order_history', `이력 추가 — order_id=${order_id}, action=${action || 'update'}, by=${changedBy}`);
         dbWrite('tb_order_history', 'insert', () => client.from('tb_order_history').insert(row));
@@ -521,14 +564,17 @@
 
       // ── AS 접수 (tb_as_reception) ──────────────────────────────
       _genReceptionNo() {
-        const year = new Date().getFullYear();
-        const prefix = `AS-${year}-`;
+        const d = new Date();
+        const yy = String(d.getFullYear()).slice(2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const prefix = `AS-${yy}${mm}${dd}-`;
         const nums = cache.as_receptions
           .filter(r => r.reception_no && r.reception_no.startsWith(prefix))
           .map(r => parseInt(r.reception_no.slice(prefix.length), 10))
           .filter(n => !isNaN(n));
-        const next = nums.length ? Math.max(...nums) + 1 : 1;
-        return `${prefix}${String(next).padStart(3, '0')}`;
+        const next = nums.length ? Math.max(...nums) + 1 : 0;
+        return `${prefix}${String(next).padStart(4, '0')}`;
       },
 
       loadAsReceptions() {
@@ -547,11 +593,7 @@
         const row = {
           id,
           reception_no,
-          customer_name:  form.customer_name  || '',
-          station_name:   form.station_name   || '',
-          station_id:     form.station_id     || '',
-          charger_no:     form.charger_no     || '',
-          order_id:       form.order_id       || null,
+          serial_no:      form.serial_no      || '',
           fault_type:     form.fault_type     || '',
           fault_detail:   form.fault_detail   || '',
           status:         '접수대기',
@@ -579,7 +621,7 @@
         const r = cache.as_receptions.find(x => x.id === id);
         if (!r) return false;
         const upd = {};
-        const fields = ['customer_name','station_name','station_id','charger_no','fault_type','fault_detail',
+        const fields = ['serial_no','fault_type','fault_detail',
                         'priority','reporter_name','reporter_phone','received_at','assignee','dispatch_date',
                         'status','action_type','action_detail','cost','completed_at','notes'];
         fields.forEach(k => { if (form[k] !== undefined) upd[k] = form[k]; });
@@ -645,29 +687,25 @@
         return [...cache.customers];
       },
 
-      addMasterCustomer(name, code) {
+      addMasterCustomer(name, is_address) {
         if (cache.customers.find(c => c.name === name))
           return { ok: false, msg: '이미 등록된 고객사명입니다' };
-        if (cache.customers.find(c => c.code === code))
-          return { ok: false, msg: '이미 사용 중인 코드입니다' };
         const last = new Date().toISOString().slice(0, 10);
-        cache.customers.push({ name, code, last });
+        cache.customers.push({ name, is_address: !!is_address, last });
         dbLog('INFO', 'write:tb_master_customer', `고객사 추가 — ${name}`);
-        dbWrite('tb_master_customer', 'insert', () => client.from('tb_master_customer').insert({ name, code, last }));
+        dbWrite('tb_master_customer', 'insert', () => client.from('tb_master_customer').insert({ name, is_address: !!is_address, last }));
         return { ok: true };
       },
 
-      updateMasterCustomer(idx, name, code) {
+      updateMasterCustomer(idx, name, is_address) {
         const c = cache.customers[idx];
         if (!c) return { ok: false, msg: '고객사를 찾을 수 없습니다' };
         const dupName = cache.customers.findIndex(x => x.name === name);
         if (dupName !== -1 && dupName !== idx) return { ok: false, msg: '이미 등록된 고객사명입니다' };
-        const dupCode = cache.customers.findIndex(x => x.code === code);
-        if (dupCode !== -1 && dupCode !== idx) return { ok: false, msg: '이미 사용 중인 코드입니다' };
         const oldName = c.name;
-        cache.customers[idx] = { ...c, name, code };
+        cache.customers[idx] = { ...c, name, is_address: !!is_address };
         dbLog('INFO', 'write:tb_master_customer', `고객사 수정 — ${oldName} → ${name}`);
-        dbWrite('tb_master_customer', 'update', () => client.from('tb_master_customer').update({ name, code }).eq('name', oldName));
+        dbWrite('tb_master_customer', 'update', () => client.from('tb_master_customer').update({ name, is_address: !!is_address }).eq('name', oldName));
         return { ok: true };
       },
 
@@ -720,48 +758,50 @@
       },
 
       getSwVersions() {
-        return [...cache.sw_versions];
+        return cache.program_versions.filter(v => v.type === 'S/W');
       },
 
       addMasterSwVersion(ver) {
-        cache.sw_versions.unshift({ tag: ver.tag, released: ver.released, stable: ver.stable });
-        dbLog('INFO', 'write:tb_master_sw_version', `SW 버전 추가 — ${ver.tag}`);
-        dbWrite('tb_master_sw_version', 'insert', () => client.from('tb_master_sw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
+        const row = { type: 'S/W', tag: ver.tag, released: ver.released, stable: !!ver.stable };
+        cache.program_versions.unshift(row);
+        dbLog('INFO', 'write:tb_program_version', `S/W 버전 추가 — ${ver.tag}`);
+        dbWrite('tb_program_version', 'insert', () => client.from('tb_program_version').insert(row));
       },
 
       getFwVersions() {
-        return [...cache.fw_versions];
+        return cache.program_versions.filter(v => v.type === 'F/W');
       },
 
       addMasterFwVersion(ver) {
-        cache.fw_versions.unshift({ tag: ver.tag, released: ver.released, stable: ver.stable });
-        dbLog('INFO', 'write:tb_master_fw_version', `FW 버전 추가 — ${ver.tag}`);
-        dbWrite('tb_master_fw_version', 'insert', () => client.from('tb_master_fw_version').insert({ tag: ver.tag, released: ver.released, stable: ver.stable }));
+        const row = { type: 'F/W', tag: ver.tag, released: ver.released, stable: !!ver.stable };
+        cache.program_versions.unshift(row);
+        dbLog('INFO', 'write:tb_program_version', `F/W 버전 추가 — ${ver.tag}`);
+        dbWrite('tb_program_version', 'insert', () => client.from('tb_program_version').insert(row));
       },
 
       getModels() {
         return [...cache.models];
       },
 
-      addMasterModel(model, description, name, power) {
+      addMasterModel(model, description, power) {
         if (cache.models.find(m => m.model === model))
           return { ok: false, msg: '이미 등록된 모델 코드입니다' };
-        const row = { model, name: name || '', description: description || '', power: power || '' };
+        const row = { model, description: description || '', power: power || '' };
         cache.models.push(row);
         dbLog('INFO', 'write:tb_master_model', `모델 추가 — ${model}`);
-        dbWrite('tb_master_model', 'insert', () => client.from('tb_master_model').insert({ model, name: name || '', description: description || '', power: power || '' }));
+        dbWrite('tb_master_model', 'insert', () => client.from('tb_master_model').insert({ model_code: model, description: description || '', power: power || '' }));
         return { ok: true };
       },
 
-      updateMasterModel(idx, model, description, name, power) {
+      updateMasterModel(idx, model, description, power) {
         const m = cache.models[idx];
         if (!m) return { ok: false, msg: '모델을 찾을 수 없습니다' };
         if (model !== m.model && cache.models.find(x => x.model === model))
           return { ok: false, msg: '이미 등록된 모델 코드입니다' };
         const oldModel = m.model;
-        Object.assign(m, { model, name: name || '', description: description || '', power: power || '' });
+        Object.assign(m, { model, description: description || '', power: power || '' });
         dbLog('INFO', 'write:tb_master_model', `모델 수정 — ${model}`);
-        dbWrite('tb_master_model', 'update', () => client.from('tb_master_model').update({ model, name: name || '', description: description || '', power: power || '' }).eq('model', oldModel));
+        dbWrite('tb_master_model', 'update', () => client.from('tb_master_model').update({ model_code: model, description: description || '', power: power || '' }).eq('model_code', oldModel));
         return { ok: true };
       },
 
@@ -771,7 +811,32 @@
         const model = m.model;
         cache.models.splice(idx, 1);
         dbLog('INFO', 'write:tb_master_model', `모델 삭제 — ${model}`);
-        dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('model', model));
+        dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('model_code', model));
+      },
+
+      // ── 충전기 설치 정보 (tb_chargepoint_infor) ───────────────────
+      getChargepointBySerial(serial_no) {
+        const q = String(serial_no || '').trim().toUpperCase();
+        if (!q) return null;
+        return cache.chargepoints.find(c => String(c.serial_no || '').trim().toUpperCase() === q) || null;
+      },
+
+      addChargepoint(data) {
+        const serial_no = String(data.serial_no || '').trim();
+        if (!serial_no) return { ok: false, msg: '시리얼번호를 입력하세요' };
+        if (this.getChargepointBySerial(serial_no))
+          return { ok: false, msg: '이미 등록된 시리얼번호입니다' };
+        const row = {
+          serial_no,
+          model_name:      data.model_name      || '',
+          order_id:        data.order_id        || null,
+          install_address: data.install_address || '',
+          created:         data.created         || '',
+        };
+        cache.chargepoints.push(row);
+        dbLog('INFO', 'write:tb_chargepoint_infor', `충전기 정보 추가 — serial_no=${serial_no}`);
+        dbWrite('tb_chargepoint_infor', 'insert', () => client.from('tb_chargepoint_infor').insert(row));
+        return { ok: true };
       },
 
       getFuncInspection(order_id) {
@@ -888,27 +953,6 @@
         );
       },
 
-      addMasterCableLength(value) {
-        const v = (value || '').trim();
-        if (!v) return { ok: false, msg: '값을 입력하세요' };
-        if ((window.MASTER.CABLE_LENGTHS || []).includes(v))
-          return { ok: false, msg: '이미 등록된 케이블 길이입니다' };
-        window.MASTER.CABLE_LENGTHS.push(v);
-        window.MASTER.CABLE_LENGTHS.sort((a, b) => parseInt(a) - parseInt(b));
-        dbLog('INFO', 'write:tb_master_cable_length', `케이블 길이 추가 — ${v}`);
-        dbWrite('tb_master_cable_length', 'insert', () => client.from('tb_master_cable_length').insert({ value: v }));
-        window.dispatchEvent(new CustomEvent('masterLoaded'));
-        return { ok: true };
-      },
-
-      deleteMasterCableLength(value) {
-        const idx = (window.MASTER.CABLE_LENGTHS || []).indexOf(value);
-        if (idx === -1) return;
-        window.MASTER.CABLE_LENGTHS.splice(idx, 1);
-        dbLog('INFO', 'write:tb_master_cable_length', `케이블 길이 삭제 — ${value}`);
-        dbWrite('tb_master_cable_length', 'delete', () => client.from('tb_master_cable_length').delete().eq('value', value));
-        window.dispatchEvent(new CustomEvent('masterLoaded'));
-      },
     };
   }
 
@@ -969,7 +1013,7 @@
       // 테이블이 비어 있으면 초기 데이터 삽입
       if (backend.cache.users.length === 0) {
         dbLog('INFO', 'init', '초기 사용자 데이터 삽입');
-        const { error } = await client.from('users').insert(SEED_USERS.map(u => ({ ...u })));
+        const { error } = await client.from('tb_users').insert(SEED_USERS.map(u => ({ ...u })));
         if (error) dbLog('ERROR', 'init', '초기 사용자 삽입 실패 — ' + error.message, error);
         else backend.cache.users = SEED_USERS.map(u => ({ ...u }));
       }
@@ -980,50 +1024,32 @@
           const { data, error } = await client.from('tb_master_customer').insert(SEED_MASTER_CUSTOMERS).select();
           if (error) dbLog('WARN', 'init', '초기 고객사 삽입 실패 — ' + error.message);
           else {
-            backend.cache.customers = (data || []).map(c => ({ id: c.id, name: c.name, code: c.code, last: c.last || '' }));
+            backend.cache.customers = (data || []).map(c => ({ name: c.name, is_address: !!c.is_address, last: c.last || '' }));
             dbLog('INFO', 'init', `초기 고객사 데이터 삽입 — ${backend.cache.customers.length}개`);
           }
         } catch (e) { dbLog('WARN', 'init', '초기 고객사 삽입 오류 — ' + e.message); }
+        if (backend.cache.customers.length === 0)
+          backend.cache.customers = SEED_MASTER_CUSTOMERS.map(c => ({ ...c }));
       }
       if (backend.cache.cpos.length === 0) {
         try {
           const { data, error } = await client.from('tb_master_cpo').insert(SEED_MASTER_CPOS).select();
           if (error) dbLog('WARN', 'init', '초기 CPO 운영사 삽입 실패 — ' + error.message);
           else {
-            backend.cache.cpos = (data || []).map(c => ({ id: c.id, name: c.name, code: c.code }));
+            backend.cache.cpos = (data || []).map(c => ({ name: c.name, code: c.code }));
             dbLog('INFO', 'init', `초기 CPO 운영사 데이터 삽입 — ${backend.cache.cpos.length}개`);
           }
         } catch (e) { dbLog('WARN', 'init', '초기 CPO 운영사 삽입 오류 — ' + e.message); }
         if (backend.cache.cpos.length === 0)
           backend.cache.cpos = SEED_MASTER_CPOS.map(c => ({ ...c }));
       }
-      if (backend.cache.sw_versions.length === 0) {
+      if (backend.cache.program_versions.length === 0) {
         try {
-          const { error } = await client.from('tb_master_sw_version').insert(SEED_MASTER_SW_VERSIONS);
-          if (error) dbLog('WARN', 'init', '초기 SW버전 삽입 실패 — ' + error.message);
-          else dbLog('INFO', 'init', '초기 SW버전 데이터 삽입 완료');
-        } catch (e) { dbLog('WARN', 'init', '초기 SW버전 삽입 오류 — ' + e.message); }
-        backend.cache.sw_versions = SEED_MASTER_SW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
-        window.dispatchEvent(new CustomEvent('masterLoaded'));
-      }
-      if (backend.cache.fw_versions.length === 0) {
-        try {
-          const { error } = await client.from('tb_master_fw_version').insert(SEED_MASTER_FW_VERSIONS);
-          if (error) dbLog('WARN', 'init', '초기 FW버전 삽입 실패 — ' + error.message);
-          else dbLog('INFO', 'init', '초기 FW버전 데이터 삽입 완료');
-        } catch (e) { dbLog('WARN', 'init', '초기 FW버전 삽입 오류 — ' + e.message); }
-        backend.cache.fw_versions = SEED_MASTER_FW_VERSIONS.map(v => ({ tag: v.tag, released: v.released, stable: v.stable }));
-        window.dispatchEvent(new CustomEvent('masterLoaded'));
-      }
-      if (window.MASTER.CABLE_LENGTHS.length === 0) {
-        try {
-          const { error } = await client.from('tb_master_cable_length').insert(SEED_MASTER_CABLE_LENGTHS.map(v => ({ value: v })));
-          if (error) dbLog('WARN', 'init', '초기 케이블길이 삽입 실패 — ' + error.message);
-          else dbLog('INFO', 'init', `초기 케이블길이 데이터 삽입 완료`);
-        } catch (e) { dbLog('WARN', 'init', '초기 케이블길이 삽입 오류 — ' + e.message); }
-        // DB 삽입 성공 여부와 무관하게 메모리에 시드 데이터 보장
-        window.MASTER.CABLE_LENGTHS = [...SEED_MASTER_CABLE_LENGTHS];
-        window.dispatchEvent(new CustomEvent('masterLoaded'));
+          const { error } = await client.from('tb_program_version').insert(SEED_PROGRAM_VERSIONS);
+          if (error) dbLog('WARN', 'init', '초기 프로그램 버전 삽입 실패 — ' + error.message);
+          else dbLog('INFO', 'init', '초기 프로그램 버전 데이터 삽입 완료');
+        } catch (e) { dbLog('WARN', 'init', '초기 프로그램 버전 삽입 오류 — ' + e.message); }
+        backend.cache.program_versions = SEED_PROGRAM_VERSIONS.map(v => ({ ...v }));
       }
 
       this.backend = backend;
@@ -1059,7 +1085,7 @@
     async updateUser(id, data)     { return this.backend.updateUser(id, data); },
     deleteUser(id)           { return this.backend.deleteUser(id); },
     query()                  { return []; },
-    addHistory(id, by, at, f, a) { return this.backend.addHistory(id, by, at, f, a); },
+    addHistory(id, by, at, f, a, sn) { return this.backend.addHistory(id, by, at, f, a, sn); },
     getHistory(id)           { return this.backend.getHistory(id); },
     getAsHistory(orderId)        { return this.backend.getAsHistory(orderId); },
     addAsRecord(record)          { return this.backend.addAsRecord(record); },
@@ -1073,32 +1099,32 @@
     getAsPhotos(rid)                   { return this.backend.getAsPhotos(rid); },
     addAsPhoto(rid, file, by)          { return this.backend.addAsPhoto(rid, file, by); },
     deleteAsPhoto(id, storagePath)     { return this.backend.deleteAsPhoto(id, storagePath); },
-    getCustomers()                   { return this.backend.getCustomers(); },
-    addMasterCustomer(n, c)         { return this.backend.addMasterCustomer(n, c); },
-    updateMasterCustomer(i, n, c)   { return this.backend.updateMasterCustomer(i, n, c); },
-    deleteMasterCustomer(i)         { return this.backend.deleteMasterCustomer(i); },
-    getCpos()                        { return this.backend.getCpos(); },
-    addMasterCpo(n, c)               { return this.backend.addMasterCpo(n, c); },
-    updateMasterCpo(i, n, c)         { return this.backend.updateMasterCpo(i, n, c); },
-    deleteMasterCpo(i)               { return this.backend.deleteMasterCpo(i); },
-    getModels()                     { return this.backend.getModels(); },
-    addMasterModel(n, s, p)         { return this.backend.addMasterModel(n, s, p); },
-    updateMasterModel(i, n, s, p)   { return this.backend.updateMasterModel(i, n, s, p); },
-    deleteMasterModel(i)            { return this.backend.deleteMasterModel(i); },
-    addMasterCableLength(v)         { return this.backend.addMasterCableLength(v); },
-    deleteMasterCableLength(v)      { return this.backend.deleteMasterCableLength(v); },
-    getFuncInspection(id)           { return this.backend.getFuncInspection(id); },
-    saveFuncInspection(id, data)    { return this.backend.saveFuncInspection(id, data); },
-    deleteFuncInspection(id)        { return this.backend.deleteFuncInspection(id); },
-    getShipInspectionDB(id)         { return this.backend.getShipInspectionDB(id); },
-    getShipPhotos(id)               { return this.backend.getShipPhotos(id); },
-    addShipPhoto(id, file, by)      { return this.backend.addShipPhoto(id, file, by); },
-    deleteShipPhoto(id, path)       { return this.backend.deleteShipPhoto(id, path); },
-    saveShipInspection(id, data)    { return this.backend.saveShipInspection(id, data); },
-    getSwVersions()                 { return this.backend.getSwVersions(); },
-    addMasterSwVersion(v)           { return this.backend.addMasterSwVersion(v); },
-    getFwVersions()                 { return this.backend.getFwVersions(); },
-    addMasterFwVersion(v)           { return this.backend.addMasterFwVersion(v); },
+    getCustomers()                     { return this.backend.getCustomers(); },
+    addMasterCustomer(n, ia)          { return this.backend.addMasterCustomer(n, ia); },
+    updateMasterCustomer(i, n, ia)    { return this.backend.updateMasterCustomer(i, n, ia); },
+    deleteMasterCustomer(i)           { return this.backend.deleteMasterCustomer(i); },
+    getCpos()                          { return this.backend.getCpos(); },
+    addMasterCpo(n, c)                 { return this.backend.addMasterCpo(n, c); },
+    updateMasterCpo(i, n, c)           { return this.backend.updateMasterCpo(i, n, c); },
+    deleteMasterCpo(i)                 { return this.backend.deleteMasterCpo(i); },
+    getModels()                       { return this.backend.getModels(); },
+    addMasterModel(m, d, p)           { return this.backend.addMasterModel(m, d, p); },
+    updateMasterModel(i, m, d, p)     { return this.backend.updateMasterModel(i, m, d, p); },
+    deleteMasterModel(i)              { return this.backend.deleteMasterModel(i); },
+    getChargepointBySerial(sn)        { return this.backend.getChargepointBySerial(sn); },
+    addChargepoint(data)              { return this.backend.addChargepoint(data); },
+    getFuncInspection(id)             { return this.backend.getFuncInspection(id); },
+    saveFuncInspection(id, data)      { return this.backend.saveFuncInspection(id, data); },
+    deleteFuncInspection(id)          { return this.backend.deleteFuncInspection(id); },
+    getShipInspectionDB(id)           { return this.backend.getShipInspectionDB(id); },
+    getShipPhotos(id)                 { return this.backend.getShipPhotos(id); },
+    addShipPhoto(id, file, by)        { return this.backend.addShipPhoto(id, file, by); },
+    deleteShipPhoto(id, path)         { return this.backend.deleteShipPhoto(id, path); },
+    saveShipInspection(id, data)      { return this.backend.saveShipInspection(id, data); },
+    getSwVersions()                   { return this.backend.getSwVersions(); },
+    addMasterSwVersion(v)             { return this.backend.addMasterSwVersion(v); },
+    getFwVersions()                   { return this.backend.getFwVersions(); },
+    addMasterFwVersion(v)             { return this.backend.addMasterFwVersion(v); },
     reset()                      { dbLog('WARN', 'reset', 'Supabase 모드에서는 reset()을 지원하지 않습니다'); },
   };
 

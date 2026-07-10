@@ -7,7 +7,7 @@ function App() {
   React.useEffect(() => {
     const store = window['__pm_store__'];
     if (!history.state || !history.state.view) {
-      const validViews = ['sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
+      const validViews = ['dashboard', 'sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
       const hashView = window.location.hash.slice(1);
       if (hashView && validViews.includes(hashView)) {
         store.view = hashView;
@@ -109,6 +109,7 @@ function App() {
       <TopNav/>
       <main style={{ flex: 1, overflow: 'auto' }}>
         <div key={s.view} className="screen-enter" style={{ height: '100%' }}>
+          {s.view === 'dashboard'      && <DashboardScreen/>}
           {s.view === 'sales'          && <SalesInputScreen/>}
           {s.view === 'waiting'        && <ProductionWaitingScreen/>}
           {s.view === 'mapping'        && <ProductionMappingScreen/>}

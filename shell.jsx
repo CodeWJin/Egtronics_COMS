@@ -1,6 +1,6 @@
 // App shell: top nav + screen container + global store
 
-const { useState, useEffect, useMemo, useRef, useCallback } = React;
+const { useState, useEffect, useMemo, useRef } = React;
 
 // Global store via simple hook + window event
 const STORE_KEY = '__pm_store__';
@@ -18,6 +18,7 @@ window[STORE_KEY] = window[STORE_KEY] || {
   asReceptions: [],
   selectedAsId: null,
   confirmModal: null,
+  batchOrderIds: null, // 생산대기 목록에서 다중선택 후 일괄 처리로 진입한 오더 id 배열
 };
 
 function notify() {
@@ -37,11 +38,10 @@ function useStore() {
 window.useStore = useStore;
 window.notify = notify;
 
-// 모델 마스터 조회 — order.model_name에 표시명(name) 또는 코드(model)가
-// 저장된 데이터가 혼재하므로 양쪽 모두 매칭한다 (전 화면 공용)
+// 모델 마스터 조회 — model_name에는 model_code가 저장됨
 window.findModelInfo = function (modelName) {
   if (!modelName || !window.PMDB || !window.PMDB.getModels) return null;
-  return window.PMDB.getModels().find(m => m.name === modelName || m.model === modelName) || null;
+  return window.PMDB.getModels().find(m => m.model === modelName) || null;
 };
 
 // main 스크롤 잠금 훅 — 드로어·모달 공용
@@ -57,8 +57,8 @@ window.useLockScroll = useLockScroll;
 
 const ORDER_FIELD_LABELS = {
   customer_name: '고객사', customer_manager: '고객사 담당자', model_name: '모델',
-  delivery_date: '납품일자', station_id: '충전소 ID', router_no: '라우터번호',
-  usim_no: 'USIM번호', install_address: '설치주소',
+  delivery_date: '납품일자', install_address: '설치주소',
+  station_id: '충전소 ID', router_no: '라우터번호', usim_no: 'USIM번호',
 };
 function localTimestamp() {
   const d = new Date(), p = (n) => String(n).padStart(2, '0');
@@ -193,7 +193,33 @@ window.actions = {
     setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
   },
   selectOrder(id) {
-    window[STORE_KEY].selectedOrderId = id;
+    const s = window[STORE_KEY];
+    s.selectedOrderId = id;
+    s.batchOrderIds = null; // 개별 오더 선택 시 이전 일괄 처리 상태 초기화
+    notify();
+  },
+  // 생산대기 목록에서 여러 오더를 다중선택해 곧바로 일괄 처리 화면으로 진입
+  startBatchMapping(orderIds) {
+    const s = window[STORE_KEY];
+    if (!orderIds || orderIds.length === 0) return;
+    const orders = orderIds.map(id => s.orders.find(o => o.order_id === id)).filter(Boolean);
+    if (orders.length === 0) return;
+    const first = orders[0];
+    const sameGroup = orders.every(o =>
+      o.model_name === first.model_name && (o.usage_type || '공용') === (first.usage_type || '공용')
+    );
+    if (!sameGroup) {
+      window.actions.flashToast('같은 모델·용도의 오더만 함께 선택할 수 있습니다', 'error');
+      return;
+    }
+    orders.filter(o => o.status === 'PENDING').forEach(o => window.PMDB.startProduction(o.order_id));
+    s.orders = window.PMDB.loadOrders();
+    s.batchOrderIds = orderIds;
+    s.selectedOrderId = orderIds[0];
+    window.actions.setView('mapping');
+  },
+  exitBatchMapping() {
+    window[STORE_KEY].batchOrderIds = null;
     notify();
   },
   setView(v) {
@@ -312,6 +338,7 @@ function TopNav() {
   const asCount = (s.asReceptions || []).filter(r => r.status !== '처리완료').length;
 
   const TAB_META = {
+    dashboard:       { label: '대시보드' },
     sales:           { label: '영업 입력' },
     waiting:         { label: '생산 대기', count: pendingCount },
     mapping:         { label: '생산 입력' },
@@ -350,6 +377,7 @@ function TopNav() {
 
 function UserMenu({ user }) {
   const [open, setOpen] = useState(false);
+  const [showChangePw, setShowChangePw] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
     const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -370,11 +398,132 @@ function UserMenu({ user }) {
             <div className="usermenu__head__sub">{user.dept} · @{user.user_id}</div>
           </div>
           <div className="usermenu__divider"/>
+          <button className="usermenu__item" onClick={() => { setOpen(false); setShowChangePw(true); }}>
+            <Icon name="lock" size={14}/> 비밀번호 변경
+          </button>
           <button className="usermenu__item" onClick={() => { setOpen(false); window.actions.logout(); }}>
             <Icon name="external" size={20}/> 로그아웃
           </button>
         </div>
       )}
+      {showChangePw && (
+        <ChangePasswordModal user={user} onClose={() => setShowChangePw(false)}/>
+      )}
+    </div>
+  );
+}
+
+function ChangePasswordModal({ user, onClose }) {
+  window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
+  const [step, setStep] = useState(1); // 1: 현재 비밀번호  2: 새 비밀번호  3: 완료
+  const [curPw, setCurPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const verifyCurrentPw = async () => {
+    setErr('');
+    if (!curPw) { setErr('현재 비밀번호를 입력하세요'); return; }
+    setBusy(true);
+    const ok = await window.PMDB.authenticate(user.user_id, curPw);
+    setBusy(false);
+    if (!ok) { setErr('현재 비밀번호가 올바르지 않습니다'); return; }
+    setStep(2);
+  };
+
+  const saveNewPw = async () => {
+    setErr('');
+    if (newPw.length < 4) { setErr('비밀번호는 4자 이상이어야 합니다'); return; }
+    if (newPw !== confirmPw) { setErr('새 비밀번호가 일치하지 않습니다'); return; }
+    if (newPw === curPw) { setErr('현재 비밀번호와 동일합니다'); return; }
+    setBusy(true);
+    await window.PMDB.changePassword(user.user_id, newPw);
+    setBusy(false);
+    setStep(3);
+  };
+
+  const STEPS = ['현재 비밀번호', '새 비밀번호'];
+
+  return (
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-chpw-title" style={{ width: 400, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h2 id="modal-chpw-title" className="modal__title">{step === 3 ? '변경 완료' : '비밀번호 변경'}</h2>
+          <p className="modal__sub">{user.name} ({user.user_id})</p>
+        </div>
+
+        {step < 3 && (
+          <div className="stepper">
+            {STEPS.map((label, i) => {
+              const n = i + 1;
+              return (
+                <div key={label} className={`stepper__item ${step === n ? 'stepper__item--active' : ''} ${step > n ? 'stepper__item--done' : ''}`}>
+                  <span className="stepper__dot">{step > n ? <Icon name="check" size={11}/> : n}</span>
+                  <span className="stepper__lbl">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {step === 1 && (
+            <div className="field">
+              <label className="field__label" htmlFor="chpw-cur"><Icon name="lock" size={11}/> 현재 비밀번호</label>
+              <input id="chpw-cur" type="password" className="input" autoFocus placeholder="현재 비밀번호 입력"
+                     value={curPw}
+                     onChange={(e) => { setCurPw(e.target.value); setErr(''); }}
+                     onKeyDown={(e) => e.key === 'Enter' && verifyCurrentPw()}/>
+            </div>
+          )}
+
+          {step === 2 && (
+            <>
+              <div className="field">
+                <label className="field__label" htmlFor="chpw-new"><Icon name="lock" size={11}/> 새 비밀번호</label>
+                <input id="chpw-new" type="password" className="input" autoFocus placeholder="4자 이상"
+                       value={newPw}
+                       onChange={(e) => { setNewPw(e.target.value); setErr(''); }}/>
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor="chpw-confirm"><Icon name="lock" size={11}/> 새 비밀번호 확인</label>
+                <input id="chpw-confirm" type="password" className="input" placeholder="다시 입력"
+                       value={confirmPw}
+                       onChange={(e) => { setConfirmPw(e.target.value); setErr(''); }}
+                       onKeyDown={(e) => e.key === 'Enter' && saveNewPw()}/>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
+            <div className="reset-done">
+              <div className="reset-done__icon"><Icon name="check" size={26}/></div>
+              <div className="reset-done__title">비밀번호가 변경되었습니다</div>
+              <div className="reset-done__sub">다음 로그인부터 새 비밀번호를 사용하세요.</div>
+            </div>
+          )}
+
+          {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
+        </div>
+
+        <div className="modal__foot">
+          {step === 1 && <>
+            <button className="btn btn--secondary" onClick={onClose}>취소</button>
+            <button className="btn btn--primary" disabled={busy} onClick={verifyCurrentPw}>
+              {busy ? '확인 중…' : '다음'}
+            </button>
+          </>}
+          {step === 2 && <>
+            <button className="btn btn--secondary" onClick={() => { setStep(1); setCurPw(''); setErr(''); }}>이전</button>
+            <button className="btn btn--primary" disabled={busy} onClick={saveNewPw}>
+              {busy ? '저장 중…' : <><Icon name="check" size={13}/> 비밀번호 변경</>}
+            </button>
+          </>}
+          {step === 3 && <button className="btn btn--primary" onClick={onClose}>닫기</button>}
+        </div>
+      </div>
     </div>
   );
 }

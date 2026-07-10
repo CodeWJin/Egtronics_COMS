@@ -105,7 +105,23 @@ function ProductionMappingScreen() {
   }
 
   if (order.status === 'AWAIT_PICKUP' || order.status === 'COMPLETED') return <CompletedView order={order}/>;
-  if (order.status === 'IN_PROGRESS') return <MappingForm order={order}/>;
+  if (order.status === 'IN_PROGRESS') {
+    // 생산대기 목록에서 다중선택 후 곧바로 진입한 경우 — 개별 화면을 거치지 않고 일괄 처리 화면으로 바로 진입
+    if (s.batchOrderIds && s.batchOrderIds.length > 1 && s.batchOrderIds.includes(order.order_id)) {
+      const candidates = s.batchOrderIds
+        .filter(id => id !== order.order_id)
+        .map(id => s.orders.find(o => o.order_id === id))
+        .filter(o => o && o.status === 'IN_PROGRESS');
+      return (
+        <BatchMappingForm
+          anchorOrder={order}
+          candidates={candidates}
+          onExit={() => { window.actions.exitBatchMapping(); window.actions.setView('waiting'); }}
+        />
+      );
+    }
+    return <MappingForm order={order} allOrders={s.orders}/>;
+  }
   return <PendingView order={order}/>;
 }
 
@@ -204,7 +220,6 @@ function CompletedView({ order }) {
         <div className="card__body">
           <div className="form-grid form-grid--3">
             <KvCell k="생산일자" v={order.production?.prod_date} icon="calendar"/>
-            <KvCell k="로트" v={order.production?.lot_no} mono icon="package"/>
             <KvCell k="시리얼" v={order.production?.serial_no} mono icon="cpu"/>
             <KvCell k="검정일자" v={order.production?.inspection_date} icon="shield"/>
             <KvCell k="S/W 버전" v={order.production?.sw_version} mono icon="bolt"/>
@@ -343,15 +358,20 @@ function Cell({ k, v, mono, prev }) {
   );
 }
 
-function MappingForm({ order }) {
+function MappingForm({ order, allOrders }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const isPublic = (order.usage_type || '공용') === '공용';
+
+  const [batchMode, setBatchMode] = useStatePM(false);
+  const batchCandidates = useMemoPM(() => (allOrders || []).filter(o =>
+    o.status === 'IN_PROGRESS' && o.order_id !== order.order_id &&
+    o.model_name === order.model_name && (o.usage_type || '공용') === (order.usage_type || '공용')
+  ), [allOrders, order.order_id, order.model_name, order.usage_type]);
 
   const [form, setForm] = useStatePM(() => {
     const ex = order.production || {};
     return {
       prod_date: ex.prod_date || todayISO,
-      lot_no: ex.lot_no || '',
       serial_no: ex.serial_no || '',
       inspection_date: ex.inspection_date || '',
       sw_version: ex.sw_version || '',
@@ -402,14 +422,13 @@ function MappingForm({ order }) {
     return candidate;
   }, [order.model_name, form.prod_date]);
 
-  // Auto lot from prod_date
+  // Auto serial fill — 신규 생산(기존 시리얼 없음)이면 마운트 시 자동 채번
   React.useEffect(() => {
-    if (form.prod_date && !form.lot_no) {
-      const d = new Date(form.prod_date);
-      const week = String(Math.ceil(((d - new Date(d.getFullYear(), 0, 1)) / 86400000 + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7)).padStart(2, '0');
-      update('lot_no', `L${String(d.getFullYear()).slice(2)}-W${week}-A`);
+    if (!form.serial_no) {
+      update('serial_no', suggestSerial);
+      setDupState('ok');
     }
-  }, [form.prod_date]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const checkDup = () => {
     if (!form.serial_no) return;
@@ -448,7 +467,6 @@ function MappingForm({ order }) {
 
   const errors = {
     prod_date: !form.prod_date && '생산일자를 선택하세요',
-    lot_no: !form.lot_no && '로트번호를 입력하세요',
     serial_no: !form.serial_no ? '시리얼을 입력하세요' : (dupState === 'dup' ? '이미 사용된 시리얼입니다' : null),
     inspection_date: isPublic && !form.inspection_date && '검정일자를 선택하세요',
     sw_version: !form.sw_version && 'S/W 버전을 선택하세요',
@@ -459,7 +477,7 @@ function MappingForm({ order }) {
 
   const submit = () => {
     setShowAll(true);
-    setTouched({ prod_date: 1, lot_no: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1 });
+    setTouched({ prod_date: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1 });
     if (hasErr) return;
     if (dupState === null && form.serial_no) {
       if (window.PMDB.serialExists(form.serial_no, order.order_id)) {
@@ -472,6 +490,10 @@ function MappingForm({ order }) {
   };
 
   const showErr = (k) => (showAll || touched[k]) && errors[k];
+
+  if (batchMode) {
+    return <BatchMappingForm anchorOrder={order} candidates={batchCandidates} onExit={() => setBatchMode(false)}/>;
+  }
 
   return (
     <div className="screen">
@@ -487,8 +509,14 @@ function MappingForm({ order }) {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <span style={{ fontSize: 13.5, color: 'var(--ink-3)' }}>
-            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/{isPublic ? 7 : 6} 항목 입력
+            <span style={{ fontWeight: 600, color: 'var(--ink-1)' }}>{filled}</span>/{isPublic ? 6 : 5} 항목 입력
           </span>
+          {batchCandidates.length > 0 && (
+            <button className="btn btn--secondary btn--sm" onClick={() => setBatchMode(true)}
+              title={`같은 모델·용도의 생산진행중 오더 ${batchCandidates.length}건과 함께 처리`}>
+              <Icon name="copy" size={12}/> 일괄 처리 ({batchCandidates.length + 1}건 가능)
+            </button>
+          )}
           <button className="btn btn--ghost btn--sm"
             onClick={() => changeStatus(order.order_id, 'IN_PROGRESS', 'PENDING')}>
             <Icon name="refresh" size={12}/> 대기로
@@ -511,7 +539,6 @@ function MappingForm({ order }) {
           <h2 className="card__title">
             <Icon name="factory" size={14}/> 생산 실적 입력
           </h2>
-          <span className="card__sub">tb_production_info · 7 columns</span>
         </div>
         <div className="card__body">
           <div className="form-grid form-grid--3">
@@ -522,23 +549,9 @@ function MappingForm({ order }) {
                      className={`input ${showErr('prod_date') ? 'input--error' : ''}`}
                      aria-invalid={showErr('prod_date')}
                      value={form.prod_date}
-                     onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); update('lot_no', ''); }}/>
+                     onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); }}/>
               <div className="field__hint">공장 조립 및 최종 자체 검사 완료일</div>
               {showErr('prod_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.prod_date}</div>}
-            </div>
-
-            {/* 로트 */}
-            <div className="field">
-              <label className="field__label" htmlFor="pm-lot-no"><Icon name="package" size={11}/>로트번호 <span className="field__req">*</span></label>
-              <input id="pm-lot-no"
-                     className={`input ${showErr('lot_no') ? 'input--error' : ''}`}
-                     aria-invalid={showErr('lot_no')}
-                     style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
-                     placeholder="예: L26-W22-A"
-                     value={form.lot_no}
-                     onChange={(e) => { update('lot_no', e.target.value); setTouched(t => ({ ...t, lot_no: 1 })); }}/>
-              <div className="field__hint">생산일자 기준 자동 제안 · 수정 가능</div>
-              {showErr('lot_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.lot_no}</div>}
             </div>
 
             {/* 시리얼 */}
@@ -728,6 +741,335 @@ function MappingForm({ order }) {
           modelInfo={modelInfo}
           onSave={(data) => setfuncInspectionData(data)}
           onClose={() => setOpenFuncInspect(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ────────── 생산 실적 일괄 처리 ────────── */
+function BatchMappingForm({ anchorOrder, candidates, onExit }) {
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const isPublic = (anchorOrder.usage_type || '공용') === '공용';
+  const modelInfo = useMemoPM(() => window.findModelInfo(anchorOrder.model_name), [anchorOrder.model_name]);
+
+  const orderMap = useMemoPM(() => {
+    const map = { [anchorOrder.order_id]: anchorOrder };
+    candidates.forEach(o => { map[o.order_id] = o; });
+    return map;
+  }, [anchorOrder, candidates]);
+
+  const makeSuggestion = (orderId, prodDate, rowsNow) => {
+    const o = orderMap[orderId];
+    const entry = window.findModelInfo(o.model_name);
+    const modelCode = entry ? entry.model : o.model_name;
+    const codes = SERIAL_MODEL_CODES[modelCode];
+    if (!codes) return '';
+    const dateCode = makeSerialDateCode(prodDate || todayISO);
+    const base = `${codes[0]}-${codes[1]}-${dateCode}`;
+    const usedInBatch = new Set(
+      Object.entries(rowsNow).filter(([id]) => Number(id) !== orderId).map(([, v]) => v.serial_no)
+    );
+    let idx = 1, candidate;
+    do {
+      candidate = `${base}-${String(idx).padStart(4, '0')}`;
+      idx++;
+    } while ((window.PMDB.serialExists(candidate, orderId) || usedInBatch.has(candidate)) && idx <= 9999);
+    return candidate;
+  };
+
+  const makeRow = (orderId, prodDate, rowsNow) => ({
+    serial_no: makeSuggestion(orderId, prodDate, rowsNow),
+    dupState: null, // null | 'ok' | 'dup'
+    funcData: window.getFuncInspection?.(orderId) ?? null,
+  });
+
+  const [selectedIds, setSelectedIds] = useStatePM(() => new Set([anchorOrder.order_id]));
+  const [shared, setShared] = useStatePM(() => {
+    const ex = anchorOrder.production || {};
+    return {
+      prod_date: ex.prod_date || todayISO,
+      sw_version: ex.sw_version || '',
+      fw_version: ex.fw_version || '',
+      inspection_date: ex.inspection_date || '',
+    };
+  });
+  const [swVersions] = useStatePM(() => window.PMDB.getSwVersions());
+  const [fwVersions] = useStatePM(() => window.PMDB.getFwVersions());
+  const [rows, setRows] = useStatePM(() => ({ [anchorOrder.order_id]: makeRow(anchorOrder.order_id, shared.prod_date, {}) }));
+  const [openFuncFor, setOpenFuncFor] = useStatePM(null);
+  const [showAll, setShowAll] = useStatePM(false);
+  const [submitting, setSubmitting] = useStatePM(false);
+  // 기능검사 검사자/검사일자 — 처음 입력한 값을 다음 오더 작성 시 공통으로 제안
+  const [sharedFuncMeta, setSharedFuncMeta] = useStatePM({ inspector: '', insp_date: '' });
+
+  const updateShared = (k, v) => setShared(s => ({ ...s, [k]: v }));
+
+  const toggleSelect = (orderId) => {
+    if (orderId === anchorOrder.order_id) return; // 앵커 오더는 항상 포함
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+        setRows(r => (r[orderId] ? r : { ...r, [orderId]: makeRow(orderId, shared.prod_date, r) }));
+      }
+      return next;
+    });
+  };
+
+  const updateRow = (orderId, patch) => setRows(r => ({ ...r, [orderId]: { ...r[orderId], ...patch } }));
+
+  const checkDup = (orderId) => {
+    const sn = (rows[orderId]?.serial_no || '').trim();
+    if (!sn) return;
+    const dupInBatch = [...selectedIds].some(id => id !== orderId && (rows[id]?.serial_no || '').trim() === sn);
+    const dup = dupInBatch || window.PMDB.serialExists(sn, orderId);
+    updateRow(orderId, { dupState: dup ? 'dup' : 'ok' });
+  };
+
+  const useSuggestionFor = (orderId) => {
+    updateRow(orderId, { serial_no: makeSuggestion(orderId, shared.prod_date, rows), dupState: null });
+  };
+
+  const selectedList = [...selectedIds].sort((a, b) => a - b);
+
+  const sharedErrors = {
+    prod_date: !shared.prod_date && '생산일자를 선택하세요',
+    sw_version: !shared.sw_version && 'S/W 버전을 선택하세요',
+    fw_version: !shared.fw_version && 'F/W 버전을 선택하세요',
+    inspection_date: isPublic && !shared.inspection_date && '검정일자를 선택하세요',
+  };
+  const hasSharedErr = Object.values(sharedErrors).some(Boolean);
+  const showSharedErr = (k) => showAll && sharedErrors[k];
+
+  const rowStatus = (orderId) => {
+    const row = rows[orderId] || {};
+    const sn = (row.serial_no || '').trim();
+    const fd = row.funcData;
+    const funcDone = fd != null && Object.keys(fd.checks || {}).length > 0 &&
+      Object.values(fd.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+    return { snOk: !!sn && row.dupState !== 'dup', funcDone };
+  };
+
+  const allRowsReady = selectedList.every(id => {
+    const st = rowStatus(id);
+    return st.snOk && st.funcDone;
+  });
+
+  const submit = () => {
+    setShowAll(true);
+    if (hasSharedErr) return;
+    if (!allRowsReady) {
+      window.actions.flashToast('오더별 시리얼번호와 기능검사를 모두 완료해 주세요', 'error');
+      return;
+    }
+    // 최종 저장 직전 재검증 — 사용자가 "중복확인"을 누르지 않고 직접 수정했을 가능성 방지
+    for (const orderId of selectedList) {
+      const sn = (rows[orderId]?.serial_no || '').trim();
+      const dupInBatch = selectedList.some(id => id !== orderId && (rows[id]?.serial_no || '').trim() === sn);
+      if (dupInBatch || window.PMDB.serialExists(sn, orderId)) {
+        updateRow(orderId, { dupState: 'dup' });
+        window.actions.flashToast(`오더 #${orderId}: 시리얼번호가 중복되었습니다`, 'error');
+        return;
+      }
+    }
+    setSubmitting(true);
+    selectedList.forEach(orderId => {
+      const row = rows[orderId];
+      window.setFuncInspection(orderId, row.funcData);
+      window.PMDB.completeOrder(orderId, {
+        prod_date: shared.prod_date,
+        serial_no: row.serial_no.trim(),
+        inspection_date: shared.inspection_date,
+        sw_version: shared.sw_version,
+        fw_version: shared.fw_version,
+      });
+    });
+    window.actions.refreshOrders();
+    window.actions.exitBatchMapping();
+    window.actions.flashToast(`${selectedList.length}건 일괄 출하대기 등록 완료`, 'success');
+    setSubmitting(false);
+    window.actions.setView('waiting');
+  };
+
+  return (
+    <div className="screen">
+      <div className="screen__head">
+        <div>
+          <div className="screen__crumbs">제조생산 입력 · 일괄 처리</div>
+          <h1 className="screen__title">
+            {anchorOrder.model_name} 일괄 처리
+            <span className="badge badge--info" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}>
+              <span className="badge__dot"/>선택 {selectedList.length}건
+            </span>
+          </h1>
+          <p className="screen__sub">같은 모델·용도의 생산진행중 오더에 공통 값을 적용하고, 시리얼·기능검사는 오더별로 입력합니다.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <button className="btn btn--ghost btn--sm" onClick={onExit}>
+            <Icon name="arrow-left" size={12}/> 개별 입력으로
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card__head">
+          <h2 className="card__title"><Icon name="list" size={14}/> 대상 오더 선택</h2>
+          <span className="card__sub">같은 모델({anchorOrder.model_name}) · 같은 용도({anchorOrder.usage_type || '공용'}) · 생산진행중</span>
+        </div>
+        <div className="card__body" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', opacity: 0.7 }}>
+            <input type="checkbox" checked disabled/>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>#{anchorOrder.order_id}</span>
+            <span style={{ fontSize: 13 }}>{anchorOrder.customer_name}</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>(현재 오더 · 항상 포함)</span>
+          </label>
+          {candidates.length === 0 && (
+            <div className="emptystate" style={{ padding: '16px 0' }}>
+              <div className="emptystate__sub">같은 모델·용도의 다른 생산진행중 오더가 없습니다</div>
+            </div>
+          )}
+          {candidates.map(o => (
+            <label key={o.order_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={selectedIds.has(o.order_id)} onChange={() => toggleSelect(o.order_id)}/>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>#{o.order_id}</span>
+              <span style={{ fontSize: 13 }}>{o.customer_name}</span>
+              {o.install_address && <span style={{ fontSize: 12, color: 'var(--ink-4)' }}>{o.install_address}</span>}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card__head">
+          <h2 className="card__title"><Icon name="factory" size={14}/> 공통 입력 값</h2>
+          <span className="card__sub">선택된 {selectedList.length}건에 동일하게 적용됩니다</span>
+        </div>
+        <div className="card__body">
+          <div className="form-grid form-grid--3">
+            <div className="field">
+              <label className="field__label" htmlFor="bm-prod-date">생산일자 <span className="field__req">*</span></label>
+              <input id="bm-prod-date" type="date" className={`input ${showSharedErr('prod_date') ? 'input--error' : ''}`}
+                     value={shared.prod_date} onChange={e => updateShared('prod_date', e.target.value)}/>
+              {showSharedErr('prod_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{sharedErrors.prod_date}</div>}
+            </div>
+            {isPublic && (
+              <div className="field">
+                <label className="field__label" htmlFor="bm-insp-date">검정일자 <span className="field__req">*</span></label>
+                <input id="bm-insp-date" type="date" className={`input ${showSharedErr('inspection_date') ? 'input--error' : ''}`}
+                       value={shared.inspection_date} onChange={e => updateShared('inspection_date', e.target.value)}/>
+                {showSharedErr('inspection_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{sharedErrors.inspection_date}</div>}
+              </div>
+            )}
+            <div className="field col-span-2">
+              <div className="field__label" id="bm-sw-label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
+              <div className="tagpicker" role="group" aria-labelledby="bm-sw-label">
+                {swVersions.map(v => (
+                  <button key={v.tag} type="button"
+                    className={`tagpicker__item ${shared.sw_version === v.tag ? 'tagpicker__item--active' : ''}`}
+                    onClick={() => updateShared('sw_version', v.tag)}>
+                    <Icon name="tag" size={10}/>{v.tag}
+                  </button>
+                ))}
+              </div>
+              {showSharedErr('sw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{sharedErrors.sw_version}</div>}
+            </div>
+            <div className="field col-span-2">
+              <div className="field__label" id="bm-fw-label"><Icon name="bolt" size={11}/>F/W 버전 <span className="field__req">*</span></div>
+              <div className="tagpicker" role="group" aria-labelledby="bm-fw-label">
+                {fwVersions.map(v => (
+                  <button key={v.tag} type="button"
+                    className={`tagpicker__item ${shared.fw_version === v.tag ? 'tagpicker__item--active' : ''}`}
+                    onClick={() => updateShared('fw_version', v.tag)}>
+                    <Icon name="tag" size={10}/>{v.tag}
+                  </button>
+                ))}
+              </div>
+              {showSharedErr('fw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{sharedErrors.fw_version}</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="card__head">
+          <h2 className="card__title"><Icon name="cpu" size={14}/> 오더별 시리얼 · 기능검사</h2>
+        </div>
+        <div className="card__body" style={{ padding: 0 }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ minWidth: 640 }}>
+              <thead>
+                <tr>
+                  <th scope="col" style={{ width: 70 }}>오더</th>
+                  <th scope="col" style={{ minWidth: 220 }}>시리얼</th>
+                  <th scope="col" style={{ minWidth: 200 }}>기능 검사 성적서</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedList.map(orderId => {
+                  const row = rows[orderId] || {};
+                  const st = rowStatus(orderId);
+                  return (
+                    <tr key={orderId}>
+                      <td className="cell-mono">#{orderId}</td>
+                      <td style={{ padding: 4 }}>
+                        <div className="input-group">
+                          <input className={`input ${showAll && !st.snOk ? 'input--error' : ''}`}
+                                 style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
+                                 value={row.serial_no || ''}
+                                 onChange={e => updateRow(orderId, { serial_no: e.target.value.toUpperCase(), dupState: null })}/>
+                          <button type="button" className="input-group__btn" onClick={() => checkDup(orderId)} disabled={!row.serial_no}>중복확인</button>
+                        </div>
+                        <div className="field__hint" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {row.dupState === 'ok' && <span style={{ color: 'var(--success-700)' }}><Icon name="check" size={11}/> 사용 가능</span>}
+                          {row.dupState === 'dup' && <span style={{ color: 'var(--danger-700)' }}><Icon name="alert" size={11}/> 중복</span>}
+                          <button type="button" onClick={() => useSuggestionFor(orderId)}
+                            style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', padding: 0, fontSize: 12, textDecoration: 'underline' }}>
+                            추천 채번
+                          </button>
+                        </div>
+                      </td>
+                      <td style={{ padding: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 12.5, color: st.funcDone ? 'var(--success-700)' : 'var(--ink-4)' }}>
+                            <Icon name={st.funcDone ? 'check' : 'clock'} size={12}/> {st.funcDone ? '완료' : '미완료'}
+                          </span>
+                          <button type="button" className="btn btn--sm btn--secondary" onClick={() => setOpenFuncFor(orderId)}>
+                            <Icon name="doc" size={12}/> {row.funcData ? '수정' : '작성하기'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'center' }}>
+        <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>선택 {selectedList.length}건 일괄 처리</span>
+        <button className="btn btn--success btn--lg" onClick={submit} disabled={submitting}>
+          <Icon name="check" size={14}/> {selectedList.length}건 일괄 출하대기 등록
+        </button>
+      </div>
+
+      {openFuncFor !== null && orderMap[openFuncFor] && (
+        <FuncInspectionDrawer
+          order={orderMap[openFuncFor]}
+          existingData={rows[openFuncFor]?.funcData ?? {
+            inspector: sharedFuncMeta.inspector,
+            insp_date: sharedFuncMeta.insp_date || shared.inspection_date || shared.prod_date,
+          }}
+          modelInfo={modelInfo}
+          onSave={(data) => {
+            updateRow(openFuncFor, { funcData: data });
+            setSharedFuncMeta({ inspector: data.inspector, insp_date: data.insp_date });
+          }}
+          onClose={() => setOpenFuncFor(null)}
         />
       )}
     </div>

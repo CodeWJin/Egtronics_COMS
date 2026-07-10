@@ -21,7 +21,7 @@ const FUNC_CHECKLIST_DEFAULT = [
   { key: 'charge_start_ok', label: '충전 시작 동작 확인',        type: 'checkbox' },
   { key: 'charge_stop_ok',  label: '충전 중단·완료 동작 확인',  type: 'checkbox' },
   { key: 'overcurrent_ok',  label: '과전류 보호 기능 정상',      type: 'checkbox' },
-  { key: 'ground_ok',       label: '접지 이상 감지 기능 정상',   type: 'input' },
+  { key: 'ground_ok',       label: '접지 이상 감지 기능 정상',   type: 'checkbox' },
   { key: 'meter_ok',        label: '전력량계 계측 정상',         type: 'checkbox' },
   { key: 'fw_ok',           label: 'F/W·S/W 버전 확인 완료',   type: 'checkbox' },
 ];
@@ -323,7 +323,6 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
     initChecks(existingData?._checklist || SHIP_CHECKLIST_DEFAULT, existingData)
   );
   const [notes, setNotes] = React.useState(existingData?.notes || '');
-  const [activeTab, setActiveTab] = React.useState('checklist');
   const [photoCount, setPhotoCount] = React.useState(() => {
     try { return (window.PMDB?.getShipPhotos?.(order.order_id) || []).length; } catch (_) { return 0; }
   });
@@ -381,27 +380,8 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
           <button className="drawer__close" onClick={handleClose} aria-label="닫기"><Icon name="x" size={16}/></button>
         </div>
 
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-1)', background: 'var(--surface)', flexShrink: 0 }}>
-          {[
-            { key: 'checklist', label: '체크리스트' },
-            { key: 'photos',    label: photoCount > 0 ? `사진 (${photoCount})` : '사진' },
-          ].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              style={{
-                flex: 1, height: 44, background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 14, fontWeight: activeTab === tab.key ? 700 : 400,
-                color: activeTab === tab.key ? 'var(--primary-600)' : 'var(--ink-3)',
-                borderBottom: activeTab === tab.key ? '2px solid var(--primary-600)' : '2px solid transparent',
-                transition: 'color 120ms, border-color 120ms',
-              }}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
         <div className="drawer__body">
-          {activeTab === 'checklist' && (<>
-            <section style={{ background: 'var(--primary-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+          <section style={{ background: 'var(--primary-50)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
                   <Icon name="doc" size={16} style={{ color: 'var(--primary-600)' }}/>
@@ -474,27 +454,30 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
                   value={notes} onChange={e => setNotes(e.target.value)}/>
               </div>
             </section>
-          </>)}
 
-          {activeTab === 'photos' && (
-            <ShipPhotoTab
-              orderId={order.order_id}
-              hasInspRow={!!window.PMDB?.getShipInspectionDB?.(order.order_id)}
-              onCountChange={setPhotoCount}
-            />
-          )}
+            <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+                  <Icon name="plus" size={16} style={{ color: 'var(--primary-600)' }}/>
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>
+                  사진 첨부{photoCount > 0 ? ` (${photoCount}장)` : ''}
+                </span>
+              </div>
+              <ShipPhotoTab
+                orderId={order.order_id}
+                hasInspRow={!!window.PMDB?.getShipInspectionDB?.(order.order_id)}
+                onCountChange={setPhotoCount}
+              />
+            </section>
         </div>
 
         <div className="drawer__foot">
-          <button className="btn btn--ghost" onClick={handleClose}>
-            {activeTab === 'checklist' ? '취소' : '닫기'}
+          <button className="btn btn--ghost" onClick={handleClose}>취소</button>
+          <button className="btn btn--primary" onClick={handleSave} disabled={!canSave}
+            title={!canSave ? '검사일자와 검사자를 입력해 주세요' : ''}>
+            <Icon name="check" size={13}/> 검사 완료 저장
           </button>
-          {activeTab === 'checklist' && (
-            <button className="btn btn--primary" onClick={handleSave} disabled={!canSave}
-              title={!canSave ? '검사일자와 검사자를 입력해 주세요' : ''}>
-              <Icon name="check" size={13}/> 검사 완료 저장
-            </button>
-          )}
         </div>
       </aside>
     </>,
@@ -903,6 +886,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
   const displayChecklist = d._checklist || SHIP_CHECKLIST_DEFAULT;
   const shipAllPassed = displayChecklist.every(item => isItemComplete(item, d.checks?.[item.key]));
   const [lightbox, setLightbox] = React.useState(null);
+  const [includePhotos, setIncludePhotos] = React.useState(true);
   const lightboxRef = React.useRef(null);
 
   const photos = React.useMemo(() => {
@@ -921,7 +905,18 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
       <div className="report" role="dialog" aria-modal="true" aria-label="출하 검사 성적서 미리보기">
         <div className="report__bar">
           <span className="report__bar__label"><Icon name="doc" size={14}/> 출하 검사 성적서 미리보기</span>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {photos.length > 0 && (
+              <label className="switch" style={{ marginRight: 4 }}>
+                <input type="checkbox" className="switch__input"
+                  checked={includePhotos} onChange={e => setIncludePhotos(e.target.checked)}
+                  role="switch" aria-checked={includePhotos}/>
+                <span className="switch__track" aria-hidden="true"/>
+                <span className="switch__label" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+                  첨부사진 출력 ({photos.length}장)
+                </span>
+              </label>
+            )}
             <button className="btn btn--secondary btn--sm" onClick={() => window.print()}>
               <Icon name="printer" size={13}/> 인쇄 / PDF
             </button>
@@ -1012,7 +1007,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
               </table>
             )}
 
-            {photos.length > 0 && (
+            {includePhotos && photos.length > 0 && (
               <div style={{ marginTop: 14 }}>
                 <div style={{
                   padding: '8px 12px', fontWeight: 700, fontSize: 13,

@@ -46,7 +46,7 @@ function OrderLookupScreen() {
       if (fStatus !== 'all' && o.status !== fStatus) return false;
       if (fModel !== 'all') {
         // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
-        const mName = window.findModelInfo(o.model_name)?.name || o.model_name;
+        const mName = window.findModelInfo(o.model_name)?.model || o.model_name;
         if (mName !== fModel) return false;
       }
       if (fCustomer !== 'all' && o.customer_name !== fCustomer) return false;
@@ -149,7 +149,7 @@ function OrderLookupScreen() {
                   <label className="field__label" htmlFor="ol-model">모델</label>
                   <select id="ol-model" className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
                     <option value="all">모델 전체</option>
-                    {models.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                    {models.map(m => <option key={m.model} value={m.model}>{m.description || m.model}</option>)}
                   </select>
                 </div>
                 <div className="field">
@@ -295,8 +295,8 @@ function OrderLookupScreen() {
                     <span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.3px' }}>
                       {mi?.model || o.model_name}
                     </span>
-                    {mi?.name && mi.name !== (mi.model || o.model_name) && (
-                      <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{mi.name}</div>
+                    {mi?.description && mi.description !== mi.model && (
+                      <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{mi.description}</div>
                     )}
                   </td>
                   <td className="cell-mono">{o.station_id}</td>

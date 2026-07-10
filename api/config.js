@@ -5,3 +5,4 @@ module.exports = function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.end(`window.SUPABASE_URL='${url}';\nwindow.SUPABASE_ANON_KEY='${key}';\n`);
 };
+1

@@ -2,10 +2,10 @@
 
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
-  admin:      ['sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
-  sales:      ['sales', 'waiting', 'lookup','as-receipt','as-processing'],
-  production: ['waiting', 'mapping', 'AwaitPickup', 'lookup'],
-  quality:    ['AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
+  admin:      ['dashboard', 'sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
+  sales:      ['dashboard', 'sales', 'waiting', 'lookup','as-receipt','as-processing'],
+  production: ['dashboard', 'waiting', 'mapping', 'AwaitPickup', 'lookup'],
+  quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
 window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질', as: 'A/S' };
 
@@ -17,8 +17,6 @@ function LoginScreen() {
   const [pw, setPw] = useStateAU('');
   const [err, setErr] = useStateAU('');
   const [busy, setBusy] = useStateAU(false);
-  const [showDemo, setShowDemo] = useStateAU(false);
-  const [showReset, setShowReset] = useStateAU(false);
 
   const submit = async (e) => {
     if (e) e.preventDefault();
@@ -36,316 +34,66 @@ function LoginScreen() {
     }
   };
 
-  const fillDemo = (id) => { setUserId(id); setPw('1234'); setErr(''); };
-
   return (
     <div className="login">
-      <div className="login__card">
-        <div className="login__brand">
-          <img className="login__logo" src="logo_header_black.png" alt="Egtronics" />
-          <div>
-            <div className="login__brand__name">COMS</div>
-            <div className="login__brand__sub">EV 충전기 영업 · 생산 통합 관리</div>
-          </div>
+      {/* ── 다크 왼쪽 패널 ── */}
+      <div className="login__side">
+        <div className="login__side__brand">
+          <img className="login__logo--inv" src="logo_header_black.png" alt="Egtronics"/>
+          <span className="login__side__brand-name">COMS</span>
         </div>
-
-        <h1 className="login__title">로그인</h1>
-
-        <form onSubmit={submit} className="login__form">
-          <div className="field">
-            <label className="field__label" htmlFor="login-userid"><Icon name="user" size={11}/>아이디</label>
-            <input id="login-userid" className={`input ${err ? 'input--error' : ''}`} autoFocus
-                   placeholder="예: admin"
-                   value={userId}
-                   onChange={(e) => { setUserId(e.target.value); setErr(''); }}/>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="login-pw"><Icon name="lock" size={11}/>비밀번호</label>
-            <input id="login-pw" type="password"
-                   className={`input ${err ? 'input--error' : ''}`}
-                   placeholder="••••"
-                   value={pw}
-                   onChange={(e) => { setPw(e.target.value); setErr(''); }}/>
-          </div>
-
-          {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
-
-          <button type="submit" className="btn btn--primary btn--lg login__submit" disabled={busy}>
-            {busy ? '확인 중…' : <><Icon name="arrow-right" size={15}/> 로그인</>}
-          </button>
-        </form>
-
-        <button type="button" className="login__reset" onClick={() => setShowReset(true)}>
-          <Icon name="lock" size={12}/> 비밀번호 변경 · 이메일 인증
-        </button>
-
-        <div className="login__demo">
-          <button type="button" className="login__demo__toggle" onClick={() => setShowDemo(v => !v)}>
-            <Icon name={showDemo ? 'chevron-down' : 'chevron-right'} size={12}/> 데모 계정 {showDemo ? '숨기기' : '보기'}
-          </button>
-          {showDemo && (
-            <div className="login__demo__list">
-              {window.SEED_USERS.map(u => (
-                <button type="button" key={u.user_id} className="login__demo__item" onClick={() => fillDemo(u.user_id)}>
-                  <span className="login__demo__role" data-role={u.role}>{window.ROLE_LABEL[u.role]}</span>
-                  <span className="login__demo__id">{u.user_id}</span>
-                  <span className="login__demo__pw">비밀번호 1234</span>
-                  <Icon name="chevron-right" size={12} style={{ color: 'var(--ink-4)' }}/>
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="login__side__tagline">
+          EV 충전기<br/>영업·생산<br/>통합 관리
         </div>
-
+        <ul className="login__side__feats">
+          <li className="login__side__feat">
+            <span className="login__side__feat-icon"><Icon name="cart" size={14}/></span>
+            영업 발주부터 출하까지 한 화면으로
+          </li>
+          <li className="login__side__feat">
+            <span className="login__side__feat-icon"><Icon name="factory" size={14}/></span>
+            생산·품질 전주기 이력 추적
+          </li>
+          <li className="login__side__feat">
+            <span className="login__side__feat-icon"><Icon name="shield" size={14}/></span>
+            AS 접수·처리 이력 통합 관리
+          </li>
+        </ul>
+        <div className="login__side__foot">© 2025 Egtronics Co., Ltd.</div>
+        <svg className="login__side__watermark" viewBox="0 0 220 320" fill="currentColor" aria-hidden="true">
+          <polygon points="128,18 52,162 118,162 88,302 186,148 120,148"/>
+        </svg>
       </div>
-      {showReset && <PasswordResetModal onClose={() => setShowReset(false)}/>}
-    </div>
-  );
-}
 
-/* ────────── 비밀번호 변경 (Supabase Auth OTP — api/send-code.js 는 유지) ────────── */
-
-const MAIL_API = `${window.location.origin}/api/send-code`; // 유지 (미사용)
-
-function PasswordResetModal({ onClose }) {
-  window.useLockScroll();
-  const dialogRef = window.useModalKeyboard(onClose);
-  const [step, setStep] = useStateAU(1); // 1: 본인확인  2: 인증번호  3: 새 비밀번호  4: 완료
-  const [userId, setUserId] = useStateAU('');
-  const [email, setEmail] = useStateAU('');
-  const [issuedAt, setIssuedAt] = useStateAU(null);      // OTP 발급 시각 (타이머 표시용)
-  const [code, setCode] = useStateAU('');
-  const [newPw, setNewPw] = useStateAU('');
-  const [confirmPw, setConfirmPw] = useStateAU('');
-  const [err, setErr] = useStateAU('');
-  const [busy, setBusy] = useStateAU(false);
-  const [left, setLeft] = useStateAU(0);
-
-  const VALID_MS = 3 * 60 * 1000; // 유효시간 3분
-
-  // issuedAt 기준으로 남은 시간 계산 — 재전송 시 자동 재시작
-  React.useEffect(() => {
-    if (!issuedAt) return;
-    const id = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((issuedAt + VALID_MS - Date.now()) / 1000));
-      setLeft(remaining);
-      if (remaining === 0) clearInterval(id);
-    }, 500);
-    return () => clearInterval(id);
-  }, [issuedAt]);
-
-  // ── 인증번호 이메일 전송 (신규 · 재전송 공통) ──────────────────────────
-  const sendCode = async () => {
-    setErr('');
-    if (!userId.trim()) { setErr('아이디를 입력하세요'); return; }
-    if (!email.trim()) { setErr('이메일을 입력하세요'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setErr('올바른 이메일 형식이 아닙니다'); return; }
-    setBusy(true);
-
-    const u = window.PMDB.getUser(userId.trim());
-    if (!u) { setBusy(false); setErr('존재하지 않는 아이디입니다'); return; }
-    if (!u.email) {
-      setBusy(false);
-      setErr('이 계정에는 등록된 이메일이 없습니다. 관리자에게 이메일 등록을 요청하세요.');
-      return;
-    }
-    if (!window.PMDB.verifyUserEmail(userId.trim(), email.trim())) {
-      setBusy(false); setErr('등록된 이메일과 일치하지 않습니다'); return;
-    }
-
-    setCode('');
-
-    // Supabase Auth OTP 발송
-    try {
-      const sb = window._supabaseClient;
-      if (!sb) throw new Error('Supabase 클라이언트가 초기화되지 않았습니다');
-      const { error } = await sb.auth.signInWithOtp({
-        email: email.trim(),
-        options: { shouldCreateUser: true },
-      });
-      if (error) {
-        console.error('[OTP] Supabase signInWithOtp error:', error);
-        const msg = error.message || error.msg || error.code || JSON.stringify(error);
-        throw new Error(msg);
-      }
-      setIssuedAt(Date.now());
-    } catch (e) {
-      console.error('[OTP] 이메일 전송 실패', e);
-      setBusy(false);
-      setErr(`이메일 전송 실패: ${e.message}`);
-      return;
-    }
-
-    setLeft(VALID_MS / 1000);
-    setBusy(false);
-    setStep(2);
-  };
-
-  // ── 인증번호 Supabase Auth 검증 ─────────────────────────────────────────
-  const VERIFY_API = `${window.location.origin}/api/verify-code`; // 유지 (미사용)
-  const expired = issuedAt !== null && Date.now() - issuedAt >= VALID_MS;
-
-  const verifyCode = async () => {
-    setErr('');
-    setBusy(true);
-    try {
-      const sb = window._supabaseClient;
-      const { error } = await sb.auth.verifyOtp({
-        email: email.trim(),
-        token: code.trim(),
-        type: 'email',
-      });
-      if (error) {
-        setBusy(false);
-        const msg = error.message || '';
-        if (msg.toLowerCase().includes('expired') || msg.includes('Token has expired')) {
-          setErr('인증 시간이 만료되었습니다. 재발급하세요');
-        } else {
-          setErr('인증번호가 일치하지 않습니다');
-        }
-        return;
-      }
-      // 인증 성공 후 Supabase Auth 세션 정리 (앱 자체 세션과 무관)
-      sb.auth.signOut().catch(() => {});
-    } catch {
-      setBusy(false);
-      setErr('인증 확인 중 오류가 발생했습니다. 다시 시도하세요');
-      return;
-    }
-    setBusy(false);
-    setStep(3);
-  };
-
-  const savePw = async () => {
-    setErr('');
-    if (newPw.length < 4) { setErr('비밀번호는 4자 이상이어야 합니다'); return; }
-    if (newPw !== confirmPw) { setErr('새 비밀번호가 일치하지 않습니다'); return; }
-    setBusy(true);
-    await window.PMDB.changePassword(userId.trim(), newPw);
-    setBusy(false);
-    setStep(4);
-  };
-
-  const fmtTime = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
-
-  const STEPS = ['본인 확인', '인증번호', '새 비밀번호'];
-
-  return (
-    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-pw-reset-title" style={{ width: 420, maxWidth: '94vw' }}>
-        <div className="modal__head">
-          <h2 id="modal-pw-reset-title" className="modal__title">{step === 4 ? '변경 완료' : '비밀번호 변경'}</h2>
-          <p className="modal__sub">이메일 본인확인 후 새 비밀번호를 설정합니다</p>
-        </div>
-
-        {step < 4 && (
-          <div className="stepper">
-            {STEPS.map((label, i) => {
-              const n = i + 1;
-              return (
-                <div key={label} className={`stepper__item ${step === n ? 'stepper__item--active' : ''} ${step > n ? 'stepper__item--done' : ''}`}>
-                  <span className="stepper__dot">{step > n ? <Icon name="check" size={11}/> : n}</span>
-                  <span className="stepper__lbl">{label}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* ── Step 1: 아이디 + 이메일 본인확인 ── */}
-          {step === 1 && (
-            <>
-              <div className="field">
-                <label className="field__label" htmlFor="reset-userid"><Icon name="user" size={11}/> 아이디</label>
-                <input id="reset-userid" className="input" autoFocus placeholder="예: admin" value={userId}
-                       onChange={(e) => { setUserId(e.target.value); setErr(''); }}/>
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="reset-email"><Icon name="bell" size={11}/> 이메일</label>
-                <input id="reset-email" className="input" type="email" placeholder="등록된 이메일 주소"
-                       value={email} onChange={(e) => { setEmail(e.target.value); setErr(''); }}/>
-                <div className="field__hint">계정에 등록된 이메일과 일치하면 인증번호가 발급됩니다 (유효시간 3분)</div>
-              </div>
-
-            </>
-          )}
-
-          {/* ── Step 2: 인증번호 확인 ── */}
-          {step === 2 && (
-            <>
-              <div className="reset-note">
-                <Icon name="check" size={13}/>
-                <span><strong style={{ fontFamily: 'var(--font-mono)' }}>{email}</strong> 로 인증번호를 발송했습니다.</span>
-              </div>
-
-              <div className="field">
-                <label className="field__label" htmlFor="au-otp-code">인증번호 6자리 입력</label>
-                <input id="au-otp-code" className="input otp-input" autoFocus inputMode="numeric" maxLength={6}
-                       placeholder="000000"
-                       value={code} onChange={(e) => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setErr(''); }}/>
-
-                <div className="field__hint" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={expired ? { color: 'var(--danger-700)' } : undefined}>
-                    {expired ? '인증번호가 만료되었습니다 — 재발급하세요' : `남은 유효시간 ${fmtTime(left)}`}
-                  </span>
-                  <button type="button" className="reset-resend" onClick={sendCode} disabled={busy}>
-                    인증번호 재발급
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* ── Step 3: 새 비밀번호 ── */}
-          {step === 3 && (
-            <>
-              <div className="field">
-                <label className="field__label" htmlFor="au-new-pw"><Icon name="lock" size={11}/> 새 비밀번호</label>
-                <input id="au-new-pw" type="password" className="input" autoFocus placeholder="4자 이상"
-                       value={newPw} onChange={(e) => { setNewPw(e.target.value); setErr(''); }}/>
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="au-confirm-pw"><Icon name="lock" size={11}/> 새 비밀번호 확인</label>
-                <input id="au-confirm-pw" type="password" className="input" placeholder="다시 입력"
-                       value={confirmPw} onChange={(e) => { setConfirmPw(e.target.value); setErr(''); }}/>
-              </div>
-            </>
-          )}
-
-          {/* ── Step 4: 완료 ── */}
-          {step === 4 && (
-            <div className="reset-done">
-              <div className="reset-done__icon"><Icon name="check" size={26}/></div>
-              <div className="reset-done__title">비밀번호가 변경되었습니다</div>
-              <div className="reset-done__sub"><strong>{userId}</strong> 계정의 새 비밀번호로 로그인하세요.</div>
+      {/* ── 흰색 폼 패널 ── */}
+      <div className="login__form-panel">
+        <div className="login__card">
+          <h1 className="login__title">로그인</h1>
+          <form onSubmit={submit} className="login__form">
+            <div className="field">
+              <label className="field__label" htmlFor="login-userid">
+                <Icon name="user" size={11}/>아이디
+              </label>
+              <input id="login-userid" className={`input ${err ? 'input--error' : ''}`} autoFocus
+                     placeholder="예: admin"
+                     value={userId}
+                     onChange={(e) => { setUserId(e.target.value); setErr(''); }}/>
             </div>
-          )}
-
-          {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
-        </div>
-
-        <div className="modal__foot">
-          {step === 1 && <>
-            <button className="btn btn--secondary" onClick={onClose}>취소</button>
-            <button className="btn btn--primary" disabled={busy} onClick={sendCode}>
-              {busy ? '확인 중…' : <><Icon name="check" size={13}/> 이메일 확인 · 인증번호 발급</>}
+            <div className="field">
+              <label className="field__label" htmlFor="login-pw">
+                <Icon name="lock" size={11}/>비밀번호
+              </label>
+              <input id="login-pw" type="password"
+                     className={`input ${err ? 'input--error' : ''}`}
+                     placeholder="••••"
+                     value={pw}
+                     onChange={(e) => { setPw(e.target.value); setErr(''); }}/>
+            </div>
+            {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
+            <button type="submit" className="btn btn--primary btn--lg login__submit" disabled={busy}>
+              {busy ? '확인 중…' : <><Icon name="arrow-right" size={15}/> 로그인</>}
             </button>
-          </>}
-          {step === 2 && <>
-            <button className="btn btn--secondary" onClick={() => { setStep(1); setIssuedAt(null); setCode(''); setErr(''); }}>이전</button>
-            <button className="btn btn--primary" disabled={busy || code.length < 6 || expired} onClick={verifyCode}>
-              {busy ? '확인 중…' : '인증 확인'}
-            </button>
-          </>}
-          {step === 3 && <>
-            <button className="btn btn--secondary" onClick={() => { setStep(2); setErr(''); }}>이전</button>
-            <button className="btn btn--primary" disabled={busy} onClick={savePw}>
-              {busy ? '저장 중…' : <><Icon name="check" size={13}/> 비밀번호 변경</>}
-            </button>
-          </>}
-          {step === 4 && <button className="btn btn--primary" onClick={onClose}>로그인으로 돌아가기</button>}
+          </form>
         </div>
       </div>
     </div>

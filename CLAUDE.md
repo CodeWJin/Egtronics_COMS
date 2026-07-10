@@ -24,6 +24,46 @@ cp supabase-config.example.js supabase-config.js
 
 빌드/번들 스텝 없음 — JSX를 Babel Standalone이 브라우저에서 직접 트랜스파일.
 
+## 작업 절차 (모든 코드 변경 시 필수)
+
+이 코드베이스는 빌드 스텝이 없어서 실수가 컴파일 에러로 잡히지 않고 런타임에 조용히 깨진다. 아래 절차를 생략하지 말 것.
+
+1. **읽기 먼저**: 수정할 파일 전체를 Read로 읽는다. 검색 스니펫이나 기억만으로 편집 금지. 전역 함수/상태를 바꿀 때는 `grep`으로 모든 사용처를 먼저 확인.
+2. **기존 패턴 모방**: 새 코드를 쓰기 전에 같은 종류의 기존 구현 1개를 찾아 컨벤션(훅 별칭, actions 경유, CSS 클래스)을 그대로 따른다. 새 화면이면 `order-lookup.jsx`, Drawer면 `ship-inspection.jsx`가 참고 기준.
+3. **최소 변경**: 요청 범위 밖 리팩토링·리네이밍·재정렬 금지.
+4. **검증 (생략 금지)**:
+   - `npm test` 실행
+   - 별칭 없는 훅 사용 검사: `grep -n "const { useState }" *.jsx` → 결과가 나오면 실패
+   - 뷰의 Supabase 직접 호출 검사: `grep -n "supabase\.from" *.jsx` → `db.js` 외에서 나오면 실패
+   - 새 `.jsx` 파일 추가 시: `index.html`의 script 삽입 위치가 로드 순서(=의존성 순서)에 맞는지 확인
+5. **정직한 보고**: 실행해보지 못한 부분(브라우저 확인 필요 등)은 "검증 못 함"으로 명시. 근거 없이 "완료"라고 하지 말 것.
+
+### 새 화면(view) 추가 체크리스트
+
+- [ ] 파일별 고유 접미사로 React 훅 별칭 (아래 규칙 참조)
+- [ ] `index.html`에 `<script type="text/babel">` 태그 — 의존성 순서에 맞는 위치
+- [ ] `auth.jsx`의 `ROLE_TABS`에 뷰 등록 (누락 시 해당 역할은 `['lookup']`으로 폴백)
+- [ ] `app.jsx`의 view 라우팅에 컴포넌트 연결
+- [ ] `useStore()` 훅으로 리렌더 구독
+- [ ] `styles.css` 기존 클래스(`btn`, `card`, `table`, `toolbar`) 사용 — 새 클래스·인라인 스타일 남발 금지
+- [ ] 터치 타깃 44×44px 이상, `prefers-reduced-motion` 대응
+
+### 금지 패턴 → 올바른 패턴
+
+| 금지 | 대신 |
+|---|---|
+| `const { useState } = React` | `const { useState: useStateXXX } = React` (파일 고유 접미사) |
+| 뷰에서 `supabase.from(...)` 직접 호출 | `window.actions.*` 또는 `window.PMDB.*` |
+| `getModels().find(m => m.name === order.model_name)` | `window.findModelInfo(order.model_name)` (코드·표시명 혼재) |
+| `order.status = 'COMPLETED'` 직접 대입 | actions의 전환 액션 사용 (`tb_order_history` 이력 기록 포함) |
+| CSV 내보내기 시 BOM 누락 | UTF-8 BOM 삽입 (`quality-AwaitPickup.jsx`의 `downloadCSV` 참고) |
+| Tailwind/CSS 모듈/styled-components 도입 | `styles.css` 클래스 + `:root` CSS 변수 |
+| `supabase-config.js` 수정·커밋 | 절대 금지 (`.gitignore` 대상) |
+
+### 멈추고 사용자에게 물어볼 것
+
+다음이 필요해지면 구현하지 말고 먼저 확인: DB 스키마 변경(컬럼 추가/삭제/타입 변경), 오더 상태 전환 규칙 변경, `ROLE_TABS` 권한 변경, `seed.sql` 재실행이 필요한 변경, 기존 데이터 마이그레이션. 요청을 두 가지 이상으로 해석할 수 있을 때도 마찬가지.
+
 ## 프로덕트 컨텍스트
 
 EV 충전기 영업·생산 통합 관리 시스템(COMS). 사용자는 이지트로닉스 내부 직원 5개 역할(영업·생산·품질·A/S·관리자). **사무실(데스크탑)과 현장(태블릿/모바일)을 혼용**하므로 터치 타깃(44×44px 이상)·반응형 레이아웃이 필수다.
@@ -80,14 +120,15 @@ const { useState: useStateAREC, useEffect: useEffectAREC, useMemo: useMemoAREC }
 
 **`window.MASTER`**: 마스터 데이터 전역 캐시. 현재 `MASTER.CABLE_LENGTHS: string[]`만 사용. 마스터 데이터 변경 시 `window.dispatchEvent(new CustomEvent('masterLoaded'))`를 발행하여 구독 컴포넌트에 갱신을 알린다.
 
-**Supabase 테이블 목록:**
+**Supabase 테이블 목록:** (실제 DB 기준 — 2026-07-09 확인)
 
 | 테이블 | 설명 |
 |---|---|
-| `tb_sales_order` | 영업 오더 |
-| `tb_production_info` | 생산 정보 |
+| `tb_users` | 사용자 계정 (role 허용값: `admin`, `sales`, `production`, `quality`) |
+| `tb_sales_order` | 영업 오더 (`cable_length`: smallint) |
+| `tb_usagetype_public` | 공용 충전기 전용 필드 (`station_id`, `charger_no`, `router_no`, `usim_no`) — `tb_sales_order`와 `order_id`로 1:1 연결 |
+| `tb_production_info` | 생산 정보 (`prod_date`, `lot_no`, `serial_no`, `inspection_date`, `sw_version`, `fw_version`) |
 | `tb_customer_manager` | 고객사 담당자 |
-| `users` | 사용자 계정 |
 | `tb_order_history` | 오더 변경 이력 |
 | `tb_as_reception` | AS 접수 |
 | `tb_as_log` | AS 처리 상태 변경 이력 |
@@ -96,27 +137,26 @@ const { useState: useStateAREC, useEffect: useEffectAREC, useMemo: useMemoAREC }
 | `tb_ship_inspection` | 출하 검사 성적서 (order_id UNIQUE, checks: JSON 문자열, photos: JSON 배열) |
 | `tb_master_customer` | 고객사 마스터 |
 | `tb_master_cpo` | CPO 운영사 마스터 |
-| `tb_master_model` | 충전기 모델 마스터 (`model` 코드, `name` 표시명, `description`, `power` 필드) |
-| `tb_master_sw_version` | SW 버전 마스터 |
-| `tb_master_fw_version` | FW 버전 마스터 |
-| `tb_master_cable_length` | 케이블 길이 마스터 |
+| `tb_master_model` | 충전기 모델 마스터 (`model_code`, `description`, `power` 필드. `name` 컬럼 없음) |
+| `tb_program_version` | SW/FW 버전 마스터 (`type`, `tag`, `released`, `stable`) — SW·FW 통합 테이블 |
+| `tb_chargepoint_infor` | 충전기 설치 정보 (`serial_no`, `model_name`, `order_id`, `install_address`) |
 
-**`tb_sales_order` 주요 필드:** `customer_name`, `customer_manager`, `model_name`, `delivery_date`, `station_id`, `router_no`, `usim_no`, `install_address`, `cable_length`, `field_manager_name`, `field_manager_phone`, `cpo_name`, `usage_type`(공용/비공용), `status`
+**`tb_sales_order` 주요 필드:** `customer_name`, `customer_manager`, `model_name`, `delivery_date`, `install_address`, `cable_length`(smallint), `field_manager_name`, `field_manager_phone`, `cpo_name`, `usage_type`(공용/비공용), `status`
 
-### 모델 코드 vs 표시명 구분 (중요)
+**`tb_usagetype_public` 주요 필드:** `order_id`, `station_id`, `charger_no`, `router_no`, `usim_no` — `usage_type='공용'` 오더에 한해 생성
 
-`tb_master_model`에는 두 개의 이름 필드가 있다:
-- `model` — 코드 (예: `EGSW101101`). 시리얼 채번·체크리스트 JSON 파일명에 사용.
-- `name` — 표시명 (예: `SW 1CH 10kW`). `tb_sales_order.model_name`에 저장되는 값.
+### 모델 코드 구분 (중요)
 
-**주의: 기존 데이터에는 `order.model_name`에 표시명(`name`)과 코드(`model`)가 혼재**한다
-(영업 입력 ComboField가 코드를 저장하는 시기가 있었음). 모델 마스터 조회는 반드시
-양쪽을 모두 매칭하는 전역 헬퍼를 사용할 것 (`shell.jsx` 정의):
+`tb_master_model`의 실제 컬럼: `model_code`, `description`, `power`. **`name` 컬럼은 DB에 없다.**
+
+`db.js`가 `model_code` 컬럼을 `model` 키로 매핑하여 `PMDB.getModels()`가 반환하는 객체는 `{ model, description, power }` 형태다.
+
+**주의: 기존 데이터에는 `order.model_name`에 표시명과 코드가 혼재**할 수 있다. 모델 마스터 조회는 반드시 전역 헬퍼를 사용할 것 (`shell.jsx` 정의):
 ```js
-const modelInfo = window.findModelInfo(order.model_name); // name·model 모두 매칭
+const modelInfo = window.findModelInfo(order.model_name); // 양방향 매칭
 // UI 표시: modelInfo?.model || order.model_name
 ```
-`getModels().find(m => m.name === ...)` 직접 비교는 코드가 저장된 오더에서 실패하므로 금지.
+`getModels().find(m => m.name === ...)` 직접 비교 금지 (`name` 필드는 DB에 없음).
 
 ### 전역 상태 (`shell.jsx` → `window.__pm_store__`)
 
@@ -160,7 +200,7 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 
 ### 시리얼 번호 생성 (`production-mapping.jsx`)
 
-`SERIAL_MODEL_CODES` 맵이 모델 코드(`tb_master_model.model`)를 `[그룹코드, 타입코드]`로 매핑. `makeSerialDateCode(dateISO)`가 연도·월을 알파벳 코드로 변환 (2023년 = `A`, 이후 +1 알파벳씩). 생산 화면에서 시리얼 자동 채번에 사용.
+`SERIAL_MODEL_CODES` 맵이 모델 코드(`tb_master_model.model_code`, db.js에서 `model` 키로 노출)를 `[그룹코드, 타입코드]`로 매핑. `makeSerialDateCode(dateISO)`가 연도·월을 알파벳 코드로 변환 (2023년 = `A`, 이후 +1 알파벳씩). 생산 화면에서 시리얼 자동 채번에 사용.
 
 ### 검사 성적서 모듈 (`ship-inspection.jsx`)
 

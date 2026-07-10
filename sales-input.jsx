@@ -1,4 +1,4 @@
-// 영업 부서 입력 화면 (Sales Input Dashboard)
+﻿// 영업 부서 입력 화면 (Sales Input Dashboard)
 const { useState: useStateSI, useRef: useRefSI, useEffect: useEffectSI, useMemo: useMemoSI } = React;
 
 function ComboField({ value, onChange, options, placeholder, error, displayKey = 'name', metaKey = 'description', ariaLabel, id }) {
@@ -105,220 +105,161 @@ function AddressField({ value, onChange, error, id }) {
   );
 }
 
-/* ────────── CSV 일괄 등록 헬퍼 ────────── */
-const CSV_COLS = [
-  { key: 'customer_name',       label: '고객사',          required: true  },
-  { key: 'customer_manager',    label: '고객사담당자',     required: false },
-  { key: 'usage_type',          label: '충전기용도',       required: false },
-  { key: 'cpo_name',            label: 'CPO운영사',        required: false },
-  { key: 'model_name',          label: '모델명',           required: true  },
-  { key: 'cable_length',        label: '케이블길이',       required: true  },
-  { key: 'delivery_date',       label: '납품일자',         required: true  },
-  { key: 'station_id',          label: '충전소ID',         required: false },
-  { key: 'charger_no',          label: '충전기번호',       required: false },
-  { key: 'router_no',           label: '라우터번호',       required: false },
-  { key: 'usim_no',             label: 'USIM번호',         required: false },
-  { key: 'install_address',     label: '설치주소',         required: false },
-  { key: 'field_manager_name',  label: '현장담당자',       required: false },
-  { key: 'field_manager_phone', label: '현장담당자연락처', required: false },
-];
-
-function parseCsv(text) {
-  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(line => {
-    const row = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      if (line[i] === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-      else if (line[i] === ',' && !inQ) { row.push(cur); cur = ''; }
-      else cur += line[i];
-    }
-    row.push(cur);
-    return row;
-  }).filter(r => r.some(c => c.trim()));
-}
-
-function downloadCsvTemplate() {
-  const header = CSV_COLS.map(c => c.label).join(',');
-  const example = [
-    '카스', '홍길동', '공용', '한국전력공사', 'EGFA105001', '5m', '2026-07-01',
-    'CT1001', '01', 'RTR-2024-00001', '89820012345678901234',
-    '서울특별시 강남구 테헤란로 1', '김현장', '010-1234-5678',
-  ].join(',');
-  const csv = '﻿' + header + '\n' + example;
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'order_template.csv'; a.click();
-  URL.revokeObjectURL(url);
-}
-
 function SalesInputScreen() {
   const s = window.useStore();
   const editing = s.editingOrderId ? s.orders.find(o => o.order_id === s.editingOrderId) : null;
   const isEdit = !!editing;
 
-  const empty = {
-    customer_name: '',
-    customer_manager: '',
-    usage_type: '공용',
-    cpo_name: '',
-    model_name: '',
+  const emptyCommon = {
+    customer_name: '', customer_manager: '',
     delivery_date: '',
-    cable_length: '',
-    station_id: '',
-    charger_no: '',
-    router_no: '',
-    usim_no: '',
-    install_address: '',
-    install_address_detail: '',
-    field_manager_name: '',
-    field_manager_phone: '',
+    install_address: '', install_address_detail: '',
+    field_manager_name: '', field_manager_phone: '',
   };
-  const [form, setForm] = useStateSI(empty);
-  const [touched, setTouched] = useStateSI({});
-  const [showAll, setShowAll] = useStateSI(false);
+  const makeRow = () => ({
+    _power: '',
+    model_name: '', usage_type: '공용', cpo_name: '',
+    station_id: '', charger_no: '', router_no: '', usim_no: '',
+  });
+
+  const [common, setCommon] = useStateSI(emptyCommon);
+  const [rows, setRows] = useStateSI([makeRow()]);
+  const [submitted, setSubmitted] = useStateSI(false);
   const [masterCustomers, setMasterCustomers] = useStateSI([]);
   const [masterCpos, setMasterCpos] = useStateSI([]);
   const [masterModels, setMasterModels] = useStateSI([]);
-  const [masterCableLengths, setMasterCableLengths] = useStateSI([]);
   const [managers, setManagers] = useStateSI([]);
-  const [modal, setModal] = useStateSI(null); // 'mgr'|'history'|'add-customer'|'customer-mgr'|'add-model'|'model-mgr'|'cable-mgr'|'add-cpo'|'cpo-mgr'|'csv'
-  const [useCpo, setUseCpo] = useStateSI(false);
-  const DRAFT_KEY = 'pm_si_draft';
-  const [draftBanner, setDraftBanner] = useStateSI(null); // null | 'ask' | 'dismissed'
+  const [modal, setModal] = useStateSI(null);
+  const [modelModalRow, setModelModalRow] = useStateSI(null);
+
+  const updateCommon = (k, v) => setCommon(c => ({ ...c, [k]: v }));
+  const updateRow = (i, k, v) => setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
+  const addRow = () => setRows(r => [...r, makeRow()]);
+  const removeRow = (i) => setRows(r => r.filter((_, idx) => idx !== i));
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
     setMasterCpos(window.PMDB.getCpos());
-    const syncMaster = () => {
-      setMasterModels(window.PMDB.getModels());
-      setMasterCpos(window.PMDB.getCpos());
-      setMasterCableLengths([...(window.MASTER.CABLE_LENGTHS || [])]);
-    };
-    syncMaster();
-    window.addEventListener('masterLoaded', syncMaster);
-    return () => window.removeEventListener('masterLoaded', syncMaster);
+    setMasterModels(window.PMDB.getModels());
   }, []);
 
-  // 초안 복원 여부 확인 — 신규 입력 모드 첫 마운트 시
+  const refreshManagersRef = useRefSI(null);
+  refreshManagersRef.current = () => {
+    if (!common.customer_name || !window.PMDB.getManagers) { setManagers([]); return []; }
+    const raw = window.PMDB.getManagers(common.customer_name);
+    const list = raw.map(m => ({ ...m, display: m.phone ? `${m.name} (${m.phone})` : m.name }));
+    setManagers(list);
+    return list;
+  };
   useEffectSI(() => {
-    if (isEdit) return;
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      if (Object.values(draft).some(v => v && v !== '')) setDraftBanner('ask');
-    } catch (e) { /* ignore */ }
-  }, []);
+    const list = refreshManagersRef.current();
+    if (!common.customer_manager && list.length) {
+      const primary = list.find(m => m.is_primary) || list[0];
+      updateCommon('customer_manager', primary.display || primary.name);
+    }
+  }, [common.customer_name]);
 
-  // 폼 변경 시 자동 저장 — 신규 입력 모드에서만
-  useEffectSI(() => {
-    if (isEdit) return;
-    const isBlank = Object.keys(form).every(k => (form[k] || '') === (empty[k] || ''));
-    if (isBlank) { localStorage.removeItem(DRAFT_KEY); return; }
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(form)); } catch (e) { /* ignore */ }
-  }, [form, isEdit]);
-
-  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  // 수정 모드 진입/해제 시 폼 동기화
   useEffectSI(() => {
     if (editing) {
-      setForm({
+      setCommon({
         customer_name: editing.customer_name || '',
         customer_manager: editing.customer_manager || '',
-        usage_type: editing.usage_type || '공용',
-        cpo_name: editing.cpo_name || '',
-        model_name: editing.model_name || '',
         delivery_date: editing.delivery_date || '',
-        cable_length: editing.cable_length || '',
-        station_id: editing.station_id || '',
-        charger_no: editing.charger_no || '',
-        router_no: editing.router_no || '',
-        usim_no: editing.usim_no || '',
         install_address: editing.install_address || '',
         install_address_detail: '',
         field_manager_name: editing.field_manager_name || '',
         field_manager_phone: editing.field_manager_phone || '',
       });
-      setUseCpo(!!(editing.cpo_name));
-      setTouched({}); setShowAll(false);
+      setRows([{
+        _power: '',
+        model_name: editing.model_name || '',
+        usage_type: editing.usage_type || '공용',
+        cpo_name: editing.cpo_name || '',
+        station_id: editing.station_id || '',
+        charger_no: editing.charger_no || '',
+        router_no: editing.router_no || '',
+        usim_no: editing.usim_no || '',
+      }]);
     } else {
-      setForm(empty); setUseCpo(false); setTouched({}); setShowAll(false);
+      setCommon(emptyCommon);
+      setRows([makeRow()]);
     }
+    setSubmitted(false);
   }, [s.editingOrderId]);
+
+  const modelCodes = useMemoSI(() => new Set(masterModels.map(m => m.model)), [masterModels]);
+  const modelOptions = useMemoSI(() => masterModels.map(m => m.model), [masterModels]);
+  const cpoOptions = useMemoSI(() => masterCpos.map(c => c.name), [masterCpos]);
+  const powerOptions = useMemoSI(() => {
+    const unique = [...new Set(masterModels.map(m => m.power).filter(Boolean))];
+    return unique.sort((a, b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      return isNaN(na) || isNaN(nb) ? String(a).localeCompare(String(b)) : na - nb;
+    });
+  }, [masterModels]);
+  const modelsByPower = useMemoSI(() => {
+    const map = {};
+    masterModels.forEach(m => { if (!map[m.power]) map[m.power] = []; map[m.power].push(m); });
+    return map;
+  }, [masterModels]);
+
+  const commonErrors = {
+    customer_name: !common.customer_name && '고객사를 입력해 주세요',
+    delivery_date: !common.delivery_date && '납품일자를 선택해 주세요',
+    install_address: !common.install_address && '납품장소를 입력해 주세요',
+  };
+  const hasCommonErr = Object.values(commonErrors).some(Boolean);
+
+  const rowErrors = rows.map(row => {
+    const e = {};
+    if (!row.model_name) e.model_name = '모델 필수';
+    else if (!modelCodes.has(row.model_name)) e.model_name = '미등록 모델';
+    if (row.usim_no && row.usim_no.length < 19) e.usim_no = '19자리 이상';
+    return e;
+  });
+
+  const validRows = rows.filter((row, i) => row.model_name && Object.keys(rowErrors[i]).length === 0);
+  const errorRowCount = rows.filter((row, i) => row.model_name && Object.keys(rowErrors[i]).length > 0).length;
+
+  const isDirty = useMemoSI(() => {
+    if (!isEdit || !editing || !rows[0]) return false;
+    const row = rows[0];
+    return Object.keys(emptyCommon).some(k => k !== 'install_address_detail' && (common[k] || '') !== (editing[k] || ''))
+      || ['model_name', 'usage_type', 'cpo_name', 'station_id', 'charger_no', 'router_no', 'usim_no'].some(k => (row[k] || '') !== (editing[k] || ''));
+  }, [isEdit, editing, common, rows]);
 
   const submittingRef = useRefSI(false);
 
-  // 고객사별 담당자 로드 (DB 관리)
-  const refreshManagers = useRefSI(null);
-  refreshManagers.current = () => {
-    if (form.customer_name && window.PMDB.getManagers) {
-      const raw = window.PMDB.getManagers(form.customer_name);
-      const list = raw.map(m => ({ ...m, display: m.phone ? `${m.name} (${m.phone})` : m.name }));
-      setManagers(list);
-      return list;
-    }
-    setManagers([]);
-    return [];
-  };
-  useEffectSI(() => {
-    const list = refreshManagers.current();
-    // 담당자 미선택 시 대표 담당자 자동 채움
-    if (!form.customer_manager && list.length) {
-      const primary = list.find(m => m.is_primary) || list[0];
-      update('customer_manager', primary.display || primary.name);
-    }
-  }, [form.customer_name]);
-
-  const isDirty = isEdit && useMemoSI(() => {
-    if (!editing) return false;
-    return Object.keys(empty).some(k => (form[k] || '') !== (editing[k] || ''));
-  }, [form, editing]);
-
-  const errors = {
-    customer_name: !form.customer_name && '고객사를 입력해 주세요',
-    customer_manager: form.customer_name && !form.customer_manager && '고객사 담당자를 선택해 주세요',
-    model_name:    !form.model_name && '모델을 선택해 주세요',
-    delivery_date: !form.delivery_date && '납품일자를 선택해 주세요',
-    cable_length:  !form.cable_length && '케이블 길이를 선택해 주세요',
-    station_id:    false,
-    router_no:     false,
-    usim_no:       form.usim_no && form.usim_no.length < 19 && 'ICCID는 19~20자리 숫자여야 합니다',
-    install_address: false,
-  };
-  const hasErr = Object.values(errors).some(Boolean);
-  const REQUIRED_PROGRESS = ['customer_name', 'customer_manager', 'model_name', 'delivery_date', 'cable_length'];
-  const OPTIONAL_PROGRESS = ['station_id', 'router_no', 'usim_no', 'install_address'];
-  const reqFilled = REQUIRED_PROGRESS.filter(k => !!form[k]).length;
-  const optFilled = OPTIONAL_PROGRESS.filter(k => !!form[k]).length;
-  // 필수 필드 70% + 선택 필드 30% 가중 합산
-  const completionPct = Math.round((reqFilled / REQUIRED_PROGRESS.length) * 70 + (optFilled / OPTIONAL_PROGRESS.length) * 30);
-
   const submit = () => {
     if (submittingRef.current) return;
-    setTouched({ customer_name: 1, customer_manager: 1, model_name: 1, delivery_date: 1, cable_length: 1, station_id: 1, router_no: 1, usim_no: 1, install_address: 1 });
-    setShowAll(true);
-    if (hasErr) return;
-    submittingRef.current = true;
-    const { install_address_detail, ...payload } = form;
-    payload.install_address = [form.install_address.trim(), install_address_detail.trim()].filter(Boolean).join(' ');
+    setSubmitted(true);
+    if (hasCommonErr) return;
     if (isEdit) {
-      const ok = window.actions.updateOrder(editing.order_id, payload);
+      const row = rows[0] || {};
+      if (!row.model_name) return;
+      submittingRef.current = true;
+      const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
+      const { _power: _rp, ...cleanRow } = row;
+      const payload = { ...common, ...cleanRow, install_address: addr };
+      delete payload.install_address_detail;
+      window.actions.updateOrder(editing.order_id, payload);
       submittingRef.current = false;
-      if (ok) window.actions.setView('waiting');
+      window.actions.setView('waiting');
       return;
     }
-    window.actions.addOrder(payload);
-    localStorage.removeItem(DRAFT_KEY);
-    setDraftBanner(null);
-    setForm(empty);
-    setTouched({});
-    setShowAll(false);
+    if (validRows.length === 0) return;
+    submittingRef.current = true;
+    const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
+    const { install_address_detail, ...commonPayload } = { ...common, install_address: addr };
+    validRows.forEach(({ _power: _rp, ...cleanRow }) => window.actions.addOrder({ ...commonPayload, ...cleanRow }));
+    setCommon(emptyCommon);
+    setRows([makeRow()]);
+    setSubmitted(false);
     submittingRef.current = false;
   };
 
-  const showErr = (k) => (showAll || touched[k]) && errors[k];
+  const showCommonErr = (k) => submitted && commonErrors[k];
+
   return (
     <div className="screen">
       <div className="screen__head">
@@ -331,449 +272,335 @@ function SalesInputScreen() {
           <p className="screen__sub">
             {isEdit
               ? <>생산대기 상태의 오더만 수정할 수 있습니다. 변경 후 <strong>수정 저장</strong>을 누르세요.</>
-              : <>발주 정보를 입력하면 즉시 <strong>생산 대기</strong> 큐에 등록됩니다.</>}
+              : <>발주 정보를 입력하고 제품을 추가하면 즉시 <strong>생산 대기</strong> 큐에 등록됩니다.</>}
           </p>
         </div>
-        <div className="sales-controls">
-          <div className="sales-buttons">
-            {isEdit && (
-              <button className="btn btn--secondary" onClick={() => setModal('history')}>
-                <Icon name="clock" size={13}/> 수정 이력
-              </button>
-            )}
-            {isEdit ? (
-              <button className="btn btn--secondary" onClick={() => { window.actions.cancelEdit(); window.actions.setView('waiting'); }}>
-                <Icon name="arrow-left" size={13}/> 취소
-              </button>
-            ) : (<>
-              <button className="btn btn--secondary" onClick={() => setModal('csv')}>
-                <Icon name="arrow-right" size={13}/> CSV 업로드
-              </button>
-              <button className="btn btn--secondary" onClick={() => { localStorage.removeItem(DRAFT_KEY); setDraftBanner(null); setForm(empty); setTouched({}); setShowAll(false); }}>
-                <Icon name="refresh" size={13}/> 초기화
-              </button>
-            </>)}
-            <button className="btn btn--primary btn--lg" onClick={submit} disabled={hasErr && showAll}>
-              <Icon name={isEdit ? 'check' : 'save'} size={14}/> {isEdit ? '수정 저장' : '오더 등록'}
+        <div className="sales-buttons">
+          {isEdit && (
+            <button className="btn btn--secondary" onClick={() => setModal('history')}>
+              <Icon name="clock" size={13}/> 수정 이력
             </button>
-          </div>
-          <div className="sales-progress">
-            <span>입력 진행률</span>
-            <div style={{ width: 100, height: 6, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ width: '100%', height: '100%', background: 'var(--primary)', transformOrigin: 'left', transform: `scaleX(${completionPct / 100})`, transition: 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1)' }}/>
-            </div>
-            <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--ink-1)', fontWeight: 500 }}>{completionPct}%</span>
-          </div>
+          )}
+          {isEdit ? (
+            <button className="btn btn--secondary" onClick={() => { window.actions.cancelEdit(); window.actions.setView('waiting'); }}>
+              <Icon name="arrow-left" size={13}/> 취소
+            </button>
+          ) : (
+            <button className="btn btn--secondary" onClick={() => { setCommon(emptyCommon); setRows([makeRow()]); setSubmitted(false); }}>
+              <Icon name="refresh" size={13}/> 초기화
+            </button>
+          )}
+          <button className="btn btn--primary btn--lg" onClick={submit}>
+            <Icon name={isEdit ? 'check' : 'save'} size={14}/>
+            {' '}{isEdit ? '수정 저장' : validRows.length > 0 ? `${validRows.length}건 오더 등록` : '오더 등록'}
+          </button>
         </div>
       </div>
 
-      {draftBanner === 'ask' && !isEdit && (
-        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', background: 'var(--primary-50)', border: '1px solid var(--primary)', borderRadius: 'var(--r-md)', marginBottom: 14, fontSize: 13 }}>
-          <Icon name="save" size={14} style={{ color: 'var(--primary)', flexShrink: 0 }}/>
-          <span style={{ flex: 1, color: 'var(--ink-2)' }}>이전에 작성하던 오더 초안이 있습니다.</span>
-          <button type="button" className="btn btn--primary btn--sm" onClick={() => {
-            try {
-              const raw = localStorage.getItem(DRAFT_KEY);
-              if (raw) setForm(f => ({ ...f, ...JSON.parse(raw) }));
-            } catch (e) { /* ignore */ }
-            setDraftBanner('dismissed');
-          }}>복원</button>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => {
-            localStorage.removeItem(DRAFT_KEY);
-            setDraftBanner('dismissed');
-          }}>무시</button>
-        </div>
-      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      <div className="sales-layout">
-        <div className="card-grid">
-          {/* Section 1 — 발주 정보 */}
-          <div className="card">
-            <div className="card__head">
-              <h2 className="card__title">
-                <span className="section-title__num">1</span>
-                발주 정보
-              </h2>
-              <span className="card__sub">고객사 · 모델 · 납기</span>
-            </div>
-            <div className="card__body">
-              <div className="form-grid">
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-customer-name">고객사 <span className="field__req">*</span></label><HelpDot text="자주 사용하는 고객사는 드롭다운에서 선택"/></div>
-                  <div className="mgr-field">
-                    <ComboField id="si-customer-name"
-                                value={form.customer_name}
-                                onChange={(v) => { setForm(f => ({ ...f, customer_name: v, customer_manager: '' })); setTouched((t) => ({ ...t, customer_name: 1 })); }}
-                                options={masterCustomers}
-                                placeholder="고객사명 입력 또는 선택"
-                                ariaLabel="고객사"
-                                error={showErr('customer_name')}
-                                metaKey="last"/>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setModal('add-customer')}
-                            title="신규 고객사 등록">
-                      <Icon name="plus" size={13}/> 추가
-                    </button>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setModal('customer-mgr')}
-                            title="고객사 목록 관리">
-                      <Icon name="settings" size={13}/> 관리
-                    </button>
-                  </div>
-                  {showErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.customer_name}</div>}
+        {/* ── Section 1: 발주 정보 ── */}
+        <div className="card">
+          <div className="card__head">
+            <h2 className="card__title"><span className="section-title__num">1</span>발주 정보</h2>
+            <span className="card__sub">고객사 · 납품일자 · 납품장소</span>
+          </div>
+          <div className="card__body">
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+
+              <div className="field">
+                <div className="field__label">
+                  <label>고객사 <span className="field__req">*</span></label>
+                  <HelpDot text="자주 사용하는 고객사는 드롭다운에서 선택"/>
                 </div>
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-customer-manager">고객사 담당자 <span className="field__req">*</span></label><HelpDot text="담당자 관리 버튼에서 고객사별 담당자를 추가·수정할 수 있습니다"/></div>
-                  <div className="mgr-field">
-                    <ComboField id="si-customer-manager"
-                                value={form.customer_manager}
-                                onChange={(v) => { update('customer_manager', v); setTouched((t) => ({ ...t, customer_manager: 1 })); }}
-                                options={managers}
-                                placeholder={form.customer_name ? '담당자 선택 또는 입력' : '고객사를 먼저 선택하세요'}
-                                ariaLabel="고객사 담당자"
-                                error={showErr('customer_manager')}
-                                displayKey="display"
-                                metaKey="email"/>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => {
-                              if (!form.customer_name) { window.actions.flashToast('고객사를 먼저 선택해 주세요', 'error'); return; }
-                              setModal('mgr');
-                            }}
-                            title="고객사 담당자 관리">
-                      <Icon name="user" size={13}/> 관리
-                    </button>
-                  </div>
-                  {showErr('customer_manager') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.customer_manager}</div>}
-                  {!showErr('customer_manager') && form.customer_name && (
-                    <div className="field__hint" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span><Icon name="info" size={11}/> {managers.length}명 등록됨 · 관리에서 담당자를 추가·수정할 수 있습니다</span>
-                    </div>
-                  )}
+                <div className="mgr-field">
+                  <ComboField
+                    value={common.customer_name}
+                    onChange={(v) => setCommon(c => ({ ...c, customer_name: v, customer_manager: '' }))}
+                    options={masterCustomers}
+                    placeholder="고객사명 입력 또는 선택"
+                    ariaLabel="고객사"
+                    error={showCommonErr('customer_name')}
+                    metaKey="last"/>
+                  <button type="button" className="btn btn--secondary mgr-field__manage"
+                          onClick={() => setModal('add-customer')} title="신규 고객사 등록">
+                    <Icon name="plus" size={13}/> 추가
+                  </button>
+                  <button type="button" className="btn btn--secondary mgr-field__manage"
+                          onClick={() => setModal('customer-mgr')} title="고객사 목록 관리">
+                    <Icon name="settings" size={13}/> 관리
+                  </button>
                 </div>
-                <div className="field">
-                  <div className="field__label">충전기 용도 <span className="field__req">*</span></div>
-                  <div className="chips">
-                    {['공용', '비공용'].map(t => (
-                      <button key={t} type="button"
-                              className={`chip ${form.usage_type === t ? 'chip--active' : ''}`}
-                              onClick={() => {
-                                update('usage_type', t);
-                                if (t === '비공용') { setUseCpo(false); update('cpo_name', ''); }
-                              }}>
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="field__hint">
-                    {form.usage_type === '공용'
-                      ? <><Icon name="info" size={11}/> 공용: 환경부·CPO 등록 대상 · 검정일자 입력 필요</>
-                      : <><Icon name="info" size={11}/> 비공용: 자가용 충전기 · 검정일자 불필요</>}
-                  </div>
+                {showCommonErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {commonErrors.customer_name}</div>}
+              </div>
+
+              <div className="field">
+                <div className="field__label"><label>고객사 담당자</label></div>
+                <div className="mgr-field">
+                  <ComboField
+                    value={common.customer_manager}
+                    onChange={(v) => updateCommon('customer_manager', v)}
+                    options={managers}
+                    placeholder={common.customer_name ? '담당자 선택 또는 입력' : '고객사를 먼저 선택하세요'}
+                    ariaLabel="고객사 담당자"
+                    displayKey="display"/>
+                  <button type="button" className="btn btn--secondary mgr-field__manage"
+                          onClick={() => {
+                            if (!common.customer_name) { window.actions.flashToast('고객사를 먼저 선택해 주세요', 'error'); return; }
+                            setModal('mgr');
+                          }} title="고객사 담당자 관리">
+                    <Icon name="user" size={13}/> 관리
+                  </button>
                 </div>
-                {form.usage_type === '공용' && (
-                  <div className="field">
-                    <div className="field__label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                        <input type="checkbox" checked={useCpo}
-                               onChange={(e) => {
-                                 setUseCpo(e.target.checked);
-                                 if (!e.target.checked) update('cpo_name', '');
-                               }}
-                               style={{ width: 15, height: 15, accentColor: 'var(--primary)', cursor: 'pointer' }}/>
-                        CPO 운영사 사용
-                      </label>
-                      <HelpDot text="공용 충전기를 운영·관리하는 CPO(Charge Point Operator) 사업자"/>
-                    </div>
-                    {useCpo && (
-                      <div className="mgr-field" style={{ marginTop: 6 }}>
-                        <ComboField id="si-cpo-name"
-                                    value={form.cpo_name}
-                                    onChange={(v) => { update('cpo_name', v); }}
-                                    options={masterCpos}
-                                    ariaLabel="CPO 운영사"
-                                    placeholder="CPO 운영사 선택 또는 직접 입력"/>
-                        <button type="button" className="btn btn--secondary mgr-field__manage"
-                                onClick={() => setModal('add-cpo')}
-                                title="신규 CPO 운영사 등록">
-                          <Icon name="plus" size={13}/> 추가
-                        </button>
-                        <button type="button" className="btn btn--secondary mgr-field__manage"
-                                onClick={() => setModal('cpo-mgr')}
-                                title="CPO 운영사 목록 관리">
-                          <Icon name="settings" size={13}/> 관리
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                {common.customer_name && (
+                  <div className="field__hint"><Icon name="info" size={11}/> {managers.length}명 등록됨</div>
                 )}
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-model">모델 <span className="field__req">*</span></label></div>
-                  <div className="mgr-field">
-                    <ComboField id="si-model"
-                                value={form.model_name}
-                                onChange={(v) => { update('model_name', v); setTouched((t) => ({ ...t, model_name: 1 })); }}
-                                options={masterModels}
-                                placeholder="충전기 라인업 선택"
-                                ariaLabel="모델"
-                                displayKey="model"
-                                metaKey="name"
-                                error={showErr('model_name')}/>
-                    {s.currentUser?.role === 'admin' && (<>
-                      <button type="button" className="btn btn--secondary mgr-field__manage"
-                              onClick={() => setModal('add-model')}
-                              title="신규 모델 등록">
-                        <Icon name="plus" size={13}/> 추가
-                      </button>
-                      <button type="button" className="btn btn--secondary mgr-field__manage"
-                              onClick={() => setModal('model-mgr')}
-                              title="모델 목록 관리">
-                        <Icon name="settings" size={13}/> 관리
-                      </button>
-                    </>)}
-                  </div>
-                  {showErr('model_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.model_name}</div>}
-                </div>
-                <div className="field">
-                  <div className="field__label">케이블 길이 <span className="field__req">*</span></div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <div className="chips">
-                      {masterCableLengths.map(c => (
-                        <button key={c}
-                                type="button"
-                                className={`chip ${form.cable_length === c ? 'chip--active' : ''}`}
-                                onClick={() => { update('cable_length', c); setTouched((t) => ({ ...t, cable_length: 1 })); }}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => setModal('cable-mgr')}
-                            title="케이블 길이 관리">
-                      <Icon name="settings" size={13}/> 관리
-                    </button>
-                  </div>
-                  {showErr('cable_length') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.cable_length}</div>}
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-delivery-date">납품일자 <span className="field__req">*</span></label>
-                  <div className="input-group">
-                    <input id="si-delivery-date" type="date"
-                           className={`input ${showErr('delivery_date') ? 'input--error' : ''}`}
-                           aria-invalid={showErr('delivery_date')}
-                           value={form.delivery_date}
-                           onChange={(e) => { update('delivery_date', e.target.value); setTouched((t) => ({ ...t, delivery_date: 1 })); }}/>
-                  </div>
-                  {showErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.delivery_date}</div>}
-                </div>
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-station-id">충전소 ID</label><HelpDot text="환경부 또는 자체 관제용 충전소 고유 식별자"/></div>
-                  <input id="si-station-id" className={`input ${showErr('station_id') ? 'input--error' : ''}`}
-                         aria-invalid={showErr('station_id')}
-                         placeholder="예: CT3006"
-                         style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
-                         value={form.station_id}
-                         onChange={(e) => { update('station_id', e.target.value); setTouched((t) => ({ ...t, station_id: 1 })); }}
-                         onBlur={() => setTouched((t) => ({ ...t, station_id: 1 }))}/>
-                  {showErr('station_id') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.station_id}</div>}
-                  {!showErr('station_id') && <div className="field__hint"><Icon name="info" size={11}/> 영문+숫자 조합 · 환경부 MEA 또는 자체 관제 ID (예: CT3006, ME0001)</div>}
-                </div>
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-charger-no">충전기 번호</label><HelpDot text="충전소 내 충전기 식별 번호 (예: 01, 02)"/></div>
-                  <input id="si-charger-no" className="input"
-                         placeholder="예: 01"
-                         style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
-                         value={form.charger_no}
-                         onChange={(e) => { update('charger_no', e.target.value); setTouched((t) => ({ ...t, charger_no: 1 })); }}/>
-                </div>
               </div>
-            </div>
-          </div>
+              <div className="field">
+                <label className="field__label">현장담당자</label>
+                <input className="input" placeholder="담당자 이름"
+                       value={common.field_manager_name}
+                       onChange={(e) => updateCommon('field_manager_name', e.target.value)}/>
+              </div>
+              <div className="field">
+                <label className="field__label">현장담당자 연락처</label>
+                <input type="tel" className="input" style={{ fontFamily: 'var(--font-mono)' }}
+                       placeholder="010-0000-0000" autoComplete="tel"
+                       value={common.field_manager_phone}
+                       onChange={(e) => {
+                         const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
+                         const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+                         updateCommon('field_manager_phone', fmt);
+                       }}/>
+              </div>
 
-          {/* Section 2 — 통신 모듈 */}
-          <div className="card">
-            <div className="card__head">
-              <h2 className="card__title">
-                <span className="section-title__num">2</span>
-                통신 모듈
-              </h2>
-              <span className="card__sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Icon name="wifi" size={12}/> LTE 라우터 · USIM
-              </span>
-            </div>
-            <div className="card__body">
-              <div className="form-grid">
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-router-no">라우터번호 (S/N)</label><HelpDot text="충전기에 장착된 LTE 라우터의 시리얼 번호. 라우터 하단 스티커 S/N 항목 참조."/></div>
-                  <input id="si-router-no" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
-                         aria-invalid={showErr('router_no')}
-                         placeholder="예: RTR-2024-00001"
-                         style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
-                         value={form.router_no}
-                         onChange={(e) => { update('router_no', e.target.value); setTouched((t) => ({ ...t, router_no: 1 })); }}
-                         onBlur={() => setTouched((t) => ({ ...t, router_no: 1 }))}/>
-                  {showErr('router_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.router_no}</div>}
-                  {!showErr('router_no') && <div className="field__hint"><Icon name="info" size={11}/> LTE 라우터 하단 스티커 S/N 참조</div>}
-                </div>
-                <div className="field">
-                  <div className="field__label"><label htmlFor="si-usim-no">USIM번호 (ICCID)</label><HelpDot text="USIM 카드 고유 식별번호(ICCID). 19~20자리 숫자. SIM 카드 봉투 또는 칩 뒷면 바코드 하단에 표시."/></div>
-                  <input id="si-usim-no" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
-                         aria-invalid={showErr('usim_no')}
-                         placeholder="예: 89820012345678901234"
-                         style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}
-                         value={form.usim_no}
-                         onChange={(e) => { update('usim_no', e.target.value.replace(/\D/g, '')); setTouched((t) => ({ ...t, usim_no: 1 })); }}
-                         onBlur={() => setTouched((t) => ({ ...t, usim_no: 1 }))}
-                         maxLength={20}
-                         inputMode="numeric"/>
-                  {showErr('usim_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.usim_no}</div>}
-                  {!showErr('usim_no') && <div className="field__hint"><Icon name="info" size={11}/> USIM 칩 뒷면 또는 SIM 카드 봉투의 ICCID 19~20자리 숫자</div>}
-                </div>
+              <div className="field">
+                <label className="field__label">납품일자 <span className="field__req">*</span></label>
+                <input type="date"
+                       className={`input ${showCommonErr('delivery_date') ? 'input--error' : ''}`}
+                       value={common.delivery_date}
+                       onChange={(e) => updateCommon('delivery_date', e.target.value)}/>
+                {showCommonErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {commonErrors.delivery_date}</div>}
               </div>
-            </div>
-          </div>
 
-          {/* Section 3 — 설치 정보 */}
-          <div className="card">
-            <div className="card__head">
-              <h2 className="card__title">
-                <span className="section-title__num">3</span>
-                설치 정보
-              </h2>
-              <span className="card__sub">현장 설치 주소</span>
-            </div>
-            <div className="card__body">
-              <div className="form-grid">
-                <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="field__label" htmlFor="si-install-addr">설치주소</label>
-                  <AddressField id="si-install-addr" value={form.install_address}
-                                onChange={(v) => { update('install_address', v); setTouched((t) => ({ ...t, install_address: 1 })); }}
-                                error={showErr('install_address')}/>
-                  <input className="input"
-                         style={{ marginTop: 6 }}
-                         placeholder="상세주소 입력 (동·호수, 층수 등)"
-                         value={form.install_address_detail}
-                         onChange={(e) => update('install_address_detail', e.target.value)}/>
-                  <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 선택하세요</div>
-                  {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {errors.install_address}</div>}
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-field-mgr-name">현장담당자 이름</label>
-                  <input id="si-field-mgr-name" className="input"
-                         placeholder="담당자 이름"
-                         value={form.field_manager_name}
-                         onChange={(e) => { update('field_manager_name', e.target.value); setTouched((t) => ({ ...t, field_manager_name: 1 })); }}/>
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-field-mgr-phone">현장담당자 연락처</label>
-                  <input id="si-field-mgr-phone" type="tel" className="input"
-                         style={{ fontFamily: 'var(--font-mono)' }}
-                         placeholder="010-0000-0000"
-                         autoComplete="tel"
-                         value={form.field_manager_phone}
-                         onChange={(e) => {
-                           const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
-                           const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
-                           update('field_manager_phone', fmt);
-                           setTouched((t) => ({ ...t, field_manager_phone: 1 }));
-                         }}/>
-                </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label className="field__label">납품장소 (설치주소) <span className="field__req">*</span></label>
+                <AddressField
+                  value={common.install_address}
+                  onChange={(v) => updateCommon('install_address', v)}
+                  error={showCommonErr('install_address')}/>
+                <input className="input" style={{ marginTop: 6 }}
+                       placeholder="상세주소 (동·호수, 층수 등)"
+                       value={common.install_address_detail}
+                       onChange={(e) => updateCommon('install_address_detail', e.target.value)}/>
+                {showCommonErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {commonErrors.install_address}</div>}
+                <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 선택하세요</div>
               </div>
+
             </div>
           </div>
         </div>
 
-        {/* Side preview */}
-        <aside className="sales-preview" style={{ position: 'sticky', top: 0 }}>
-          <div className="card">
-            <div className="card__head">
-              <h2 className="card__title"><Icon name="eye" size={14}/> 입력 미리보기</h2>
-            </div>
-            <div className="card__body">
-              <dl className="kv">
-                <dt>order_id</dt>
-                <dd style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)' }}>auto</dd>
-                <dt>고객사</dt>
-                <dd>{form.customer_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                <dt>담당자</dt>
-                <dd>{form.customer_manager || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                <dt>충전기 용도</dt>
-                <dd>
-                  <span className={`badge ${form.usage_type === '공용' ? 'badge--info' : 'badge--pending'}`}>
-                    <span className="badge__dot"/>{form.usage_type || '공용'}
-                  </span>
-                </dd>
-                {useCpo && form.usage_type === '공용' && (
-                  <>
-                    <dt>CPO 운영사</dt>
-                    <dd>{form.cpo_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                  </>
-                )}
-                <dt>모델</dt>
-                <dd>{form.model_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                <dt>케이블 길이</dt>
-                <dd>{form.cable_length || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                <dt>납품일자</dt>
-                <dd style={{ fontVariantNumeric: 'tabular-nums' }}>{form.delivery_date || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-                <dt>충전소 ID</dt>
-                <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>{form.station_id || <span style={{ color: 'var(--ink-4)', fontFamily: 'inherit' }}>—</span>}</dd>
-                <dt>충전기 번호</dt>
-                <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>{form.charger_no || <span style={{ color: 'var(--ink-4)', fontFamily: 'inherit' }}>—</span>}</dd>
-                <dt>라우터 S/N</dt>
-                <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, wordBreak: 'break-all' }}>{form.router_no || <span style={{ color: 'var(--ink-4)', fontFamily: 'inherit' }}>—</span>}</dd>
-                <dt>USIM</dt>
-                <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, wordBreak: 'break-all' }}>{form.usim_no || <span style={{ color: 'var(--ink-4)', fontFamily: 'inherit' }}>—</span>}</dd>
-                <dt>설치주소</dt>
-                <dd style={{ fontSize: 12.5 }}>
-                  {(form.install_address || form.install_address_detail)
-                    ? [form.install_address, form.install_address_detail].filter(Boolean).join(' ')
-                    : <span style={{ color: 'var(--ink-4)' }}>—</span>}
-                </dd>
-                <dt>현장담당자</dt>
-                <dd style={{ fontSize: 12.5 }}>
-                  {form.field_manager_name
-                    ? <>{form.field_manager_name}{form.field_manager_phone && <span style={{ color: 'var(--ink-3)' }}> · {form.field_manager_phone}</span>}</>
-                    : <span style={{ color: 'var(--ink-4)' }}>—</span>}
-                </dd>
-              </dl>
+        {/* ── Section 2: 제품 선택 ── */}
+        <div className="card">
+          <div className="card__head">
+            <h2 className="card__title"><span className="section-title__num">2</span>제품 선택</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {validRows.length > 0 ? (
+                <span style={{ fontSize: 13, color: 'var(--success-700)', fontWeight: 600 }}>
+                  {validRows.length}건 등록 예정
+                  {errorRowCount > 0 && <span style={{ color: 'var(--danger-700)', fontWeight: 400 }}> · 오류 {errorRowCount}건 제외</span>}
+                </span>
+              ) : (
+                <span className="card__sub">모델을 입력한 행이 등록됩니다</span>
+              )}
+              {!isEdit && (
+                <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>
+                  <Icon name="plus" size={12}/> 행 추가
+                </button>
+              )}
+              {s.currentUser?.role === 'admin' && (<>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('add-model')} title="신규 모델 등록">
+                  <Icon name="plus" size={12}/> 모델
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('model-mgr')} title="모델 목록 관리">
+                  <Icon name="settings" size={12}/> 모델 관리
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('add-cpo')} title="신규 CPO 등록">
+                  <Icon name="plus" size={12}/> CPO
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('cpo-mgr')} title="CPO 운영사 관리">
+                  <Icon name="settings" size={12}/> CPO 관리
+                </button>
+              </>)}
             </div>
           </div>
-        </aside>
+          <div className="card__body" style={{ padding: 0 }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ minWidth: 900 }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 36, textAlign: 'center', paddingLeft: 12 }}>#</th>
+                    <th style={{ minWidth: 170 }}>충전속도 (모델) <span style={{ color: 'var(--danger-700)' }}>*</span></th>
+                    <th style={{ minWidth: 120 }}>충전기 용도</th>
+                    <th style={{ minWidth: 160 }}>CPO 운영사</th>
+                    <th style={{ minWidth: 110 }}>충전소 ID</th>
+                    <th style={{ minWidth: 90 }}>충전기 번호</th>
+                    <th style={{ minWidth: 150 }}>라우터 번호</th>
+                    <th style={{ minWidth: 180 }}>USIM 번호</th>
+                    {!isEdit && <th style={{ width: 44 }}></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => {
+                    const errs = submitted ? rowErrors[i] : {};
+                    const isPub = row.usage_type === '공용';
+                    const rowPower = row._power || masterModels.find(m => m.model === row.model_name)?.power || '';
+                    return (
+                      <tr key={i} style={errs.model_name || errs.usim_no ? { background: 'color-mix(in srgb, var(--danger-700) 6%, transparent)' } : {}}>
+                        <td style={{ textAlign: 'center', color: 'var(--ink-4)', fontSize: 12, paddingLeft: 12 }}>{i + 1}</td>
+
+                        <td style={{ padding: 4, minWidth: 170 }}>
+                          <button
+                            type="button"
+                            onClick={() => setModelModalRow(i)}
+                            className={`input ${submitted && errs.model_name ? 'input--error' : ''}`}
+                            style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between', cursor: 'pointer', padding: '6px 10px' }}>
+                            <span style={{ fontFamily: row.model_name ? 'var(--font-mono)' : undefined, fontSize: 12, color: row.model_name ? 'var(--ink-1)' : 'var(--ink-4)' }}>
+                              {row.model_name || '모델 선택...'}
+                            </span>
+                            <Icon name="chevron-down" size={11} style={{ color: 'var(--ink-4)', flexShrink: 0 }}/>
+                          </button>
+                          {submitted && errs.model_name && (
+                            <div style={{ fontSize: 11, color: 'var(--danger-700)', padding: '2px 6px' }}>{errs.model_name}</div>
+                          )}
+                        </td>
+
+                        <td style={{ padding: '4px 8px' }}>
+                          <div className="chips" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                            {['공용', '비공용'].map(t => (
+                              <button key={t} type="button"
+                                      className={`chip ${row.usage_type === t ? 'chip--active' : ''}`}
+                                      style={{ fontSize: 11, padding: '3px 8px', height: 'auto' }}
+                                      onClick={() => {
+                                        if (t === '비공용') {
+                                          setRows(r => r.map((rw, idx) => idx === i
+                                            ? { ...rw, usage_type: '비공용', cpo_name: '', station_id: '', charger_no: '' }
+                                            : rw));
+                                        } else {
+                                          updateRow(i, 'usage_type', t);
+                                        }
+                                      }}>
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td style={{ padding: 4 }}>
+                          {isPub ? (
+                            <BulkInlineCombo
+                              value={row.cpo_name}
+                              onChange={(v) => updateRow(i, 'cpo_name', v)}
+                              options={cpoOptions}
+                              placeholder="CPO 운영사"/>
+                          ) : (
+                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: 4 }}>
+                          {isPub ? (
+                            <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
+                                   placeholder="예: CT3006"
+                                   value={row.station_id}
+                                   onChange={(e) => updateRow(i, 'station_id', e.target.value)}/>
+                          ) : (
+                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: 4 }}>
+                          {isPub ? (
+                            <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
+                                   placeholder="예: 01"
+                                   value={row.charger_no}
+                                   onChange={(e) => updateRow(i, 'charger_no', e.target.value)}/>
+                          ) : (
+                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: 4 }}>
+                          {isPub ? (
+                          <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
+                                 placeholder="RTR-2024-00001"
+                                 value={row.router_no}
+                                 onChange={(e) => updateRow(i, 'router_no', e.target.value)}/>
+                          ) : (
+                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
+                          )}
+
+                        </td>
+
+                        <td style={{ padding: 4 }}>
+                          {isPub ? (
+                            <>
+                              <input className={`input ${submitted && errs.usim_no ? 'input--error' : ''}`}
+                                     style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
+                                     placeholder="ICCID 19~20자리"
+                                     value={row.usim_no}
+                                     maxLength={20}
+                                     inputMode="numeric"
+                                     onChange={(e) => updateRow(i, 'usim_no', e.target.value.replace(/\D/g, ''))}/>
+                              {submitted && errs.usim_no && (
+                                <div style={{ fontSize: 11, color: 'var(--danger-700)', marginTop: 2 }}>{errs.usim_no}</div>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
+                          )}
+                        </td>
+
+                        {!isEdit && (
+                          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                            {rows.length > 1 && (
+                              <button type="button" className="btn btn--ghost btn--sm"
+                                      style={{ padding: '4px 6px', color: 'var(--ink-4)' }}
+                                      onClick={() => removeRow(i)} title="행 삭제">
+                                <Icon name="x" size={13}/>
+                              </button>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+
       </div>
-
-      {/* 태블릿/모바일 전용 요약 (≤900px에서 표시) */}
-      <details className="sales-summary-strip sales-preview--mobile" style={{ marginTop: 16 }}>
-        <summary>
-          <Icon name="eye" size={14}/> 입력 미리보기
-          {completionPct > 0 && <span className="badge badge--info" style={{ marginLeft: 8, fontSize: 11 }}>{completionPct}%</span>}
-        </summary>
-        <dl className="kv">
-          <dt>고객사</dt><dd>{form.customer_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-          <dt>담당자</dt><dd>{form.customer_manager || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-          <dt>모델</dt><dd>{form.model_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-          <dt>케이블</dt><dd>{form.cable_length || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-          <dt>납품일자</dt><dd>{form.delivery_date || <span style={{ color: 'var(--ink-4)' }}>—</span>}</dd>
-          {form.station_id && <><dt>충전소 ID</dt><dd style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>{form.station_id}</dd></>}
-        </dl>
-      </details>
 
       {modal === 'history' && isEdit && (
-        <OrderHistoryModal
-          orderId={editing.order_id}
-          onClose={() => setModal(null)}/>
+        <OrderHistoryModal orderId={editing.order_id} onClose={() => setModal(null)}/>
       )}
       {modal === 'mgr' && (
         <ManagerManageModal
-          customerName={form.customer_name}
+          customerName={common.customer_name}
           onClose={() => setModal(null)}
           onChanged={(picked) => {
-            const list = refreshManagers.current();
+            const list = refreshManagersRef.current();
             if (picked) {
               const mgr = list.find(m => m.name === picked);
-              update('customer_manager', mgr ? (mgr.display || mgr.name) : picked);
-            } else if (form.customer_manager) {
-              const baseName = form.customer_manager.split(' (')[0];
-              if (!list.some(m => m.name === baseName || m.display === form.customer_manager)) {
-                update('customer_manager', list[0] ? (list[0].display || list[0].name) : '');
+              updateCommon('customer_manager', mgr ? (mgr.display || mgr.name) : picked);
+            } else if (common.customer_manager) {
+              const baseName = common.customer_manager.split(' (')[0];
+              if (!list.some(m => m.name === baseName || m.display === common.customer_manager)) {
+                updateCommon('customer_manager', list[0] ? (list[0].display || list[0].name) : '');
               }
             }
           }}/>
@@ -783,7 +610,7 @@ function SalesInputScreen() {
           onClose={() => setModal(null)}
           onAdded={(name) => {
             setMasterCustomers(window.PMDB.getCustomers());
-            setForm(f => ({ ...f, customer_name: name, customer_manager: '' }));
+            setCommon(c => ({ ...c, customer_name: name, customer_manager: '' }));
             setModal(null);
           }}/>
       )}
@@ -793,57 +620,42 @@ function SalesInputScreen() {
           onChanged={() => {
             const updated = window.PMDB.getCustomers();
             setMasterCustomers(updated);
-            if (!updated.find(c => c.name === form.customer_name)) update('customer_name', '');
+            if (!updated.find(c => c.name === common.customer_name)) updateCommon('customer_name', '');
           }}/>
       )}
       {modal === 'add-model' && (
         <AddModelModal
           onClose={() => setModal(null)}
-          onAdded={(modelCode) => {
-            setMasterModels(window.PMDB.getModels());
-            update('model_name', modelCode);
-            setModal(null);
-          }}/>
+          onAdded={() => { setMasterModels(window.PMDB.getModels()); setModal(null); }}/>
       )}
       {modal === 'model-mgr' && (
         <ModelManageModal
           onClose={() => setModal(null)}
-          onChanged={() => {
-            const updated = window.PMDB.getModels();
-            setMasterModels(updated);
-            if (!updated.find(m => m.model === form.model_name)) update('model_name', '');
-          }}/>
-      )}
-      {modal === 'cable-mgr' && (
-        <CableLengthManageModal
-          onClose={() => setModal(null)}
-          onChanged={() => {
-            setMasterCableLengths([...window.MASTER.CABLE_LENGTHS]);
-            if (!window.MASTER.CABLE_LENGTHS.includes(form.cable_length)) update('cable_length', '');
-          }}/>
+          onChanged={() => setMasterModels(window.PMDB.getModels())}/>
       )}
       {modal === 'add-cpo' && (
         <AddCpoModal
           onClose={() => setModal(null)}
-          onAdded={(name) => {
-            setMasterCpos(window.PMDB.getCpos());
-            update('cpo_name', name);
-            setModal(null);
-          }}/>
+          onAdded={() => { setMasterCpos(window.PMDB.getCpos()); setModal(null); }}/>
       )}
       {modal === 'cpo-mgr' && (
         <CpoManageModal
           onClose={() => setModal(null)}
-          onChanged={() => {
-            const updated = window.PMDB.getCpos();
-            setMasterCpos(updated);
-            if (!updated.find(c => c.name === form.cpo_name)) update('cpo_name', '');
-          }}/>
+          onChanged={() => setMasterCpos(window.PMDB.getCpos())}/>
       )}
-      {modal === 'csv' && !isEdit && (
-        <CsvUploadModal
-          onClose={() => setModal(null)}
-          onImport={(row) => window.actions.addOrder(row)}/>
+      {modelModalRow !== null && rows[modelModalRow] && (
+        <ModelSelectModal
+          onClose={() => setModelModalRow(null)}
+          onSelect={(model, power) => {
+            setRows(r => r.map((rw, idx) => idx === modelModalRow ? { ...rw, model_name: model, _power: power || rw._power } : rw));
+            setModelModalRow(null);
+          }}
+          powerOptions={powerOptions}
+          modelsByPower={modelsByPower}
+          masterModels={masterModels}
+          currentModel={rows[modelModalRow]?.model_name}
+          currentPower={rows[modelModalRow]?._power || masterModels.find(m => m.model === rows[modelModalRow]?.model_name)?.power || ''}
+        />
       )}
     </div>
   );
@@ -854,13 +666,13 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI([]);
-  const [draft, setDraft] = useStateSI(null); // { manager_id?, name, phone, email, is_primary }
+  const [draft, setDraft] = useStateSI(null); // { manager_id?, name, phone, is_primary }
   const [err, setErr] = useStateSI('');
 
   const reload = () => setList(window.PMDB.getManagers(customerName));
   useEffectSI(() => { reload(); }, [customerName]);
 
-  const startAdd = () => { setErr(''); setDraft({ name: '', phone: '', email: '', is_primary: list.length === 0 }); };
+  const startAdd = () => { setErr(''); setDraft({ name: '', phone: '', is_primary: list.length === 0 }); };
   const startEdit = (m) => { setErr(''); setDraft({ ...m }); };
 
   const fmtPhone = (v) => {
@@ -918,7 +730,6 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
                   </div>
                   <div className="mgr-row__meta">
                     <span style={{ fontFamily: 'var(--font-mono)' }}>{m.phone || '—'}</span>
-                    {m.email && <span style={{ color: 'var(--ink-4)' }}> · {m.email}</span>}
                   </div>
                 </div>
                 <div className="mgr-row__actions">
@@ -944,11 +755,6 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
                   <input id="si-mgr-phone" className="input" style={{ fontFamily: 'var(--font-mono)' }} placeholder="010-0000-0000"
                          value={draft.phone}
                          onChange={(e) => setDraft(d => ({ ...d, phone: fmtPhone(e.target.value) }))}/>
-                </div>
-                <div className="field col-span-2">
-                  <label className="field__label" htmlFor="si-mgr-email">이메일</label>
-                  <input id="si-mgr-email" className="input" placeholder="name@company.com" value={draft.email}
-                         onChange={(e) => setDraft(d => ({ ...d, email: e.target.value }))}/>
                 </div>
               </div>
               <label className="mgr-edit__primary">
@@ -1044,15 +850,13 @@ function AddCustomerModal({ onClose, onAdded }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [name, setName] = useStateSI('');
-  const [code, setCode] = useStateSI('');
+  const [isAddress, setIsAddress] = useStateSI(false);
   const [err, setErr] = useStateSI('');
 
   const save = () => {
     const trimmedName = name.trim();
-    const trimmedCode = code.trim().toUpperCase();
     if (!trimmedName) { setErr('고객사명을 입력하세요'); return; }
-    if (!trimmedCode) { setErr('코드를 입력하세요'); return; }
-    const result = window.PMDB.addMasterCustomer(trimmedName, trimmedCode);
+    const result = window.PMDB.addMasterCustomer(trimmedName, isAddress);
     if (!result.ok) { setErr(result.msg); return; }
     onAdded && onAdded(trimmedName);
   };
@@ -1069,16 +873,15 @@ function AddCustomerModal({ onClose, onAdded }) {
             <label className="field__label" htmlFor="si-add-cust-name">고객사명 <span className="field__req">*</span></label>
             <input id="si-add-cust-name" className="input" autoFocus value={name}
                    onChange={(e) => { setName(e.target.value); setErr(''); }}
-                   placeholder="예: (주)에이비씨"/>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="si-add-cust-code">코드 <span className="field__req">*</span></label>
-            <input id="si-add-cust-code" className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
-                   value={code}
-                   onChange={(e) => { setCode(e.target.value); setErr(''); }}
-                   placeholder="예: CAS"
+                   placeholder="예: (주)에이비씨"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+            <input type="checkbox" checked={isAddress}
+                   onChange={(e) => setIsAddress(e.target.checked)}
+                   style={{ width: 15, height: 15, accentColor: 'var(--primary)' }}/>
+            주소지 고객사 (is_address)
+          </label>
           {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
         </div>
         <div className="modal__foot">
@@ -1095,19 +898,17 @@ function CustomerManageModal({ onClose, onChanged }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI(() => window.PMDB.getCustomers());
-  const [draft, setDraft] = useStateSI(null); // { idx, name, code }
+  const [draft, setDraft] = useStateSI(null); // { idx, name, is_address }
   const [err, setErr] = useStateSI('');
 
   const reload = () => setList(window.PMDB.getCustomers());
 
-  const startEdit = (c, idx) => { setErr(''); setDraft({ idx, name: c.name, code: c.code }); };
+  const startEdit = (c, idx) => { setErr(''); setDraft({ idx, name: c.name, is_address: !!c.is_address }); };
 
   const saveDraft = () => {
     const trimmedName = draft.name.trim();
-    const trimmedCode = draft.code.trim().toUpperCase();
     if (!trimmedName) { setErr('고객사명을 입력하세요'); return; }
-    if (!trimmedCode) { setErr('코드를 입력하세요'); return; }
-    const result = window.PMDB.updateMasterCustomer(draft.idx, trimmedName, trimmedCode);
+    const result = window.PMDB.updateMasterCustomer(draft.idx, trimmedName, draft.is_address);
     if (!result.ok) { setErr(result.msg); return; }
     reload();
     onChanged && onChanged();
@@ -1134,12 +935,12 @@ function CustomerManageModal({ onClose, onChanged }) {
               </div>
             )}
             {list.map((c, idx) => (
-              <div key={c.code || idx} className="mgr-row">
+              <div key={c.name || idx} className="mgr-row">
                 <div className="mgr-row__main">
                   <div className="mgr-row__name">{c.name}</div>
                   <div className="mgr-row__meta">
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>{c.code}</span>
-                    {c.last && <span style={{ color: 'var(--ink-4)' }}> · {c.last}</span>}
+                    {c.is_address && <span className="badge badge--info" style={{ marginRight: 4 }}>주소지</span>}
+                    {c.last && <span style={{ color: 'var(--ink-4)' }}>{c.last}</span>}
                   </div>
                 </div>
                 <div className="mgr-row__actions">
@@ -1153,18 +954,18 @@ function CustomerManageModal({ onClose, onChanged }) {
             <div className="mgr-edit">
               <div className="mgr-edit__title">고객사 수정</div>
               <div className="form-grid">
-                <div className="field">
+                <div className="field col-span-2">
                   <label className="field__label" htmlFor="si-edit-cust-name">고객사명 <span className="field__req">*</span></label>
                   <input id="si-edit-cust-name" className="input" autoFocus value={draft.name}
                          onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
                 </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-edit-cust-code">코드 <span className="field__req">*</span></label>
-                  <input id="si-edit-cust-code" className="input" style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
-                         value={draft.code}
-                         onChange={(e) => { setDraft(d => ({ ...d, code: e.target.value })); setErr(''); }}/>
-                </div>
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', marginTop: 8 }}>
+                <input type="checkbox" checked={!!draft.is_address}
+                       onChange={(e) => setDraft(d => ({ ...d, is_address: e.target.checked }))}
+                       style={{ width: 15, height: 15, accentColor: 'var(--primary)' }}/>
+                주소지 고객사 (is_address)
+              </label>
               {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
@@ -1186,7 +987,6 @@ function AddModelModal({ onClose, onAdded }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [model, setModel] = useStateSI('');
-  const [name, setName] = useStateSI('');
   const [description, setDescription] = useStateSI('');
   const [power, setPower] = useStateSI('');
   const [err, setErr] = useStateSI('');
@@ -1194,7 +994,7 @@ function AddModelModal({ onClose, onAdded }) {
   const save = () => {
     const m = model.trim();
     if (!m) { setErr('모델 코드를 입력하세요'); return; }
-    const result = window.PMDB.addMasterModel(m, description.trim(), name.trim(), power.trim());
+    const result = window.PMDB.addMasterModel(m, description.trim(), power.trim());
     if (!result.ok) { setErr(result.msg); return; }
     onAdded && onAdded(m);
   };
@@ -1212,12 +1012,6 @@ function AddModelModal({ onClose, onAdded }) {
             <input id="si-add-model-code" className="input" autoFocus value={model}
                    onChange={(e) => { setModel(e.target.value); setErr(''); }}
                    placeholder="예: EGMI105001"/>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="si-add-model-name">모델명</label>
-            <input id="si-add-model-name" className="input" value={name}
-                   onChange={(e) => { setName(e.target.value); setErr(''); }}
-                   placeholder="예: 50kW 1ch"/>
           </div>
           <div className="field">
             <label className="field__label" htmlFor="si-add-model-desc">설명</label>
@@ -1248,17 +1042,17 @@ function ModelManageModal({ onClose, onChanged }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [list, setList] = useStateSI(() => window.PMDB.getModels());
-  const [draft, setDraft] = useStateSI(null); // { idx, model, description, name, power }
+  const [draft, setDraft] = useStateSI(null); // { idx, model, description, power }
   const [err, setErr] = useStateSI('');
 
   const reload = () => setList(window.PMDB.getModels());
 
-  const startEdit = (m, idx) => { setErr(''); setDraft({ idx, model: m.model || '', description: m.description || '', name: m.name || '', power: m.power || '' }); };
+  const startEdit = (m, idx) => { setErr(''); setDraft({ idx, model: m.model || '', description: m.description || '', power: m.power || '' }); };
 
   const saveDraft = () => {
     const mc = draft.model.trim();
     if (!mc) { setErr('모델 코드를 입력하세요'); return; }
-    const result = window.PMDB.updateMasterModel(draft.idx, mc, draft.description.trim(), draft.name.trim(), draft.power.trim());
+    const result = window.PMDB.updateMasterModel(draft.idx, mc, draft.description.trim(), draft.power.trim());
     if (!result.ok) { setErr(result.msg); return; }
     reload();
     onChanged && onChanged();
@@ -1288,8 +1082,8 @@ function ModelManageModal({ onClose, onChanged }) {
               <div key={m.model + idx} className="mgr-row">
                 <div className="mgr-row__main">
                   <div className="mgr-row__name">
-                    <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{m.model}</span>
-                    {m.name && <span style={{ marginLeft: 8, color: 'var(--ink-3)', fontSize: 12 }}>{m.name}</span>}
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{m.model}</span>
+                    {m.power && <span style={{ marginLeft: 8, color: 'var(--ink-3)', fontSize: 12 }}>{m.power}</span>}
                   </div>
                   <div className="mgr-row__meta">
                     <span>{m.description || '—'}</span>
@@ -1317,12 +1111,7 @@ function ModelManageModal({ onClose, onChanged }) {
                   <input id="si-edit-model-power" className="input" value={draft.power}
                          onChange={(e) => { setDraft(d => ({ ...d, power: e.target.value })); setErr(''); }}/>
                 </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-edit-model-name">모델명</label>
-                  <input id="si-edit-model-name" className="input" value={draft.name}
-                         onChange={(e) => { setDraft(d => ({ ...d, name: e.target.value })); setErr(''); }}/>
-                </div>
-                <div className="field">
+                <div className="field col-span-2">
                   <label className="field__label" htmlFor="si-edit-model-desc">설명</label>
                   <input id="si-edit-model-desc" className="input" value={draft.description}
                          onChange={(e) => { setDraft(d => ({ ...d, description: e.target.value })); setErr(''); }}/>
@@ -1335,80 +1124,6 @@ function ModelManageModal({ onClose, onChanged }) {
               </div>
             </div>
           )}
-        </div>
-        <div className="modal__foot">
-          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ────────── 케이블 길이 관리 모달 ────────── */
-function CableLengthManageModal({ onClose, onChanged }) {
-  window.useLockScroll();
-  const dialogRef = window.useModalKeyboard(onClose);
-  const [list, setList] = useStateSI([...window.MASTER.CABLE_LENGTHS]);
-  const [input, setInput] = useStateSI('');
-  const [err, setErr] = useStateSI('');
-
-  const reload = () => setList([...window.MASTER.CABLE_LENGTHS]);
-
-  const add = () => {
-    const v = input.trim();
-    if (!v) { setErr('값을 입력하세요'); return; }
-    const result = window.PMDB.addMasterCableLength(v);
-    if (!result.ok) { setErr(result.msg); return; }
-    setInput('');
-    setErr('');
-    reload();
-    onChanged && onChanged();
-  };
-
-  const remove = (value) => {
-    window.PMDB.deleteMasterCableLength(value);
-    reload();
-    onChanged && onChanged();
-  };
-
-  return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" ref={dialogRef} aria-labelledby="modal-cable-length-title" style={{ width: 400, maxWidth: '94vw' }}>
-        <div className="modal__head">
-          <h2 id="modal-cable-length-title" className="modal__title">케이블 길이 관리</h2>
-        </div>
-        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="mgr-list">
-            {list.length === 0 && (
-              <div className="emptystate" style={{ padding: '16px 0' }}>
-                <div className="emptystate__title">등록된 케이블 길이가 없습니다</div>
-              </div>
-            )}
-            {list.map(c => (
-              <div key={c} className="mgr-row">
-                <div className="mgr-row__main">
-                  <div className="mgr-row__name" style={{ fontFamily: 'var(--font-mono)' }}>{c}</div>
-                </div>
-                <div className="mgr-row__actions">
-                  <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(c)}><Icon name="x" size={14}/></button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mgr-edit">
-            <div className="mgr-edit__title">길이 추가</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <input className="input" value={input}
-                     placeholder="예: 15m"
-                     style={{ fontFamily: 'var(--font-mono)' }}
-                     onChange={(e) => { setInput(e.target.value); setErr(''); }}
-                     onKeyDown={(e) => e.key === 'Enter' && add()}/>
-              <button className="btn btn--primary btn--sm" onClick={add} style={{ whiteSpace: 'nowrap' }}>
-                <Icon name="plus" size={13}/> 추가
-              </button>
-            </div>
-            {err && <div role="alert" className="field__err" style={{ marginTop: 4 }}><Icon name="alert" size={12}/> {err}</div>}
-          </div>
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>닫기</button>
@@ -1558,71 +1273,109 @@ function CpoManageModal({ onClose, onChanged }) {
   );
 }
 
-/* ────────── CSV 셀 인라인 콤보 ────────── */
-const CSV_CELL_OPTIONS = {
-  usage_type:    ['공용', '비공용'],
-  model_name:    () => window.PMDB.getModels().map(m => m.model),
-  cable_length:  () => [...(window.MASTER.CABLE_LENGTHS || [])],
-  cpo_name:      () => window.PMDB.getCpos().map(c => c.name),
-  customer_name: () => window.PMDB.getCustomers().map(c => c.name),
-};
-
-function CsvCellInput({ value, onChange, options, mono, ariaLabel }) {
+/* ────────── 모델 선택 콤보 (충전속도 → 모델 2단계) ────────── */
+function ModelInlineCombo({ value, onChange, options, placeholder, error }) {
   const [open, setOpen] = useStateSI(false);
+  const [query, setQuery] = useStateSI('');
   const [highlight, setHighlight] = useStateSI(0);
-  const [menuPos, setMenuPos] = useStateSI(null);
   const ref = useRefSI(null);
   const menuIdRef = useRefSI(null);
-  if (menuIdRef.current === null) menuIdRef.current = `csv-combo-${Math.random().toString(36).slice(2, 7)}`;
+  if (menuIdRef.current === null) menuIdRef.current = `model-combo-${Math.random().toString(36).slice(2, 7)}`;
   const menuId = menuIdRef.current;
   useEffectSI(() => {
     const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', fn);
     return () => document.removeEventListener('mousedown', fn);
   }, []);
+  const filtered = query
+    ? options.filter(o =>
+        o.model.toLowerCase().includes(query.toLowerCase()) ||
+        (o.description || '').toLowerCase().includes(query.toLowerCase()))
+    : options;
+  const selected = value ? options.find(o => o.model === value) : null;
+  const displayLabel = open ? query : (selected ? `${selected.model}${selected.description ? ` — ${selected.description}` : ''}` : '');
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <input
+        value={displayLabel}
+        onChange={(e) => { setQuery(e.target.value); setHighlight(0); if (!open) setOpen(true); }}
+        onFocus={() => { setQuery(''); setOpen(true); }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown') { setHighlight(h => Math.min(h + 1, filtered.length - 1)); e.preventDefault(); }
+          if (e.key === 'ArrowUp')   { setHighlight(h => Math.max(h - 1, 0)); e.preventDefault(); }
+          if (e.key === 'Enter' && open && filtered[highlight]) { onChange(filtered[highlight].model); setOpen(false); setQuery(''); e.preventDefault(); }
+          if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+        }}
+        placeholder={placeholder}
+        style={{
+          width: '100%', border: 'none', background: 'transparent',
+          fontSize: 12, padding: '5px 8px', outline: 'none', boxSizing: 'border-box',
+          color: error ? 'var(--danger-700)' : undefined,
+        }}/>
+      {open && filtered.length > 0 && (
+        <div role="listbox" id={menuId} className="combo__menu"
+             style={{ position: 'absolute', top: '100%', left: 0, minWidth: 260, zIndex: 'var(--z-lightbox)' }}>
+          {filtered.map((o, idx) => (
+            <div key={o.model} role="option" aria-selected={idx === highlight}
+                 className={`combo__item${idx === highlight ? ' combo__item--active' : ''}`}
+                 onMouseDown={(e) => { e.preventDefault(); onChange(o.model); setOpen(false); setQuery(''); }}
+                 onMouseEnter={() => setHighlight(idx)}>
+              <span style={{ fontWeight: 600, fontFamily: 'var(--font-mono, monospace)' }}>{o.model}</span>
+              {o.description && <span className="combo__item__meta"> {o.description}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ────────── 다량 등록 테이블 셀 인라인 콤보 ────────── */
+function BulkInlineCombo({ value, onChange, options, placeholder, error, ariaLabel }) {
+  const [open, setOpen] = useStateSI(false);
+  const [highlight, setHighlight] = useStateSI(0);
+  const ref = useRefSI(null);
+  const menuIdRef = useRefSI(null);
+  if (menuIdRef.current === null) menuIdRef.current = `bulk-combo-${Math.random().toString(36).slice(2, 7)}`;
+  const menuId = menuIdRef.current;
   useEffectSI(() => {
-    if (open && ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 120) });
-    }
-  }, [open]);
-  const opts = typeof options === 'function' ? options() : (options || []);
+    const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, []);
+  const opts = options || [];
   const filtered = value
-    ? opts.filter(o => String(o).toLowerCase().includes(value.toLowerCase()))
+    ? opts.filter(o => String(o).toLowerCase().includes(String(value).toLowerCase()))
     : opts;
   const visible = filtered.slice(0, 8);
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <input
-        role="combobox"
-        aria-label={ariaLabel}
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        aria-autocomplete="list"
-        aria-controls={menuId}
-        aria-activedescendant={open && visible.length > 0 ? `${menuId}-${highlight}` : undefined}
+        role="combobox" aria-label={ariaLabel} aria-expanded={open}
+        aria-haspopup="listbox" aria-controls={menuId}
+        aria-activedescendant={open && visible[highlight] !== undefined ? `${menuId}-${highlight}` : undefined}
         value={value || ''}
-        onChange={(e) => { onChange(e.target.value); setHighlight(0); if (opts.length) setOpen(true); }}
+        onChange={(e) => { onChange(e.target.value); setHighlight(0); setOpen(true); }}
         onFocus={() => opts.length && setOpen(true)}
         onKeyDown={(e) => {
-          if (!open) return;
           if (e.key === 'ArrowDown') { setHighlight(h => Math.min(h + 1, visible.length - 1)); e.preventDefault(); }
           if (e.key === 'ArrowUp')   { setHighlight(h => Math.max(h - 1, 0)); e.preventDefault(); }
-          if (e.key === 'Enter' && visible[highlight] !== undefined) { onChange(String(visible[highlight])); setOpen(false); e.preventDefault(); }
-          if (e.key === 'Escape')    { setOpen(false); }
+          if (e.key === 'Enter' && open && visible[highlight] !== undefined) { onChange(String(visible[highlight])); setOpen(false); e.preventDefault(); }
+          if (e.key === 'Escape')    setOpen(false);
         }}
+        placeholder={placeholder}
         style={{
           width: '100%', border: 'none', background: 'transparent',
-          fontFamily: mono ? 'var(--font-mono)' : 'inherit',
-          fontSize: 'inherit', padding: '6px 8px', outline: 'none',
-          boxSizing: 'border-box', color: 'inherit',
+          fontFamily: 'var(--font-mono)', fontSize: 12,
+          padding: '7px 8px', outline: 'none', boxSizing: 'border-box',
+          color: error ? 'var(--danger-700)' : undefined,
         }}
       />
-      {open && visible.length > 0 && menuPos && (
+      {open && visible.length > 0 && (
         <div role="listbox" id={menuId} className="combo__menu"
-             style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, width: menuPos.width, zIndex: 'var(--z-lightbox)' }}>
+             style={{ position: 'absolute', top: '100%', left: 0, minWidth: 160, zIndex: 'var(--z-lightbox)' }}>
           {visible.map((o, i) => (
-            <div key={o} id={`${menuId}-${i}`} role="option" aria-selected={i === highlight}
+            <div key={String(o) + i} id={`${menuId}-${i}`} role="option" aria-selected={i === highlight}
                  className={`combo__item${i === highlight ? ' combo__item--active' : ''}`}
                  onMouseDown={(e) => { e.preventDefault(); onChange(String(o)); setOpen(false); }}
                  onMouseEnter={() => setHighlight(i)}>
@@ -1635,168 +1388,51 @@ function CsvCellInput({ value, onChange, options, mono, ariaLabel }) {
   );
 }
 
-/* ────────── CSV 업로드 모달 ────────── */
-function CsvUploadModal({ onClose, onImport }) {
+/* ────────── 모델 선택 모달 (충전속도 → 모델 코드 + 설명) ────────── */
+function ModelSelectModal({ onClose, onSelect, powerOptions, modelsByPower, masterModels, currentModel, currentPower }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
-  const [rows, setRows] = useStateSI([]);
-  const [rowErrors, setRowErrors] = useStateSI({});
-  const [parsed, setParsed] = useStateSI(false);
-  const [parseErr, setParseErr] = useStateSI('');
-  const fileInputRef = useRefSI(null);
+  const [selectedPower, setSelectedPower] = useStateSI(currentPower || powerOptions[0] || '');
 
-  const runValidate = (mapped) => {
-    const modelCodes = new Set(window.PMDB.getModels().map(m => m.model));
-    const cableLengths = new Set(window.MASTER.CABLE_LENGTHS || []);
-    const errs = {};
-    mapped.forEach((row, i) => {
-      const e = [];
-      CSV_COLS.filter(c => c.required).forEach(c => { if (!row[c.key]) e.push(`${c.label} 필수`); });
-      if (row.model_name && !modelCodes.has(row.model_name)) e.push('모델코드 미등록');
-      if (row.cable_length && !cableLengths.has(row.cable_length)) e.push('케이블길이 미등록');
-      if (row.usim_no && row.usim_no.replace(/\D/g, '').length < 19) e.push('USIM번호 19자리 이상');
-      if (row.delivery_date && !/^\d{4}-\d{2}-\d{2}$/.test(row.delivery_date)) e.push('납품일자 형식 오류 (YYYY-MM-DD)');
-      if (e.length) errs[i] = e;
-    });
-    setRowErrors(errs);
-    return errs;
-  };
-
-  const handleFile = (file) => {
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) { setParseErr('CSV 파일만 업로드할 수 있습니다.'); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      let text = e.target.result;
-      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-      const allRows = parseCsv(text);
-      if (allRows.length < 2) { setParseErr('데이터 행이 없습니다. 헤더 행 + 데이터 행이 필요합니다.'); return; }
-      const hdrs = allRows[0].map(h => h.trim());
-      const mapped = allRows.slice(1).map(r => {
-        const obj = {};
-        CSV_COLS.forEach(col => {
-          const idx = hdrs.indexOf(col.label);
-          obj[col.key] = idx >= 0 ? (r[idx] || '').trim() : '';
-        });
-        if (!obj.usage_type) obj.usage_type = '공용';
-        return obj;
-      });
-      setRows(mapped);
-      runValidate(mapped);
-      setParsed(true);
-      setParseErr('');
-    };
-    reader.onerror = () => setParseErr('파일을 읽는 중 오류가 발생했습니다.');
-    reader.readAsText(file, 'UTF-8');
-  };
-
-  const updateCell = (rowIdx, key, val) => {
-    const next = rows.map((r, i) => i === rowIdx ? { ...r, [key]: val } : r);
-    setRows(next);
-    runValidate(next);
-  };
-
-  const validCount = rows.filter((_, i) => !rowErrors[i]).length;
-  const errCount = Object.keys(rowErrors).length;
-
-  const handleImport = () => {
-    rows.forEach((row, i) => { if (!rowErrors[i]) onImport(row); });
-    onClose();
-  };
-
-  const monoKeys = new Set(['station_id', 'charger_no', 'router_no', 'usim_no', 'delivery_date']);
+  const models = selectedPower ? (modelsByPower[selectedPower] || []) : masterModels;
 
   return (
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-csv-upload-title"
-           style={{ width: '92vw', maxWidth: 1100, maxHeight: '90dvh', display: 'flex', flexDirection: 'column' }}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-model-select-title" style={{ width: 480, maxWidth: '94vw' }}>
         <div className="modal__head">
-          <h2 id="modal-csv-upload-title" className="modal__title">CSV 일괄 등록</h2>
-          <p className="modal__sub">CSV 파일로 여러 오더를 한 번에 등록합니다 · <button type="button" className="btn btn--ghost btn--sm" style={{ padding: '1px 8px', fontSize: 12 }} onClick={downloadCsvTemplate}><Icon name="doc" size={11}/> 양식 다운로드</button></p>
+          <h2 id="modal-model-select-title" className="modal__title">모델 선택</h2>
+          <p className="modal__sub">충전속도를 선택한 후 모델을 클릭하세요</p>
         </div>
-        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
-          {!parsed ? (
-            <div style={{
-              border: '2px dashed var(--border-1)', borderRadius: 'var(--r-lg)', padding: '48px 24px',
-              textAlign: 'center', cursor: 'pointer', background: 'var(--surface-2)',
-              transition: 'border-color 120ms',
-            }}
-              role="button" tabIndex={0}
-              aria-label="CSV 파일 업로드 — 클릭하거나 파일을 끌어다 놓으세요"
-              onClick={() => fileInputRef.current?.click()}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}>
-              <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
-                     onChange={(e) => handleFile(e.target.files[0])}/>
-              <Icon name="doc" size={32} style={{ color: 'var(--ink-4)', marginBottom: 12 }}/>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 6 }}>
-                CSV 파일을 드래그하거나 클릭하여 업로드
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--ink-4)' }}>
-                양식 다운로드 후 작성한 CSV 파일을 업로드하세요
-              </div>
-              {parseErr && <div style={{ marginTop: 12, color: 'var(--danger-700)', fontSize: 13 }}>{parseErr}</div>}
-            </div>
-          ) : (<>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-                총 <strong>{rows.length}</strong>행
-                <span style={{ color: 'var(--success-700)' }}> · 정상 {validCount}건</span>
-                {errCount > 0 && <span style={{ color: 'var(--danger-700)' }}> · 오류 {errCount}건</span>}
-              </span>
-              <button className="btn btn--ghost btn--sm" onClick={() => { setRows([]); setParsed(false); setParseErr(''); setRowErrors({}); }}>
-                <Icon name="refresh" size={12}/> 다시 선택
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="chips" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {powerOptions.map(p => (
+              <button key={p} type="button"
+                      className={`chip ${selectedPower === p ? 'chip--active' : ''}`}
+                      onClick={() => setSelectedPower(p)}>
+                {p}
               </button>
-            </div>
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border-1)', borderRadius: 'var(--r-sm)' }}>
-              <table className="table" style={{ fontSize: 12, minWidth: 1000 }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: 32 }}>#</th>
-                    {CSV_COLS.map(c => (
-                      <th key={c.key}>{c.label}{c.required ? <span style={{ color: 'var(--danger-700)' }}> *</span> : ''}</th>
-                    ))}
-                    <th>검증</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, i) => (
-                    <tr key={i} style={{ background: rowErrors[i] ? 'var(--danger-50)' : undefined }}>
-                      <td style={{ color: 'var(--ink-4)', textAlign: 'center' }}>{i + 2}</td>
-                      {CSV_COLS.map(c => (
-                        <td key={c.key} style={{ padding: 0, maxWidth: 140, position: 'relative' }}>
-                          <CsvCellInput
-                            value={row[c.key] || ''}
-                            onChange={(val) => updateCell(i, c.key, val)}
-                            options={CSV_CELL_OPTIONS[c.key]}
-                            mono={monoKeys.has(c.key)}
-                            ariaLabel={`${i + 2}행 ${c.label}`}
-                          />
-                        </td>
-                      ))}
-                      <td style={{ minWidth: 140 }}>
-                        {rowErrors[i]
-                          ? <span style={{ color: 'var(--danger-700)', fontSize: 11 }}>{rowErrors[i].join(' · ')}</span>
-                          : <span style={{ color: 'var(--success-700)', fontSize: 13 }}>✓</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ fontSize: 12.5, color: 'var(--ink-3)', padding: '8px 14px', background: 'var(--surface-2)', borderRadius: 'var(--r-sm)' }}>
-              셀을 클릭하여 직접 수정할 수 있습니다.{errCount > 0 && ` 오류 행은 건너뛰고 정상 ${validCount}건만 등록됩니다.`}
-            </div>
-          </>)}
+            ))}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 360, overflowY: 'auto' }}>
+            {models.length === 0 ? (
+              <div className="emptystate" style={{ padding: '20px 0' }}>
+                <div className="emptystate__title">해당 충전속도의 모델이 없습니다</div>
+              </div>
+            ) : models.map(m => (
+              <button key={m.model} type="button"
+                      onClick={() => onSelect(m.model, selectedPower)}
+                      className={`model-select-item ${currentModel === m.model ? 'model-select-item--active' : ''}`}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13, color: 'var(--ink-1)' }}>{m.model}</div>
+                  {m.description && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{m.description}</div>}
+                </div>
+                {currentModel === m.model && <Icon name="check" size={14} style={{ color: 'var(--primary)', flexShrink: 0 }}/>}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
-          {parsed && validCount > 0 && (
-            <button className="btn btn--primary" onClick={handleImport}>
-              <Icon name="check" size={13}/> {validCount}건 오더 등록
-            </button>
-          )}
         </div>
       </div>
     </div>

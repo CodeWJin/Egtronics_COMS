@@ -54,6 +54,7 @@ function ProductionCompleteScreen() {
   const [shipInspectOrder, setShipInspectOrder] = useStatePC(null);
   const [shipReport, setShipReport] = useStatePC(null);
   const [models, setModels] = useStatePC(() => window.PMDB.getModels());
+  const [selectedIds, setSelectedIds] = useStatePC(() => new Set());
 
   React.useEffect(() => {
     const sync = () => setModels(window.PMDB.getModels());
@@ -69,8 +70,46 @@ function ProductionCompleteScreen() {
   const handleShipComplete = React.useCallback((orderId) => {
     window.actions.showConfirm(
       `오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`,
-      () => window.actions.shipOrder(orderId),
+      () => {
+        const ord = (window.__pm_store__?.orders || []).find(o => o.order_id === orderId);
+        window.actions.shipOrder(orderId);
+        if (ord?.production?.serial_no) {
+          window.PMDB.addChargepoint({
+            serial_no:       ord.production.serial_no,
+            model_name:      ord.model_name      || '',
+            order_id:        String(orderId),
+            install_address: ord.install_address || '',
+            created:         new Date().toISOString().slice(0, 10),
+          });
+        }
+      },
       { confirmLabel: '출하 완료' }
+    );
+  }, []);
+
+  const handleBulkShipComplete = React.useCallback((orderIds) => {
+    if (!orderIds || orderIds.length === 0) return;
+    window.actions.showConfirm(
+      `선택한 ${orderIds.length}건을 일괄 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`,
+      () => {
+        const all = window.__pm_store__?.orders || [];
+        orderIds.forEach(orderId => {
+          const ord = all.find(o => o.order_id === orderId);
+          window.actions.shipOrder(orderId);
+          if (ord?.production?.serial_no) {
+            window.PMDB.addChargepoint({
+              serial_no:       ord.production.serial_no,
+              model_name:      ord.model_name      || '',
+              order_id:        String(orderId),
+              install_address: ord.install_address || '',
+              created:         new Date().toISOString().slice(0, 10),
+            });
+          }
+        });
+        window.actions.flashToast(`${orderIds.length}건 일괄 출하 완료 처리되었습니다`, 'success');
+        setSelectedIds(new Set());
+      },
+      { confirmLabel: `${orderIds.length}건 출하 완료` }
     );
   }, []);
 
@@ -83,7 +122,7 @@ function ProductionCompleteScreen() {
     return completed.filter(o => {
       if (filterModel !== 'all') {
         // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
-        const mName = window.findModelInfo(o.model_name)?.name || o.model_name;
+        const mName = window.findModelInfo(o.model_name)?.model || o.model_name;
         if (mName !== filterModel) return false;
       }
       if (search) {
@@ -94,6 +133,30 @@ function ProductionCompleteScreen() {
       return true;
     });
   }, [completed, search, filterModel]);
+
+  // ── 출하검사 완료건 다중선택 → 일괄 출하완료 ──────────────────────
+  const isShipAllDone = React.useCallback((o) => {
+    const insp = shipInspections.get(o.order_id);
+    return !!insp && Object.keys(insp.checks || {}).length > 0 &&
+      Object.values(insp.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+  }, [shipInspections]);
+
+  const eligibleIds = useMemoPC(
+    () => filtered.filter(isShipAllDone).map(o => o.order_id),
+    [filtered, isShipAllDone]
+  );
+
+  const toggleSelect = (orderId) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId); else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => (prev.size === eligibleIds.length ? new Set() : new Set(eligibleIds)));
+  };
 
   // KPIs
   const weekStart = startOfWeek(TODAY_PC);
@@ -179,7 +242,7 @@ function ProductionCompleteScreen() {
         <select className="select" aria-label="모델 필터" style={{ width: 160 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
-          {models.map(m => <option key={m.name} value={m.name}>{m.model || m.name}</option>)}
+          {models.map(m => <option key={m.model} value={m.model}>{m.description || m.model}</option>)}
         </select>
         <button className={`toolbar__filter ${search || filterModel !== 'all' ? 'toolbar__filter--active' : ''}`}
                 onClick={() => { setSearch(''); setFilterModel('all'); }}
@@ -191,6 +254,19 @@ function ProductionCompleteScreen() {
           <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{filtered.length}</strong>건
         </span>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="toolbar" style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-100)' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-700, var(--primary))' }}>
+            <Icon name="check" size={13}/> {selectedIds.size}건 선택됨 · 출하검사 완료건
+          </span>
+          <div style={{ flex: 1 }}/>
+          <button className="btn btn--ghost btn--sm" onClick={() => setSelectedIds(new Set())}>선택 해제</button>
+          <button className="btn btn--primary btn--sm" onClick={() => handleBulkShipComplete([...selectedIds])}>
+            <Icon name="truck" size={13}/> 선택 {selectedIds.size}건 일괄 출하완료
+          </button>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="table-wrap">
@@ -205,6 +281,13 @@ function ProductionCompleteScreen() {
           <table className="table" style={{ minWidth: 700 }}>
             <thead>
               <tr>
+                <th scope="col" style={{ width: 40 }}>
+                  <input type="checkbox" aria-label="출하검사 완료건 전체 선택"
+                    checked={eligibleIds.length > 0 && selectedIds.size === eligibleIds.length}
+                    disabled={eligibleIds.length === 0}
+                    onChange={toggleSelectAll}
+                    style={{ width: 17, height: 17, accentColor: 'var(--primary)' }}/>
+                </th>
                 <th scope="col">고객사 / 모델</th>
                 <th scope="col">시리얼 / 로트</th>
                 <th scope="col">생산일</th>
@@ -217,9 +300,8 @@ function ProductionCompleteScreen() {
               {filtered.map(o => {
                 const modelInfo = window.findModelInfo(o.model_name);
                 const shipInsp = shipInspections.get(o.order_id);
-                const shipAllDone = !!shipInsp &&
-                  Object.keys(shipInsp.checks || {}).length > 0 &&
-                  Object.values(shipInsp.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+                const shipAllDone = isShipAllDone(o);
+                const checked = selectedIds.has(o.order_id);
                 const openRow = () => {
                   const role = s.currentUser?.role;
                   if (role === 'admin' || role === 'production') {
@@ -234,6 +316,13 @@ function ProductionCompleteScreen() {
                     tabIndex={0}
                     onClick={openRow}
                     onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow(); } }}>
+                    <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                      <input type="checkbox" aria-label={`오더 #${o.order_id} 일괄 출하완료 선택`}
+                        checked={checked} disabled={!shipAllDone}
+                        title={!shipAllDone ? '출하검사를 먼저 완료해 주세요' : ''}
+                        onChange={() => toggleSelect(o.order_id)}
+                        style={{ width: 17, height: 17, accentColor: 'var(--primary)', cursor: shipAllDone ? 'pointer' : 'not-allowed' }}/>
+                    </td>
                     <td>
                       <div className="cell-strong">{o.customer_name}</div>
                       <div className="cell-muted">{modelInfo?.model || o.model_name}</div>

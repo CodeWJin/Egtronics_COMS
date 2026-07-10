@@ -16,10 +16,9 @@
     "dev": "npx serve . -p 3000",
     "test": "node tests/role-permissions.test.js"
   },
-  "dependencies": {
-    "resend": "^6.12.4"
-  },
   "devDependencies": {
-    "@supabase/supabase-js": "^2.107.0"
+    "@supabase/supabase-js": "^2.107.0",
+    "exceljs": "^4.4.0",
+    "pptxgenjs": "^4.0.1"
   }
 }
