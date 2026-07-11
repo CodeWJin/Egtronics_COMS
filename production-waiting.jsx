@@ -24,6 +24,30 @@ function deliveryHint(d) {
   return { text: `D-${n}`, color: 'var(--ink-3)', bg: 'var(--surface-3)' };
 }
 
+// 테이블·카드 뷰에서 생산대기/작업중/출하대기를 별도 섹션으로 분리 표시하기 위한 그룹 정의
+const STATUS_GROUPS = [
+  { key: 'PENDING', label: '생산대기', icon: 'package' },
+  { key: 'IN_PROGRESS', label: '작업중', icon: 'factory' },
+  { key: 'AWAIT_PICKUP', label: '출하대기', icon: 'truck' },
+];
+
+function groupOrdersByStatus(orders) {
+  return STATUS_GROUPS
+    .map(g => ({ ...g, items: orders.filter(o => o.status === g.key) }))
+    .filter(g => g.items.length > 0);
+}
+
+function StatusGroupHead({ icon, label, count }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <span className="card__title" style={{ fontSize: 15 }}>
+        <Icon name={icon} size={13}/>{label}
+      </span>
+      <span className="badge badge--neutral">{count}건</span>
+    </div>
+  );
+}
+
 function ProductionWaitingScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStatePW('');
@@ -56,14 +80,16 @@ function ProductionWaitingScreen() {
     });
   }, [s.orders, search, filterModel]);
 
+  // s.orders에 의존 — search/filterModel 변경(키 입력)마다 재계산되지 않도록 filtered와 분리
   const editedIds = useMemoPW(() => {
     const set = new Set();
-    filtered.forEach(o => {
+    s.orders.forEach(o => {
+      if (o.status === 'COMPLETED') return;
       const hist = window.PMDB.getHistory(o.order_id) || [];
       if (hist.some(h => h.action !== 'create')) set.add(o.order_id);
     });
     return set;
-  }, [filtered]);
+  }, [s.orders]);
 
   const onPick = (id) => {
     const u = s.currentUser;
@@ -222,6 +248,21 @@ function ProductionWaitingScreen() {
 
 /* ────────── Table view ────────── */
 function ViewTable({ orders, onPick, completingId, editedIds, selectable, selectedIds, canSelect, onToggleSelect }) {
+  const groups = groupOrdersByStatus(orders);
+  return (
+    <>
+      {groups.map((g, gi) => (
+        <div key={g.key} style={{ marginTop: gi === 0 ? 0 : 20 }}>
+          <StatusGroupHead icon={g.icon} label={g.label} count={g.items.length}/>
+          <TableGroup orders={g.items} onPick={onPick} completingId={completingId} editedIds={editedIds}
+            selectable={selectable} selectedIds={selectedIds} canSelect={canSelect} onToggleSelect={onToggleSelect}/>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function TableGroup({ orders, onPick, completingId, editedIds, selectable, selectedIds, canSelect, onToggleSelect }) {
   return (
     <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <table className="table" style={{ whiteSpace: 'nowrap' }}>
@@ -283,7 +324,7 @@ function ViewTable({ orders, onPick, completingId, editedIds, selectable, select
                 <td style={{ color: 'var(--ink-2)' }}>{o.install_address}</td>
                 <td style={{ width: 130 }}>
                   <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</div>
-                  <span style={{ display: 'inline-block', marginTop: 2, fontSize: 11, padding: '1px 7px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600 }}>{d.text}</span>
+                  <span className="dday-badge" style={{ marginTop: 2, '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
                 </td>
                 <td style={{ width: 130 }}>
                   {o.status === 'PENDING' ? (
@@ -306,53 +347,59 @@ function ViewTable({ orders, onPick, completingId, editedIds, selectable, select
 
 /* ────────── Card view ────────── */
 function ViewCards({ orders, onPick, completingId, editedIds }) {
+  const groups = groupOrdersByStatus(orders);
   return (
-    <div style={{ marginTop: 16 }}>
-      <div className="gridcards">
-        {orders.map((o, idx) => {
-          const d = deliveryHint(o.delivery_date);
-          const completing = completingId === o.order_id;
-          return (
-            <div key={o.order_id}
-                 style={{ '--i': idx }}
-                 className={`ordercard ${completing ? 'row--completing' : ''}`}
-                 role="button" tabIndex={0}
-                 onClick={() => onPick(o.order_id)}
-                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o.order_id); } }}>
-              <div className="ordercard__top">
-                <span className="ordercard__id">#{o.order_id} · {o.created}</span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
-                  {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal')}
+    <>
+      {groups.map((g, gi) => (
+        <div key={g.key} className="view-panel" style={{ marginTop: gi === 0 ? 0 : 20 }}>
+          <StatusGroupHead icon={g.icon} label={g.label} count={g.items.length}/>
+          <div className="gridcards">
+            {g.items.map((o, idx) => {
+              const d = deliveryHint(o.delivery_date);
+              const completing = completingId === o.order_id;
+              return (
+                <div key={o.order_id}
+                     style={{ '--i': idx }}
+                     className={`ordercard ${completing ? 'row--completing' : ''}`}
+                     role="button" tabIndex={0}
+                     onClick={() => onPick(o.order_id)}
+                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o.order_id); } }}>
+                  <div className="ordercard__top">
+                    <span className="ordercard__id">#{o.order_id} · {o.created}</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
+                      {priorityBadge(daysUntil(o.delivery_date) <= 7 ? 'high' : 'normal')}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="ordercard__model">{o.model_name}</div>
+                    <div className="ordercard__cust">{o.customer_name}</div>
+                  </div>
+                  <dl className="ordercard__rows">
+                    <dt><Icon name="building" size={11}/></dt>
+                    <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{o.station_id}</dd>
+                    <dt><Icon name="map-pin" size={11}/></dt>
+                    <dd style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.install_address}</dd>
+                    <dt><Icon name="calendar" size={11}/></dt>
+                    <dd style={{ fontVariantNumeric: 'tabular-nums' }}>{o.delivery_date}</dd>
+                  </dl>
+                  <div className="ordercard__foot">
+                    <span className="dday-badge" style={{ '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
+                    {o.status === 'PENDING' ? (
+                      <span className={`badge badge--pending ${completing ? 'badge--statusswap' : ''}`}><span className="badge__dot"/>생산대기</span>
+                    ) : o.status === 'IN_PROGRESS' ? (
+                      <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>
+                    ) : (
+                      <span className="badge badge--complete badge--statusswap"><Icon name="check" size={10}/>출하대기</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <div className="ordercard__model">{o.model_name}</div>
-                <div className="ordercard__cust">{o.customer_name}</div>
-              </div>
-              <dl className="ordercard__rows">
-                <dt><Icon name="building" size={11}/></dt>
-                <dd style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{o.station_id}</dd>
-                <dt><Icon name="map-pin" size={11}/></dt>
-                <dd style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.install_address}</dd>
-                <dt><Icon name="calendar" size={11}/></dt>
-                <dd style={{ fontVariantNumeric: 'tabular-nums' }}>{o.delivery_date}</dd>
-              </dl>
-              <div className="ordercard__foot">
-                <span style={{ fontSize: 11.5, padding: '2px 8px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600 }}>{d.text}</span>
-                {o.status === 'PENDING' ? (
-                  <span className={`badge badge--pending ${completing ? 'badge--statusswap' : ''}`}><span className="badge__dot"/>생산대기</span>
-                ) : o.status === 'IN_PROGRESS' ? (
-                  <span className="badge badge--info"><span className="badge__dot"/>생산진행중</span>
-                ) : (
-                  <span className="badge badge--complete badge--statusswap"><Icon name="check" size={10}/>출하대기</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -374,8 +421,9 @@ function ViewKanban({ orders, onPick, completingId, editedIds }) {
   ];
 
   return (
-    <div className="kanban-scroll" style={{ marginTop: 16 }}>
-    <div className="kanban" style={{ gridTemplateColumns: `repeat(${visibleCols.length}, 260px)` }}>
+    <div className="view-panel">
+    <div className="kanban-scroll">
+    <div className="kanban" style={{ gridTemplateColumns: `repeat(${visibleCols.length}, minmax(180px, 1fr))` }}>
       {visibleCols.map(col => {
         const items = orders.filter(col.filter);
         return (
@@ -413,7 +461,7 @@ function ViewKanban({ orders, onPick, completingId, editedIds }) {
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Icon name="calendar" size={11}/> <span style={{ fontVariantNumeric: 'tabular-nums' }}>{o.delivery_date}</span>
                     </span>
-                    <span style={{ padding: '1px 7px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600 }}>{d.text}</span>
+                    <span className="dday-badge" style={{ '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
                   </div>
                 </div>
               );
@@ -421,6 +469,7 @@ function ViewKanban({ orders, onPick, completingId, editedIds }) {
           </div>
         );
       })}
+    </div>
     </div>
     </div>
   );
@@ -453,7 +502,7 @@ function ViewTimeline({ orders, onPick, completingId, editedIds }) {
             <div className="timeline__date">
               <strong style={{ color: d.color }}>{date.slice(8)}</strong>
               <span>{dayLabel(date)}</span>
-              <span style={{ marginTop: 4, fontSize: 11, padding: '1px 7px', borderRadius: 999, color: d.color, background: d.bg, fontWeight: 600, alignSelf: 'flex-start' }}>{d.text}</span>
+              <span className="dday-badge" style={{ marginTop: 4, alignSelf: 'flex-start', '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
             </div>
             <div className="timeline__items">
               {items.map((o, idx) => {

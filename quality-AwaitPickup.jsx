@@ -118,6 +118,15 @@ function ProductionCompleteScreen() {
     [s.orders]
   );
 
+  // s.orders 변경 시에만 재계산 — search 키 입력마다 getShipPhotos를 다시 부르지 않도록 별도 메모
+  const shipPhotoCounts = useMemoPC(() => {
+    const map = new Map();
+    completed.forEach(o => {
+      map.set(o.order_id, window.PMDB?.getShipPhotos?.(o.order_id)?.length || 0);
+    });
+    return map;
+  }, [completed]);
+
   const filtered = useMemoPC(() => {
     return completed.filter(o => {
       if (filterModel !== 'all') {
@@ -278,7 +287,7 @@ function ProductionCompleteScreen() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table" style={{ minWidth: 700 }}>
+          <table className="table qap-table">
             <thead>
               <tr>
                 <th scope="col" style={{ width: 40 }}>
@@ -290,7 +299,7 @@ function ProductionCompleteScreen() {
                 </th>
                 <th scope="col">고객사 / 모델</th>
                 <th scope="col">시리얼 / 로트</th>
-                <th scope="col">생산일</th>
+                <th scope="col" className="qap-table__col--proddate">생산일</th>
                 <th scope="col">기능검사성적서</th>
                 <th scope="col">출하 전 검사</th>
                 <th scope="col" style={{ width: 110 }}>출하</th>
@@ -314,14 +323,18 @@ function ProductionCompleteScreen() {
                 return (
                   <tr key={o.order_id} className="row--clickable"
                     tabIndex={0}
+                    aria-label={`오더 #${o.order_id} · ${o.customer_name} 상세 정보 열기`}
                     onClick={openRow}
                     onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openRow(); } }}>
                     <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
-                      <input type="checkbox" aria-label={`오더 #${o.order_id} 일괄 출하완료 선택`}
-                        checked={checked} disabled={!shipAllDone}
-                        title={!shipAllDone ? '출하검사를 먼저 완료해 주세요' : ''}
-                        onChange={() => toggleSelect(o.order_id)}
-                        style={{ width: 17, height: 17, accentColor: 'var(--primary)', cursor: shipAllDone ? 'pointer' : 'not-allowed' }}/>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <input type="checkbox" aria-label={`오더 #${o.order_id} 일괄 출하완료 선택`}
+                          checked={checked} disabled={!shipAllDone}
+                          title={!shipAllDone ? '출하검사를 먼저 완료해 주세요' : ''}
+                          onChange={() => toggleSelect(o.order_id)}
+                          style={{ width: 17, height: 17, accentColor: 'var(--primary)', cursor: shipAllDone ? 'pointer' : 'not-allowed' }}/>
+                        {!shipAllDone && <window.HelpDot text="출하검사를 먼저 완료해 주세요"/>}
+                      </span>
                     </td>
                     <td>
                       <div className="cell-strong">{o.customer_name}</div>
@@ -331,7 +344,7 @@ function ProductionCompleteScreen() {
                       <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 12.5 }}>{o.production.serial_no}</div>
                       <div className="cell-mono" style={{ color: 'var(--ink-4)' }}>{o.production.lot_no}</div>
                     </td>
-                    <td style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
+                    <td className="qap-table__col--proddate" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
                     <td>
                       <button
                           className="btn btn--sm btn--success"
@@ -340,15 +353,15 @@ function ProductionCompleteScreen() {
                       </button>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}>
                         <button
                           className={`btn btn--sm ${shipAllDone ? 'btn--success' : shipInsp ? 'btn--warning' : 'btn--secondary'}`}
                           onClick={(e) => { e.stopPropagation(); setShipInspectOrder(o); }}>
                           <Icon name={shipAllDone ? 'check' : 'doc'} size={12}/> 출하검사
                           {(() => {
-                            const cnt = window.PMDB?.getShipPhotos?.(o.order_id)?.length || 0;
+                            const cnt = shipPhotoCounts.get(o.order_id) || 0;
                             return cnt > 0 ? (
-                              <span style={{ marginLeft: 4, background: 'rgba(0,0,0,0.15)', borderRadius: 10, padding: '1px 6px', fontSize: 10.5 }}>
+                              <span style={{ marginLeft: 4, background: 'rgba(0,0,0,0.15)', borderRadius: 'var(--r-pill, 9999px)', padding: '1px 6px', fontSize: 10.5 }}>
                                 {cnt}장
                               </span>
                             ) : null;

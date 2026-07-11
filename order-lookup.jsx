@@ -16,7 +16,6 @@ function statusBadge(o) {
 function OrderLookupScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStateOL('');
-  const fStatus = 'COMPLETED';
   const [fModel, setFModel] = useStateOL('all');
   const [models, setModels] = useStateOL(() => window.PMDB.getModels());
 
@@ -26,14 +25,22 @@ function OrderLookupScreen() {
     return () => window.removeEventListener('masterLoaded', sync);
   }, []);
   const [fCustomer, setFCustomer] = useStateOL('all');
-  const [dateField, setDateField] = useStateOL('delivery'); // 'delivery' | 'prod'
   const [dateFrom, setDateFrom] = useStateOL('');
   const [dateTo, setDateTo] = useStateOL('');
-  const [selId, setSelId] = useStateOL(null);
-  const [sortKey, setSortKey] = useStateOL('order_id');
+  const [selSerial, setSelSerial] = useStateOL(null);
+  const [sortKey, setSortKey] = useStateOL('created');
   const [sortDir, setSortDir] = useStateOL('desc');
   const [fAsOnly, setFAsOnly] = useStateOL(false);
   const [showAdvanced, setShowAdvanced] = useStateOL(false);
+
+  // tb_chargepoint_infor — 오더에 연결된 것(출하 완료 시 자동 등록)과 연결되지 않은 것
+  // (AS 접수에서 시리얼 미조회 시 수동 등록) 모두 포함
+  const chargepoints = useMemoOL(() => window.PMDB.loadChargepoints(), [s.orders]);
+  const orderById = useMemoOL(() => {
+    const m = new Map();
+    s.orders.forEach(o => m.set(String(o.order_id), o));
+    return m;
+  }, [s.orders]);
 
   const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
 
@@ -42,24 +49,21 @@ function OrderLookupScreen() {
 
   const filtered = useMemoOL(() => {
     const allReceptions = fAsOnly ? safeLoadAsReceptions() : [];
-    let list = s.orders.filter(o => {
-      if (fStatus !== 'all' && o.status !== fStatus) return false;
+    let list = chargepoints.map(cp => ({ cp, order: cp.order_id ? orderById.get(String(cp.order_id)) : null }));
+    list = list.filter(({ cp, order }) => {
       if (fModel !== 'all') {
-        // model_name에 코드가 저장된 오더도 표시명 기준 필터에 매칭
-        const mName = window.findModelInfo(o.model_name)?.model || o.model_name;
+        // model_name에 코드가 저장된 충전기도 표시명 기준 필터에 매칭
+        const mName = window.findModelInfo(cp.model_name)?.model || cp.model_name;
         if (mName !== fModel) return false;
       }
-      if (fCustomer !== 'all' && o.customer_name !== fCustomer) return false;
-      const dv = dateField === 'prod' ? (o.production && o.production.prod_date) : o.delivery_date;
-      if (dateFrom && (!dv || dv < dateFrom)) return false;
-      if (dateTo && (!dv || dv > dateTo)) return false;
-      if (fAsOnly && !allReceptions.some(r => r.order_id === o.order_id)) return false;
+      if (fCustomer !== 'all' && (!order || order.customer_name !== fCustomer)) return false;
+      if (dateFrom && (!cp.created || cp.created < dateFrom)) return false;
+      if (dateTo && (!cp.created || cp.created > dateTo)) return false;
+      if (fAsOnly && !(order && allReceptions.some(r => r.order_id === order.order_id))) return false;
       if (search) {
         const q = search.toLowerCase();
-        const hay = [o.customer_name, o.model_name, o.station_id, o.router_no, o.usim_no, o.install_address, String(o.order_id),
-          o.production && o.production.serial_no, o.production && o.production.lot_no, o.production && o.production.doc_no,
-          o.production && o.production.doc_no && '기능검사성적서',
-          o.production && o.production.doc_no && '출하검사성적서']
+        const hay = [cp.serial_no, cp.model_name, cp.install_address, cp.order_id,
+          order && order.customer_name, order && order.station_id]
           .filter(Boolean).join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -67,19 +71,18 @@ function OrderLookupScreen() {
     });
     list = [...list].sort((a, b) => {
       let av, bv;
-      if (sortKey === 'order_id') { av = a.order_id; bv = b.order_id; }
-      else if (sortKey === 'delivery_date') { av = a.delivery_date; bv = b.delivery_date; }
-      else if (sortKey === 'customer_name') { av = a.customer_name; bv = b.customer_name; }
-      else { av = a.status; bv = b.status; }
+      if (sortKey === 'serial_no') { av = a.cp.serial_no || ''; bv = b.cp.serial_no || ''; }
+      else if (sortKey === 'customer_name') { av = a.order?.customer_name || ''; bv = b.order?.customer_name || ''; }
+      else { av = a.cp.created || ''; bv = b.cp.created || ''; }
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [s.orders, search, fStatus, fModel, fCustomer, dateField, dateFrom, dateTo, sortKey, sortDir, fAsOnly]);
+  }, [chargepoints, orderById, search, fModel, fCustomer, dateFrom, dateTo, sortKey, sortDir, fAsOnly]);
 
   const reset = () => {
     setSearch(''); setFModel('all'); setFCustomer('all');
-    setDateFrom(''); setDateTo(''); setDateField('delivery'); setFAsOnly(false);
+    setDateFrom(''); setDateTo(''); setFAsOnly(false);
   };
 
   const toggleSort = (k) => {
@@ -91,20 +94,21 @@ function OrderLookupScreen() {
     ? <Icon name={sortDir === 'asc' ? 'chevron-up' : 'chevron-down'} size={11} aria-hidden="true"/>
     : null;
 
-  const selected = s.orders.find(o => o.order_id === selId);
+  const selectedEntry = chargepoints.find(cp => cp.serial_no === selSerial);
+  const selectedOrder = selectedEntry?.order_id ? orderById.get(String(selectedEntry.order_id)) : null;
 
   return (
     <div className="screen">
       <div className="screen__head">
         <div>
-          <div className="screen__crumbs">통합 조회 · 출하완료 오더</div>
-          <h1 className="screen__title">오더 통합 조회</h1>
-          <p className="screen__sub">출하완료된 오더를 검색합니다. 행을 선택하면 우측에 전체 상세가 열립니다.</p>
+          <div className="screen__crumbs">통합 조회 · 설치 충전기</div>
+          <h1 className="screen__title">충전기 통합 조회</h1>
+          <p className="screen__sub">등록된 충전기(tb_chargepoint_infor)를 시리얼번호로 검색합니다. 행을 선택하면 우측에 상세가 열립니다.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-          <span className="badge badge--complete" style={{ fontSize: 11 }}><Icon name="check" size={10}/>출하완료 오더만 표시</span>
+          <span className="badge badge--complete" style={{ fontSize: 11 }}><Icon name="check" size={10}/>등록된 충전기 전체 표시</span>
           <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
-            총 <strong style={{ color: 'var(--success-700)' }}>{s.orders.filter(o => o.status === 'COMPLETED').length}</strong>건
+            총 <strong style={{ color: 'var(--success-700)' }}>{chargepoints.length}</strong>대
           </span>
         </div>
       </div>
@@ -137,7 +141,7 @@ function OrderLookupScreen() {
           </div>
 
           {/* 항상 표시: 통합 검색 */}
-          <input id="ol-search" className="input" placeholder="고객사 · 충전소ID · 시리얼 · 주소 · 납품일 …"
+          <input id="ol-search" className="input" placeholder="시리얼번호 · 모델 · 설치주소 · 고객사 · 오더번호 …"
                  value={search} onChange={(e) => setSearch(e.target.value)}
                  aria-label="통합 검색"/>
 
@@ -160,20 +164,13 @@ function OrderLookupScreen() {
                   </select>
                 </div>
                 <div className="field">
-                  <label className="field__label" htmlFor="ol-date-field">기간 기준</label>
-                  <select id="ol-date-field" className="select" value={dateField} onChange={(e) => setDateField(e.target.value)}>
-                    <option value="delivery">납품일자</option>
-                    <option value="prod">생산일자</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="ol-date-from">시작일</label>
+                  <label className="field__label" htmlFor="ol-date-from">등록일 시작</label>
                   <input id="ol-date-from" type="date" className="input"
                          style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
                          value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}/>
                 </div>
                 <div className="field">
-                  <label className="field__label" htmlFor="ol-date-to">종료일</label>
+                  <label className="field__label" htmlFor="ol-date-to">등록일 종료</label>
                   <input id="ol-date-to" type="date" className="input"
                          style={dateRangeErr ? { borderColor: 'var(--danger)' } : {}}
                          value={dateTo} onChange={(e) => setDateTo(e.target.value)}/>
@@ -189,7 +186,7 @@ function OrderLookupScreen() {
                                   color: fAsOnly ? 'var(--warning-700)' : 'var(--ink-2)', fontSize: 13.5 }}>
                     <input type="checkbox" checked={fAsOnly} onChange={e => setFAsOnly(e.target.checked)}
                            style={{ accentColor: 'var(--warning-700)', width: 15, height: 15 }}/>
-                    A/S 이력 있는 오더만
+                    A/S 이력 있는 충전기만
                   </label>
                 </div>
               </div>
@@ -215,13 +212,13 @@ function OrderLookupScreen() {
                 <button type="button" className="chip chip--active"
                         onClick={() => { setDateFrom(''); setDateTo(''); }}
                         style={{ fontSize: 12, padding: '4px 10px' }}>
-                  {dateField === 'delivery' ? '납품일' : '생산일'}: {dateFrom || '—'} ~ {dateTo || '—'} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                  등록일: {dateFrom || '—'} ~ {dateTo || '—'} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
                 </button>
               )}
               {fAsOnly && (
                 <button type="button" className="chip chip--active" onClick={() => setFAsOnly(false)}
                         style={{ fontSize: 12, padding: '4px 10px' }}>
-                  A/S 이력 있는 오더 <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                  A/S 이력 있는 충전기 <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
                 </button>
               )}
             </div>
@@ -241,68 +238,74 @@ function OrderLookupScreen() {
         <div className="table-wrap">
           <div className="emptystate">
             <Icon name="search" size={28} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
-            <div className="emptystate__title">조건에 맞는 오더가 없습니다</div>
+            <div className="emptystate__title">조건에 맞는 충전기가 없습니다</div>
             <div className="emptystate__sub">검색어 또는 필터를 조정해 보세요</div>
           </div>
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table" style={{ tableLayout: 'fixed', width: '100%', minWidth: 860, textAlign: 'left', borderCollapse: 'collapse' }}>
+          <table className="table ol-table" style={{ tableLayout: 'fixed', width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
             <colgroup>
-              <col style={{ width: 76 }}/>
-              <col style={{ width: 130 }}/>
-              <col style={{ width: 220 }}/>
               <col style={{ width: 150 }}/>
-              <col style={{ width: 100 }}/>
-              <col style={{ width: 100 }}/>
+              <col style={{ width: 200 }}/>
+              <col style={{ width: 220 }}/>
+              <col className="ol-table__col--created" style={{ width: 100 }}/>
+              <col className="ol-table__col--linked" style={{ width: 180 }}/>
               <col style={{ width: 40 }}/>
             </colgroup>
             <thead>
               <tr>
                 <th scope="col" className="th--sort" tabIndex={0}
-                    aria-sort={sortKey === 'order_id' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    onClick={() => toggleSort('order_id')}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('order_id'); } }}>오더 #{sortArrow('order_id')}</th>
-                <th scope="col" className="th--sort" tabIndex={0}
+                    aria-sort={sortKey === 'serial_no' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => toggleSort('serial_no')}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('serial_no'); } }}>시리얼번호{sortArrow('serial_no')}</th>
+                <th scope="col">모델</th>
+                <th scope="col">설치주소</th>
+                <th scope="col" className="th--sort ol-table__col--created" tabIndex={0}
+                    aria-sort={sortKey === 'created' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    onClick={() => toggleSort('created')}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('created'); } }}>등록일{sortArrow('created')}</th>
+                <th scope="col" className="th--sort ol-table__col--linked" tabIndex={0}
                     aria-sort={sortKey === 'customer_name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     onClick={() => toggleSort('customer_name')}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('customer_name'); } }}>고객사{sortArrow('customer_name')}</th>
-                <th scope="col">모델</th>
-                <th scope="col">충전소 ID</th>
-                <th scope="col" className="th--sort" tabIndex={0}
-                    aria-sort={sortKey === 'delivery_date' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                    onClick={() => toggleSort('delivery_date')}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('delivery_date'); } }}>납품일{sortArrow('delivery_date')}</th>
-                <th scope="col">생산일</th>
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort('customer_name'); } }}>연결 오더{sortArrow('customer_name')}</th>
                 <th scope="col"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(o => {
-                const mi = window.findModelInfo(o.model_name);
+              {filtered.map(({ cp, order }) => {
+                const mi = window.findModelInfo(cp.model_name);
                 return (
-                <tr key={o.order_id}
-                    className={`row--clickable ${o.order_id === selId ? 'row--selected' : ''}`}
+                <tr key={cp.serial_no}
+                    className={`row--clickable ${cp.serial_no === selSerial ? 'row--selected' : ''}`}
                     tabIndex={0}
-                    onClick={() => setSelId(o.order_id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelId(o.order_id); } }}>
-                  <td className="cell-mono">#{o.order_id}</td>
-                  <td>
-                    <div className="cell-strong">{o.customer_name}</div>
-                    <div className="cell-muted">접수 {o.created}</div>
-                  </td>
+                    aria-label={`충전기 ${cp.serial_no} 상세 정보 열기`}
+                    onClick={() => setSelSerial(cp.serial_no)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelSerial(cp.serial_no); } }}>
+                  <td className="cell-mono cell-strong">{cp.serial_no}</td>
                   <td>
                     <span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.3px' }}>
-                      {mi?.model || o.model_name}
+                      {mi?.model || cp.model_name || '—'}
                     </span>
                     {mi?.description && mi.description !== mi.model && (
                       <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{mi.description}</div>
                     )}
                   </td>
-                  <td className="cell-mono">{o.station_id}</td>
-                  <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</td>
-                  <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13, color: 'var(--ink-3)' }}>
-                    {o.production ? o.production.prod_date : <span style={{ color: 'var(--ink-5)' }}>—</span>}
+                  <td className="cell-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cp.install_address || <span style={{ color: 'var(--ink-5)' }}>—</span>}
+                  </td>
+                  <td className="ol-table__col--created" style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+                    {cp.created || <span style={{ color: 'var(--ink-5)' }}>—</span>}
+                  </td>
+                  <td className="ol-table__col--linked">
+                    {order ? (
+                      <>
+                        <div className="cell-strong">{order.customer_name}</div>
+                        <div className="cell-muted">#{order.order_id}</div>
+                      </>
+                    ) : (
+                      <span className="badge badge--neutral">미연결</span>
+                    )}
                   </td>
                   <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
                 </tr>
@@ -313,8 +316,74 @@ function OrderLookupScreen() {
         </div>
       )}
 
-      {selected && <OrderDrawer order={selected} onClose={() => setSelId(null)}/>}
+      {selectedEntry && (
+        selectedOrder
+          ? <OrderDrawer order={selectedOrder} onClose={() => setSelSerial(null)}/>
+          : <ChargepointDrawer chargepoint={selectedEntry} onClose={() => setSelSerial(null)}/>
+      )}
     </div>
+  );
+}
+
+/* ────────── 오더 미연결 충전기용 경량 드로어 ────────── */
+function ChargepointDrawer({ chargepoint: cp, onClose }) {
+  const [closing, setClosing] = React.useState(false);
+  const handleClose = React.useCallback(() => {
+    setClosing(true);
+    setTimeout(onClose, 200);
+  }, [onClose]);
+  window.useLockScroll();
+  const asideRef = React.useRef(null);
+  React.useEffect(() => { asideRef.current?.focus(); }, []);
+  React.useEffect(() => {
+    const fn = (e) => { if (e.key === 'Escape') handleClose(); };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, [handleClose]);
+
+  const modelObj = React.useMemo(() => window.findModelInfo(cp.model_name), [cp.model_name]);
+
+  return ReactDOM.createPortal(
+    <>
+      <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
+      <aside ref={asideRef} tabIndex={-1} className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="충전기 상세">
+        <div className="drawer__head">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="drawer__eyebrow">tb_chargepoint_infor</div>
+            <div className="drawer__title" style={{ margin: '5px 0 10px' }}>{cp.serial_no}</div>
+            <span className="badge badge--neutral"><Icon name="alert" size={10}/>연결된 오더 없음</span>
+          </div>
+          <button className="drawer__close" onClick={handleClose} aria-label="닫기"><Icon name="x" size={16}/></button>
+        </div>
+
+        <div className="drawer__body">
+          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+                <Icon name="factory" size={16} style={{ color: 'var(--ink-2)' }}/>
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>충전기 등록 정보</span>
+            </div>
+            <div className="dgrid">
+              <Field k="시리얼번호" v={cp.serial_no} mono/>
+              <Field k="모델 코드" v={modelObj?.model || cp.model_name || '—'} mono/>
+              {modelObj?.description && <Field k="모델명" v={modelObj.description}/>}
+              <Field k="등록일" v={cp.created || '—'} mono/>
+              <Field k="설치주소" v={cp.install_address || '—'} full/>
+            </div>
+          </section>
+          <div style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5, padding: '0 4px' }}>
+            이 충전기는 영업 오더와 연결되어 있지 않습니다 — AS 접수 화면에서 시리얼번호 미조회 시 수동으로 등록된 항목일 수 있습니다.
+          </div>
+          <AsReceptionSection serialNo={cp.serial_no}/>
+        </div>
+
+        <div className="drawer__foot">
+          <button className="btn btn--ghost" onClick={handleClose}>닫기</button>
+        </div>
+      </aside>
+    </>,
+    document.body
   );
 }
 
@@ -472,10 +541,14 @@ function AsReceptionCard({ reception: r }) {
   );
 }
 
-function AsReceptionSection({ orderId }) {
+function AsReceptionSection({ orderId, serialNo }) {
+  // tb_as_reception.serial_no로 매칭 — order_id가 비어 있는(오더 미연결) 충전기도 AS 이력을 볼 수 있도록.
+  // order_id 매칭도 함께 유지해 시리얼번호 없이 오더로만 연결된 기존 접수 건이 누락되지 않게 한다.
   const receptions = React.useMemo(
-    () => safeLoadAsReceptions().filter(r => r.order_id === orderId),
-    [orderId]
+    () => safeLoadAsReceptions().filter(r =>
+      (serialNo && r.serial_no === serialNo) || (orderId != null && r.order_id === orderId)
+    ),
+    [orderId, serialNo]
   );
 
   return (
@@ -663,23 +736,29 @@ function OrderDrawer({ order, onClose }) {
           )}
 
           <OrderHistorySection orderId={order.order_id}/>
-          <AsReceptionSection orderId={order.order_id}/>
+          <AsReceptionSection orderId={order.order_id} serialNo={p?.serial_no}/>
         </div>
 
         <div className="drawer__foot">
           {p && (
-            <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}
-              disabled={!funcInspection}
-              title={!funcInspection ? '기능 검사 성적서가 아직 작성되지 않았습니다' : ''}>
-              <Icon name="doc" size={13}/> 기능검사성적서
-            </button>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}
+                disabled={!funcInspection}
+                title={!funcInspection ? '기능 검사 성적서가 아직 작성되지 않았습니다' : ''}>
+                <Icon name="doc" size={13}/> 기능검사성적서
+              </button>
+              {!funcInspection && <window.HelpDot text="기능 검사 성적서가 아직 작성되지 않았습니다"/>}
+            </span>
           )}
           {p && (
-            <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}
-              disabled={!shipInspection}
-              title={!shipInspection ? '출하 검사 성적서가 아직 작성되지 않았습니다' : ''}>
-              <Icon name="doc" size={13}/> 출하검사성적서
-            </button>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}
+                disabled={!shipInspection}
+                title={!shipInspection ? '출하 검사 성적서가 아직 작성되지 않았습니다' : ''}>
+                <Icon name="doc" size={13}/> 출하검사성적서
+              </button>
+              {!shipInspection && <window.HelpDot text="출하 검사 성적서가 아직 작성되지 않았습니다"/>}
+            </span>
           )}
           {canEditSales && (
             <button className="btn btn--primary" onClick={goEdit}>
@@ -750,7 +829,7 @@ function OrderDrawer({ order, onClose }) {
         <div ref={shipPhotoLightboxRef} tabIndex={-1}
           role="dialog" aria-modal="true" aria-label="출하 전 사진 라이트박스"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            position: 'fixed', inset: 0, background: 'var(--scrim)',
             zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setShipPhotoLightbox(null)}
@@ -760,7 +839,7 @@ function OrderDrawer({ order, onClose }) {
             if (e.key === 'ArrowLeft' && shipPhotoLightbox > 0) setShipPhotoLightbox(shipPhotoLightbox - 1);
             if (e.key === 'ArrowRight' && shipPhotoLightbox < shipPhotos.length - 1) setShipPhotoLightbox(shipPhotoLightbox + 1);
           }}>
-          <img src={shipPhotos[shipPhotoLightbox]?.url} alt={shipPhotos[shipPhotoLightbox]?.filename}
+          <img src={shipPhotos[shipPhotoLightbox]?.url} alt={`출하 전 검사 사진 ${shipPhotoLightbox + 1}/${shipPhotos.length}`}
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
           <button aria-label="닫기"
             style={{ position: 'absolute', top: 16, right: 16, width: 44, height: 44, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', color: 'var(--ink-inv)', fontSize: 20, cursor: 'pointer' }}

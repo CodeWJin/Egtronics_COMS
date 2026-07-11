@@ -7,7 +7,7 @@ window.ROLE_TABS = {
   production: ['dashboard', 'waiting', 'mapping', 'AwaitPickup', 'lookup'],
   quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
-window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질', as: 'A/S' };
+window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질' };
 
 const { useState: useStateAU } = React;
 
@@ -43,7 +43,7 @@ function LoginScreen() {
           <span className="login__side__brand-name">COMS</span>
         </div>
         <div className="login__side__tagline">
-          EV 충전기<br/>영업·생산<br/>통합 관리
+          Egtronics 충전기 통합 관리 시스템
         </div>
         <ul className="login__side__feats">
           <li className="login__side__feat">

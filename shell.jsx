@@ -1,6 +1,6 @@
 // App shell: top nav + screen container + global store
 
-const { useState, useEffect, useMemo, useRef } = React;
+const { useState: useStateSH, useEffect: useEffectSH, useMemo: useMemoSH, useRef: useRefSH } = React;
 
 // Global store via simple hook + window event
 const STORE_KEY = '__pm_store__';
@@ -26,8 +26,8 @@ function notify() {
 }
 
 function useStore() {
-  const [, setT] = useState(0);
-  useEffect(() => {
+  const [, setT] = useStateSH(0);
+  useEffectSH(() => {
     const fn = () => setT((x) => x + 1);
     window[STORE_KEY].listeners.add(fn);
     return () => window[STORE_KEY].listeners.delete(fn);
@@ -46,7 +46,7 @@ window.findModelInfo = function (modelName) {
 
 // main 스크롤 잠금 훅 — 드로어·모달 공용
 function useLockScroll() {
-  useEffect(() => {
+  useEffectSH(() => {
     const el = document.querySelector('main');
     if (!el) return;
     el.style.overflow = 'hidden';
@@ -304,9 +304,9 @@ window.actions = {
 
 // 도움말 팝오버 — title 툴팁은 태블릿 터치에서 표시되지 않으므로 클릭·탭 토글로 제공
 function HelpDot({ text }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
+  const [open, setOpen] = useStateSH(false);
+  const ref = useRefSH(null);
+  useEffectSH(() => {
     if (!open) return;
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
@@ -320,9 +320,10 @@ function HelpDot({ text }) {
   return (
     <span className="helpdot-wrap" ref={ref}>
       <button type="button" className="helpdot" aria-expanded={open}
+              aria-haspopup="dialog"
               aria-label={`도움말: ${text}`}
               onClick={() => setOpen(v => !v)}>?</button>
-      {open && <span role="tooltip" className="helpdot-pop">{text}</span>}
+      {open && <span role="dialog" aria-label={text} className="helpdot-pop">{text}</span>}
     </span>
   );
 }
@@ -354,7 +355,7 @@ function TopNav() {
       <div className="topnav__brand">
         <img className="topnav__logo" src="logo_header.png" alt="Egtronics" />
         <span style={{ display: 'inline-block' }}>COMS</span>
-        <span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500, marginLeft: 4, padding: '2px 6px', border: '1px solid var(--border-1)', borderRadius: 4, letterSpacing: '0.04em' }}>v1.0</span>
+        <span className="topnav__version">v1.0</span>
       </div>
       <nav className="topnav__tabs">
         {allowed.map(k => (
@@ -376,17 +377,22 @@ function TopNav() {
 }
 
 function UserMenu({ user }) {
-  const [open, setOpen] = useState(false);
-  const [showChangePw, setShowChangePw] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
+  const [open, setOpen] = useStateSH(false);
+  const [showChangePw, setShowChangePw] = useStateSH(false);
+  const ref = useRefSH(null);
+  useEffectSH(() => {
     const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', fn);
-    return () => document.removeEventListener('mousedown', fn);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', fn);
+      document.removeEventListener('keydown', onKey);
+    };
   }, []);
   return (
     <div className="usermenu" ref={ref}>
-      <button className="usermenu__trigger" aria-expanded={open} aria-label={`사용자 메뉴 — ${user.name}`} onClick={() => setOpen(v => !v)}>
+      <button className="usermenu__trigger" aria-expanded={open} aria-haspopup="menu" aria-label={`사용자 메뉴 — ${user.name}`} onClick={() => setOpen(v => !v)}>
         <span className="usermenu__role" data-role={user.role}>{window.ROLE_LABEL[user.role]}</span>
         <span className="usermenu__name">{user.name}</span>
         <Icon name="chevron-down" size={20} style={{ color: 'var(--ink-4)' }}/>
@@ -416,12 +422,12 @@ function UserMenu({ user }) {
 function ChangePasswordModal({ user, onClose }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
-  const [step, setStep] = useState(1); // 1: 현재 비밀번호  2: 새 비밀번호  3: 완료
-  const [curPw, setCurPw] = useState('');
-  const [newPw, setNewPw] = useState('');
-  const [confirmPw, setConfirmPw] = useState('');
-  const [err, setErr] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [step, setStep] = useStateSH(1); // 1: 현재 비밀번호  2: 새 비밀번호  3: 완료
+  const [curPw, setCurPw] = useStateSH('');
+  const [newPw, setNewPw] = useStateSH('');
+  const [confirmPw, setConfirmPw] = useStateSH('');
+  const [err, setErr] = useStateSH('');
+  const [busy, setBusy] = useStateSH(false);
 
   const verifyCurrentPw = async () => {
     setErr('');
@@ -529,6 +535,58 @@ function ChangePasswordModal({ user, onClose }) {
 }
 
 window.TopNav = TopNav;
+
+// 모바일(≤600px) 하단 탭바 — 현장에서 엄지 도달 범위 안에 주요 화면 이동 배치.
+// CSS(.mobilenav)가 데스크탑에서는 display:none 처리하므로 항상 렌더링해도 안전.
+function MobileTabBar() {
+  const s = useStore();
+  const user = s.currentUser;
+  if (!user) return null;
+  const allowed = window.ROLE_TABS[user.role] || [];
+
+  const pendingCount = s.orders.filter(o => o.status === 'PENDING').length;
+  const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP').length;
+  const asCount = (s.asReceptions || []).filter(r => r.status !== '처리완료').length;
+
+  const META = {
+    dashboard:       { label: '대시보드', icon: 'grid' },
+    sales:           { label: '영업', icon: 'cart' },
+    waiting:         { label: '생산대기', icon: 'clock', count: pendingCount },
+    mapping:         { label: '생산입력', icon: 'factory' },
+    AwaitPickup:     { label: '출하대기', icon: 'truck', count: awaitPickupCount },
+    lookup:          { label: '조회', icon: 'search' },
+    admin:           { label: '사용자', icon: 'users' },
+    'as-receipt':    { label: 'AS접수', icon: 'bell', count: asCount },
+    'as-processing': { label: 'AS처리', icon: 'settings' },
+  };
+
+  return (
+    <nav className="mobilenav" aria-label="주요 화면 이동">
+      {allowed.map(k => {
+        const m = META[k];
+        if (!m) return null;
+        const active = s.view === k;
+        return (
+          <button key={k} type="button"
+                  className={`mobilenav__item ${active ? 'mobilenav__item--active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => window.actions.setView(k)}>
+            <span className="mobilenav__icon">
+              <Icon name={m.icon} size={20}/>
+              {m.count > 0 && (
+                <span className="mobilenav__badge" aria-label={`${m.count}건`}>
+                  {m.count > 99 ? '99+' : m.count}
+                </span>
+              )}
+            </span>
+            <span className="mobilenav__label">{m.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+window.MobileTabBar = MobileTabBar;
 
 // 모달 키보드 접근성 훅 — Escape 닫기 + 포커스 트랩
 // 반환된 ref 를 modal-backdrop 에 연결하면 자동 동작

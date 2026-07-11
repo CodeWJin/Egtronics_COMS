@@ -120,6 +120,7 @@ function App() {
           {s.view === 'as-processing'  && <AsProcessingScreen/>}
         </div>
       </main>
+      <MobileTabBar/>
       <Toast/>
       <ConfirmModal/>
 
@@ -221,10 +222,10 @@ function boot() {
       const bootEl = document.querySelector('.boot');
       if (bootEl) {
         bootEl.innerHTML =
-          '<div style="max-width:480px;padding:24px;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.12);font-family:system-ui,sans-serif">' +
-          '<div style="color:#DC2626;font-weight:700;font-size:16px;margin-bottom:12px">⚠ Supabase 연결 실패</div>' +
-          '<pre style="white-space:pre-wrap;font-size:12px;color:#374151;background:#F9FAFB;padding:12px;border-radius:8px;margin-bottom:16px">' + msg + '</pre>' +
-          '<div style="font-size:13px;color:#6B7280">브라우저 콘솔(F12)에서 자세한 오류를 확인할 수 있습니다.</div>' +
+          '<div style="max-width:480px;padding:24px;background:var(--surface,#fff);border-radius:var(--r-md,11px);box-shadow:0 4px 24px rgba(0,0,0,0.12);font-family:Pretendard Variable,system-ui,sans-serif">' +
+          '<div style="color:var(--danger,#EF4444);font-weight:700;font-size:14px;margin-bottom:12px">⚠ Supabase 연결 실패</div>' +
+          '<pre style="white-space:pre-wrap;font-size:12px;color:var(--ink-2,#333);background:var(--surface-3,#fafafc);padding:12px;border-radius:var(--r-sm,8px);margin-bottom:16px">' + msg + '</pre>' +
+          '<div style="font-size:13px;color:var(--ink-3,#6b6b6b)">브라우저 콘솔(F12)에서 자세한 오류를 확인할 수 있습니다.</div>' +
           '</div>';
       }
     });

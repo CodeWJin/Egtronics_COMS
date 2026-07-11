@@ -257,7 +257,7 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
         <div ref={lightboxRef} tabIndex={-1}
           role="dialog" aria-modal="true" aria-label="사진 라이트박스"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            position: 'fixed', inset: 0, background: 'var(--scrim)',
             zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setLightbox(null)}
@@ -267,7 +267,7 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
             if (e.key === 'ArrowLeft' && lightbox > 0) setLightbox(lightbox - 1);
             if (e.key === 'ArrowRight' && lightbox < photos.length - 1) setLightbox(lightbox + 1);
           }}>
-          <img src={photos[lightbox]?.url} alt={photos[lightbox]?.filename}
+          <img src={photos[lightbox]?.url} alt={`출하 전 검사 사진 ${lightbox + 1}/${photos.length}`}
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
           <button aria-label="닫기"
             style={{
@@ -402,6 +402,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
 
             <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
               <button type="button"
+                aria-pressed={allCheckboxesChecked}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none', background: 'none', border: 'none', padding: 0, width: '100%', textAlign: 'left' }}
                 onClick={() => {
                   const newVal = !allCheckboxesChecked;
@@ -449,8 +450,8 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
 
             <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
               <div className="field">
-                <label className="field__label">비고</label>
-                <textarea className="textarea" rows={3} placeholder="특이사항 기입 (선택)"
+                <label className="field__label" htmlFor="ship-insp-notes">비고</label>
+                <textarea id="ship-insp-notes" className="textarea" rows={3} placeholder="특이사항 기입 (선택)"
                   value={notes} onChange={e => setNotes(e.target.value)}/>
               </div>
             </section>
@@ -653,6 +654,7 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
           {/* 기능 검사 체크리스트 */}
           <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
             <button type="button"
+              aria-pressed={allCheckboxesChecked}
               style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, cursor: 'pointer', userSelect: 'none', background: 'none', border: 'none', padding: 0, width: '100%', textAlign: 'left' }}
               onClick={() => {
                 const newVal = !allCheckboxesChecked;
@@ -1056,7 +1058,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
         <div ref={lightboxRef} tabIndex={-1}
           role="dialog" aria-modal="true" aria-label="사진 라이트박스"
           style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+            position: 'fixed', inset: 0, background: 'var(--scrim)',
             zIndex: 'var(--z-lightbox)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
           onClick={() => setLightbox(null)}
@@ -1066,7 +1068,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
             if (e.key === 'ArrowLeft' && lightbox > 0) setLightbox(lightbox - 1);
             if (e.key === 'ArrowRight' && lightbox < photos.length - 1) setLightbox(lightbox + 1);
           }}>
-          <img src={photos[lightbox]?.url} alt={photos[lightbox]?.filename}
+          <img src={photos[lightbox]?.url} alt={`출하 전 검사 사진 ${lightbox + 1}/${photos.length}`}
             style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', pointerEvents: 'none' }}/>
           <button aria-label="닫기"
             style={{
@@ -1116,7 +1118,7 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
 
-  return (
+  return ReactDOM.createPortal(
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="report" role="dialog" aria-modal="true" aria-label="기능 검사 성적서 미리보기">
         <div className="report__bar">
@@ -1233,6 +1235,7 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

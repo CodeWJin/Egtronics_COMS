@@ -1,6 +1,6 @@
 // 관리자 사용자 관리 화면
 
-const { useState: useStateAM, useEffect: useEffectAM, useRef: useRefAM } = React;
+const { useState: useStateAM, useEffect: useEffectAM, useRef: useRefAM, useMemo: useMemoAM } = React;
 
 const ROLE_OPTIONS = [
   { value: 'admin',      label: '관리자' },
@@ -164,14 +164,14 @@ function AdminUsersScreen() {
   function reload() { setUsers(window.PMDB.getAllUsers()); }
   useEffectAM(() => { reload(); }, []);
 
-  const filtered = users.filter(u => {
+  const filtered = useMemoAM(() => users.filter(u => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (u.name || '').toLowerCase().includes(q)
       || (u.user_id || '').toLowerCase().includes(q)
       || (u.dept || '').toLowerCase().includes(q)
       || (u.role || '').toLowerCase().includes(q);
-  });
+  }), [users, search]);
 
   async function handleAdd(form) {
     const res = await window.PMDB.addUser(form);
@@ -243,14 +243,14 @@ function AdminUsersScreen() {
         </div>
 
         <div className="table-wrap">
-          <table className="table" style={{ minWidth: 860 }}>
+          <table className="table admin-users-table">
             <thead>
               <tr>
                 <th scope="col" style={{ width: 200 }}>이름</th>
                 <th scope="col" style={{ width: 150 }}>아이디</th>
                 <th scope="col" style={{ width: 100 }}>역할</th>
-                <th scope="col" style={{ width: 150 }}>부서</th>
-                <th scope="col" style={{ width: 150 }}>전화번호</th>
+                <th scope="col" className="admin-users-table__col--dept" style={{ width: 150 }}>부서</th>
+                <th scope="col" className="admin-users-table__col--phone" style={{ width: 150 }}>전화번호</th>
                 <th scope="col">이메일</th>
                 <th scope="col" style={{ width: 96 }}></th>
               </tr>
@@ -264,6 +264,7 @@ function AdminUsersScreen() {
               {filtered.map(u => (
                 <tr key={u.user_id} className="row--clickable"
                   tabIndex={0}
+                  aria-label={`${u.name} (${u.user_id}) 편집`}
                   onClick={() => setModal({ mode: 'edit', user: u })}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setModal({ mode: 'edit', user: u }); } }}>
                   <td>
@@ -278,8 +279,8 @@ function AdminUsersScreen() {
                       {window.ROLE_LABEL[u.role] || u.role}
                     </span>
                   </td>
-                  <td className="cell-muted">{u.dept || '—'}</td>
-                  <td className="cell-muted">{u.phone || '—'}</td>
+                  <td className="cell-muted admin-users-table__col--dept">{u.dept || '—'}</td>
+                  <td className="cell-muted admin-users-table__col--phone">{u.phone || '—'}</td>
                   <td className="cell-muted">{u.email || '—'}</td>
                   <td onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>

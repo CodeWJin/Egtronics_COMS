@@ -36,6 +36,27 @@ function makeSerialDateCode(dateISO) {
   return yearCode + monthCode;
 }
 
+// 시리얼번호가 생성규칙(그룹-타입-날짜코드-순번)에 맞는지 검증.
+// 그룹·타입 코드는 SERIAL_MODEL_CODES에 등록된 조합만 유효.
+// 날짜코드: 연도 A~T(2023=A) + 월 1~9/A~C(10월=A). 순번: 0001~9999.
+// as-receipt.jsx(신규 충전기 등록 게이트) 등에서 사용 — 이 파일이 먼저 로드됨.
+window.isValidSerialNo = function (serial) {
+  const s = String(serial || '').trim().toUpperCase();
+  const m = s.match(/^([A-Z0-9]{3})-([A-Z0-9]{3})-([A-T][1-9A-C])-(?!0000)(\d{4})$/);
+  if (!m) return false;
+  return Object.values(SERIAL_MODEL_CODES).some(([g, t]) => g === m[1] && t === m[2]);
+};
+
+// 시리얼번호 앞 그룹-타입 코드로 모델(model_code)을 역추적.
+// as-receipt.jsx(신규 충전기 등록 — 시리얼번호로 모델 자동 선택)에서 사용 — 이 파일이 먼저 로드됨.
+window.findModelCodeFromSerial = function (serial) {
+  const s = String(serial || '').trim().toUpperCase();
+  const m = s.match(/^([A-Z0-9]{3})-([A-Z0-9]{3})-/);
+  if (!m) return null;
+  const entry = Object.entries(SERIAL_MODEL_CODES).find(([, [g, t]]) => g === m[1] && t === m[2]);
+  return entry ? entry[0] : null;
+};
+
 function changeStatus(orderId, from, to) {
   const key = `${from}->${to}`;
   const MAP = {
@@ -78,31 +99,7 @@ function ProductionMappingScreen() {
   const s = window.useStore();
   const order = s.orders.find(o => o.order_id === s.selectedOrderId);
 
-  if (!order) {
-    return (
-      <div className="screen">
-        <div className="screen__head">
-          <div>
-            <div className="screen__crumbs">제조,생산 부서 입력 페이지</div>
-            <h1 className="screen__title">오더를 먼저 선택해 주세요</h1>
-            <p className="screen__sub">생산 대기 목록에서 매핑할 오더를 클릭하면 이 화면에 로드됩니다.</p>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card__body">
-            <div className="emptystate">
-              <Icon name="factory" size={32} stroke={1.2} style={{ color: 'var(--ink-5)' }}/>
-              <div className="emptystate__title">선택된 오더가 없습니다</div>
-              <div className="emptystate__sub">생산 대기 목록으로 이동하여 오더를 선택하세요</div>
-              <button className="btn btn--primary" style={{ marginTop: 12 }} onClick={() => window.actions.setView('waiting')}>
-                <Icon name="list" size={13}/> 생산 대기 목록 열기
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!order) return <OrderPickerView orders={s.orders}/>;
 
   if (order.status === 'AWAIT_PICKUP' || order.status === 'COMPLETED') return <CompletedView order={order}/>;
   if (order.status === 'IN_PROGRESS') {
@@ -123,6 +120,115 @@ function ProductionMappingScreen() {
     return <MappingForm order={order} allOrders={s.orders}/>;
   }
   return <PendingView order={order}/>;
+}
+
+// 오더 미선택 시 진입하는 선택 화면 — 생산대기/작업중 오더를 목록에서 골라 바로 입력으로 진입
+function OrderPickerView({ orders }) {
+  const [search, setSearch] = useStatePM('');
+
+  const pending = useMemoPM(() => filterPickerOrders(orders, 'PENDING', search), [orders, search]);
+  const inProgress = useMemoPM(() => filterPickerOrders(orders, 'IN_PROGRESS', search), [orders, search]);
+
+  const pick = (id) => window.actions.selectOrder(id);
+
+  return (
+    <div className="screen">
+      <div className="screen__head">
+        <div>
+          <div className="screen__crumbs">제조생산 부서 입력 페이지</div>
+          <h1 className="screen__title">오더를 선택하세요</h1>
+          <p className="screen__sub">생산대기 · 작업중 오더 목록입니다. 행을 클릭하면 바로 입력 화면으로 이동합니다.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn--secondary" onClick={() => window.actions.setView('waiting')}>
+            <Icon name="columns" size={13}/> 전체 목록 보기
+          </button>
+        </div>
+      </div>
+
+      <div className="toolbar">
+        <div className="toolbar__search">
+          <span className="toolbar__search__icon"><Icon name="search" size={14}/></span>
+          <input className="input" aria-label="고객사, 모델, 충전소 ID, 오더번호 검색"
+                 placeholder="고객사 · 모델 · 충전소 ID · 오더번호 검색"
+                 value={search} onChange={(e) => setSearch(e.target.value)}/>
+        </div>
+      </div>
+
+      <OrderPickerSection title="생산대기" icon="package" orders={pending} onPick={pick}
+        emptyText="생산 대기 중인 오더가 없습니다"/>
+      <OrderPickerSection title="작업중" icon="factory" orders={inProgress} onPick={pick}
+        emptyText="작업중인 오더가 없습니다" style={{ marginTop: 16 }}/>
+    </div>
+  );
+}
+
+function filterPickerOrders(orders, status, search) {
+  const q = search.trim().toLowerCase();
+  return orders
+    .filter(o => o.status === status)
+    .filter(o => !q ||
+      o.customer_name.toLowerCase().includes(q) ||
+      o.model_name.toLowerCase().includes(q) ||
+      (o.station_id || '').toLowerCase().includes(q) ||
+      String(o.order_id).includes(q))
+    .sort((a, b) => (a.delivery_date || '').localeCompare(b.delivery_date || ''));
+}
+
+function OrderPickerSection({ title, icon, orders, onPick, emptyText, style }) {
+  return (
+    <div className="card" style={style}>
+      <div className="card__head">
+        <h2 className="card__title"><Icon name={icon} size={14}/> {title}</h2>
+        <span className="badge badge--neutral">{orders.length}건</span>
+      </div>
+      <div className="card__body" style={{ padding: 0 }}>
+        {orders.length === 0 ? (
+          <div className="emptystate" style={{ padding: '20px 0' }}>
+            <div className="emptystate__sub">{emptyText}</div>
+          </div>
+        ) : (
+          <div className="table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table className="table" style={{ whiteSpace: 'nowrap' }}>
+              <thead>
+                <tr>
+                  <th scope="col" style={{ width: 70 }}>오더 #</th>
+                  <th scope="col">고객사</th>
+                  <th scope="col">모델</th>
+                  <th scope="col" style={{ width: 150 }}>납품일</th>
+                  <th scope="col" style={{ width: 40 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map(o => {
+                  const d = deliveryHint(o.delivery_date);
+                  return (
+                    <tr key={o.order_id}
+                        className="row--clickable"
+                        tabIndex={0}
+                        onClick={() => onPick(o.order_id)}
+                        onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPick(o.order_id); } }}>
+                      <td className="cell-mono">#{o.order_id}</td>
+                      <td>
+                        <div className="cell-strong">{o.customer_name}</div>
+                        <div className="cell-muted">{o.install_address}</div>
+                      </td>
+                      <td><span className="badge badge--neutral">{o.model_name}</span></td>
+                      <td>
+                        <div style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.delivery_date}</div>
+                        <span className="dday-badge" style={{ marginTop: 2, '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
+                      </td>
+                      <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function PendingView({ order }) {
@@ -479,11 +585,9 @@ function MappingForm({ order, allOrders }) {
     setShowAll(true);
     setTouched({ prod_date: 1, serial_no: 1, ...(isPublic ? { inspection_date: 1 } : {}), sw_version: 1, fw_version: 1 });
     if (hasErr) return;
-    if (dupState === null && form.serial_no) {
-      if (window.PMDB.serialExists(form.serial_no, order.order_id)) {
-        setDupState('dup');
-        return;
-      }
+    if (form.serial_no && window.PMDB.serialExists(form.serial_no, order.order_id)) {
+      setDupState('dup');
+      return;
     }
     window.setFuncInspection(order.order_id, funcInspectionData);
     window.actions.completeOrder(order.order_id, form);
@@ -722,9 +826,13 @@ function MappingForm({ order, allOrders }) {
           </div>
 
           <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, color: 'var(--ink-3)' }}>
-              <Icon name="lock" size={13}/>
-              저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, color: !funcAllDone ? 'var(--warning-700)' : 'var(--ink-3)' }}>
+              <Icon name={!funcAllDone ? 'alert' : 'lock'} size={13}/>
+              {!funcInspectionData
+                ? '기능검사 성적서를 먼저 작성해 주세요'
+                : !funcAllDone
+                ? '기능검사 전 항목을 완료해 주세요'
+                : '저장 시 시리얼 번호 Unique 제약 검증 · 검정 유효기간 자동 계산'}
             </div>
             <button className="btn btn--success btn--lg" onClick={submit}
               disabled={!funcAllDone}

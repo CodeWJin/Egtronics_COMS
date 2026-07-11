@@ -335,48 +335,8 @@ function SalesInputScreen() {
               </div>
 
               <div className="field">
-                <div className="field__label"><label>고객사 담당자</label></div>
-                <div className="mgr-field">
-                  <ComboField
-                    value={common.customer_manager}
-                    onChange={(v) => updateCommon('customer_manager', v)}
-                    options={managers}
-                    placeholder={common.customer_name ? '담당자 선택 또는 입력' : '고객사를 먼저 선택하세요'}
-                    ariaLabel="고객사 담당자"
-                    displayKey="display"/>
-                  <button type="button" className="btn btn--secondary mgr-field__manage"
-                          onClick={() => {
-                            if (!common.customer_name) { window.actions.flashToast('고객사를 먼저 선택해 주세요', 'error'); return; }
-                            setModal('mgr');
-                          }} title="고객사 담당자 관리">
-                    <Icon name="user" size={13}/> 관리
-                  </button>
-                </div>
-                {common.customer_name && (
-                  <div className="field__hint"><Icon name="info" size={11}/> {managers.length}명 등록됨</div>
-                )}
-              </div>
-              <div className="field">
-                <label className="field__label">현장담당자</label>
-                <input className="input" placeholder="담당자 이름"
-                       value={common.field_manager_name}
-                       onChange={(e) => updateCommon('field_manager_name', e.target.value)}/>
-              </div>
-              <div className="field">
-                <label className="field__label">현장담당자 연락처</label>
-                <input type="tel" className="input" style={{ fontFamily: 'var(--font-mono)' }}
-                       placeholder="010-0000-0000" autoComplete="tel"
-                       value={common.field_manager_phone}
-                       onChange={(e) => {
-                         const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
-                         const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
-                         updateCommon('field_manager_phone', fmt);
-                       }}/>
-              </div>
-
-              <div className="field">
-                <label className="field__label">납품일자 <span className="field__req">*</span></label>
-                <input type="date"
+                <label className="field__label" htmlFor="si-delivery-date">납품일자 <span className="field__req">*</span></label>
+                <input id="si-delivery-date" type="date"
                        className={`input ${showCommonErr('delivery_date') ? 'input--error' : ''}`}
                        value={common.delivery_date}
                        onChange={(e) => updateCommon('delivery_date', e.target.value)}/>
@@ -384,8 +344,9 @@ function SalesInputScreen() {
               </div>
 
               <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label className="field__label">납품장소 (설치주소) <span className="field__req">*</span></label>
+                <label className="field__label" htmlFor="si-install-address">납품장소 (설치주소) <span className="field__req">*</span></label>
                 <AddressField
+                  id="si-install-address"
                   value={common.install_address}
                   onChange={(v) => updateCommon('install_address', v)}
                   error={showCommonErr('install_address')}/>
@@ -398,6 +359,52 @@ function SalesInputScreen() {
               </div>
 
             </div>
+
+            <details className="sales-summary-strip" style={{ marginTop: 16 }}
+                     open={!!(common.customer_manager || common.field_manager_name || common.field_manager_phone)}>
+              <summary><Icon name="chevron-down" size={13}/> 담당자 정보 (선택사항)</summary>
+              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', padding: '12px 16px' }}>
+                <div className="field">
+                  <div className="field__label"><label>고객사 담당자</label></div>
+                  <div className="mgr-field">
+                    <ComboField
+                      value={common.customer_manager}
+                      onChange={(v) => updateCommon('customer_manager', v)}
+                      options={managers}
+                      placeholder={common.customer_name ? '담당자 선택 또는 입력' : '고객사를 먼저 선택하세요'}
+                      ariaLabel="고객사 담당자"
+                      displayKey="display"/>
+                    <button type="button" className="btn btn--secondary mgr-field__manage"
+                            onClick={() => {
+                              if (!common.customer_name) { window.actions.flashToast('고객사를 먼저 선택해 주세요', 'error'); return; }
+                              setModal('mgr');
+                            }} title="고객사 담당자 관리">
+                      <Icon name="user" size={13}/> 관리
+                    </button>
+                  </div>
+                  {common.customer_name && (
+                    <div className="field__hint"><Icon name="info" size={11}/> {managers.length}명 등록됨</div>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="si-field-mgr-name">현장담당자</label>
+                  <input id="si-field-mgr-name" className="input" placeholder="담당자 이름"
+                         value={common.field_manager_name}
+                         onChange={(e) => updateCommon('field_manager_name', e.target.value)}/>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="si-field-mgr-phone">현장담당자 연락처</label>
+                  <input id="si-field-mgr-phone" type="tel" className="input" style={{ fontFamily: 'var(--font-mono)' }}
+                         placeholder="010-0000-0000" autoComplete="tel"
+                         value={common.field_manager_phone}
+                         onChange={(e) => {
+                           const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
+                           const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+                           updateCommon('field_manager_phone', fmt);
+                         }}/>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -441,7 +448,7 @@ function SalesInputScreen() {
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center', paddingLeft: 12 }}>#</th>
-                    <th style={{ minWidth: 170 }}>충전속도 (모델) <span style={{ color: 'var(--danger-700)' }}>*</span></th>
+                    <th style={{ minWidth: 170 }}>충전속도 (모델) <span className="field__req">*</span></th>
                     <th style={{ minWidth: 120 }}>충전기 용도</th>
                     <th style={{ minWidth: 160 }}>CPO 운영사</th>
                     <th style={{ minWidth: 110 }}>충전소 ID</th>
@@ -457,7 +464,7 @@ function SalesInputScreen() {
                     const isPub = row.usage_type === '공용';
                     const rowPower = row._power || masterModels.find(m => m.model === row.model_name)?.power || '';
                     return (
-                      <tr key={i} style={errs.model_name || errs.usim_no ? { background: 'color-mix(in srgb, var(--danger-700) 6%, transparent)' } : {}}>
+                      <tr key={i} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : {}}>
                         <td style={{ textAlign: 'center', color: 'var(--ink-4)', fontSize: 12, paddingLeft: 12 }}>{i + 1}</td>
 
                         <td style={{ padding: 4, minWidth: 170 }}>
@@ -472,7 +479,7 @@ function SalesInputScreen() {
                             <Icon name="chevron-down" size={11} style={{ color: 'var(--ink-4)', flexShrink: 0 }}/>
                           </button>
                           {submitted && errs.model_name && (
-                            <div style={{ fontSize: 11, color: 'var(--danger-700)', padding: '2px 6px' }}>{errs.model_name}</div>
+                            <div role="alert" className="field__err" style={{ padding: '2px 6px', marginTop: 0 }}>{errs.model_name}</div>
                           )}
                         </td>
 
@@ -480,8 +487,7 @@ function SalesInputScreen() {
                           <div className="chips" style={{ gap: 4, flexWrap: 'nowrap' }}>
                             {['공용', '비공용'].map(t => (
                               <button key={t} type="button"
-                                      className={`chip ${row.usage_type === t ? 'chip--active' : ''}`}
-                                      style={{ fontSize: 11, padding: '3px 8px', height: 'auto' }}
+                                      className={`btn btn--tag ${row.usage_type === t ? 'btn--primary' : 'btn--ghost'}`}
                                       onClick={() => {
                                         if (t === '비공용') {
                                           setRows(r => r.map((rw, idx) => idx === i
@@ -554,7 +560,7 @@ function SalesInputScreen() {
                                      inputMode="numeric"
                                      onChange={(e) => updateRow(i, 'usim_no', e.target.value.replace(/\D/g, ''))}/>
                               {submitted && errs.usim_no && (
-                                <div style={{ fontSize: 11, color: 'var(--danger-700)', marginTop: 2 }}>{errs.usim_no}</div>
+                                <div role="alert" className="field__err" style={{ marginTop: 2 }}>{errs.usim_no}</div>
                               )}
                             </>
                           ) : (

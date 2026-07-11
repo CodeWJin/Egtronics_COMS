@@ -200,10 +200,10 @@
             else dbLog('WARN', 'loadAll', 'tb_ship_inspection 조회 실패 — ' + error.message);
           }).catch(e => dbLog('WARN', 'loadAll', 'tb_ship_inspection 로드 오류 — ' + e.message)),
 
-          client.from('tb_UsageType_Public').select('*').then(({ data, error }) => {
+          client.from('tb_usagetype_public').select('*').then(({ data, error }) => {
             if (!error) cache.usage_type_public = data || [];
-            else dbLog('WARN', 'loadAll', 'tb_UsageType_Public 조회 실패 — ' + error.message);
-          }).catch(e => dbLog('WARN', 'loadAll', 'tb_UsageType_Public 로드 오류 — ' + e.message)),
+            else dbLog('WARN', 'loadAll', 'tb_usagetype_public 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_usagetype_public 로드 오류 — ' + e.message)),
 
           client.from('tb_chargepoint_infor').select('*').then(({ data, error }) => {
             if (!error) cache.chargepoints = data || [];
@@ -277,7 +277,7 @@
           if ((form.usage_type || '공용') === '공용') {
             const pub = { order_id: id, station_id: form.station_id || '', charger_no: form.charger_no || '', router_no: form.router_no || '', usim_no: form.usim_no || '' };
             cache.usage_type_public.push(pub);
-            return client.from('tb_UsageType_Public').insert(pub);
+            return client.from('tb_usagetype_public').insert(pub);
           }
           return { error: null };
         });
@@ -299,7 +299,7 @@
           const idx = cache.usage_type_public.findIndex(p => p.order_id === order_id);
           if (idx !== -1) cache.usage_type_public[idx] = pub; else cache.usage_type_public.push(pub);
           if ((form.usage_type || '공용') === '공용') {
-            return client.from('tb_UsageType_Public').upsert(pub, { onConflict: 'order_id' });
+            return client.from('tb_usagetype_public').upsert(pub, { onConflict: 'order_id' });
           }
           return { error: null };
         });
@@ -334,6 +334,20 @@
         o.status = 'COMPLETED';
         dbLog('INFO', 'write:tb_sales_order', `출하 완료 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'ship', () => client.from('tb_sales_order').update({ status: 'COMPLETED' }).eq('order_id', order_id));
+        // 출하 완료 시 충전기 설치 정보 자동 등록 (tb_chargepoint_infor)
+        const prod = cache.production.find(x => x.order_id === order_id);
+        const serial = prod && prod.serial_no ? String(prod.serial_no).trim() : '';
+        if (serial) {
+          const r = this.addChargepoint({
+            serial_no:       serial,
+            model_name:      o.model_name      || '',
+            order_id,
+            install_address: o.install_address || '',
+          });
+          if (!r.ok) dbLog('WARN', 'write:tb_chargepoint_infor', `출하 시 충전기 등록 생략 — ${r.msg} (serial_no=${serial})`);
+        } else {
+          dbLog('WARN', 'write:tb_chargepoint_infor', `출하 시 충전기 등록 생략 — 시리얼 없음, order_id=${order_id}`);
+        }
         return true;
       },
 
@@ -341,7 +355,14 @@
         const o = cache.orders.find(x => x.order_id === order_id);
         if (o) o.status = 'PENDING';
         const prod = cache.production.find(x => x.order_id === order_id);
+        // 출하 시 자동 등록된 충전기 설치 정보 삭제를 위해 초기화 전에 시리얼 확보
+        const revertSerial = prod && prod.serial_no ? String(prod.serial_no).trim() : '';
         if (prod) prod.serial_no = null;
+        if (revertSerial) {
+          cache.chargepoints = cache.chargepoints.filter(
+            c => String(c.serial_no || '').trim().toUpperCase() !== revertSerial.toUpperCase()
+          );
+        }
         // 출하 사진 경로를 캐시에서 수집 (삭제 전에)
         const shipRow = cache.ship_inspections.find(x => x.order_id === order_id);
         const shipPhotoPaths = shipRow
@@ -349,12 +370,15 @@
           : [];
         cache.func_inspections = cache.func_inspections.filter(x => x.order_id !== order_id);
         cache.ship_inspections = cache.ship_inspections.filter(x => x.order_id !== order_id);
-        dbLog('INFO', 'write:revert', `생산대기로 변경 — serial 초기화·검사 삭제, order_id=${order_id}`);
+        dbLog('INFO', 'write:revert', `생산대기로 변경 — serial 초기화·검사·충전기 정보 삭제, order_id=${order_id}`);
         dbWrite('tb_sales_order', 'revert', async () => {
           await client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id);
           await client.from('tb_production_info').update({ serial_no: null }).eq('order_id', order_id);
           await client.from('tb_func_inspection').delete().eq('order_id', order_id);
           await client.from('tb_ship_inspection').delete().eq('order_id', order_id);
+          if (revertSerial) {
+            await client.from('tb_chargepoint_infor').delete().eq('serial_no', revertSerial);
+          }
           if (shipPhotoPaths.length > 0) {
             try { await client.storage.from('ship-photos').remove(shipPhotoPaths); } catch (_) {}
           }
@@ -815,6 +839,10 @@
       },
 
       // ── 충전기 설치 정보 (tb_chargepoint_infor) ───────────────────
+      loadChargepoints() {
+        return cache.chargepoints;
+      },
+
       getChargepointBySerial(serial_no) {
         const q = String(serial_no || '').trim().toUpperCase();
         if (!q) return null;
@@ -1111,6 +1139,7 @@
     addMasterModel(m, d, p)           { return this.backend.addMasterModel(m, d, p); },
     updateMasterModel(i, m, d, p)     { return this.backend.updateMasterModel(i, m, d, p); },
     deleteMasterModel(i)              { return this.backend.deleteMasterModel(i); },
+    loadChargepoints()                { return this.backend.loadChargepoints(); },
     getChargepointBySerial(sn)        { return this.backend.getChargepointBySerial(sn); },
     addChargepoint(data)              { return this.backend.addChargepoint(data); },
     getFuncInspection(id)             { return this.backend.getFuncInspection(id); },

@@ -620,8 +620,8 @@ function AsPhotoTab({ receptionId, photos, onPhotosChange }) {
         if (!file.type.startsWith('image/')) { setUploadErr('이미지 파일만 업로드할 수 있습니다'); continue; }
         if (file.size > 10 * 1024 * 1024) { setUploadErr(`${file.name}: 10MB 이하 파일만 가능합니다`); continue; }
         await window.PMDB.addAsPhoto(receptionId, file, currentUserId);
-        onPhotosChange(window.PMDB.getAsPhotos(receptionId));
       }
+      onPhotosChange(window.PMDB.getAsPhotos(receptionId));
     } catch (err) {
       setUploadErr('업로드 실패: ' + (err.message || '알 수 없는 오류'));
     } finally {

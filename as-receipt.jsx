@@ -10,6 +10,21 @@ function getUserDisplayName(userId) {
   return u ? u.name : userId;
 }
 
+// AS 접수 자체엔 모델 필드가 없어 시리얼번호(tb_chargepoint_infor) 또는
+// 연결된 오더(tb_sales_order)를 통해 역으로 조회한다.
+function getReceptionModelName(r) {
+  if (r.serial_no) {
+    const cp = window.PMDB ? window.PMDB.getChargepointBySerial(r.serial_no) : null;
+    if (cp?.model_name) return cp.model_name;
+  }
+  if (r.order_id != null) {
+    const orders = window.PMDB ? window.PMDB.loadOrders() : [];
+    const order = orders.find(o => o.order_id === r.order_id);
+    if (order?.model_name) return order.model_name;
+  }
+  return '';
+}
+
 // ── 메인 화면 ────────────────────────────────────────────────────
 function AsReceiptScreen() {
   const s = window.useStore();
@@ -25,6 +40,10 @@ function AsReceiptScreen() {
     return c;
   }, [receptions]);
 
+  const urgentOpenCount = useMemoAREC(() =>
+    receptions.filter(r => r.priority === '긴급' && r.status !== '처리완료').length
+  , [receptions]);
+
   const filtered = useMemoAREC(() => {
     let list = receptions;
     if (statusFilter !== '전체') list = list.filter(r => r.status === statusFilter);
@@ -34,6 +53,7 @@ function AsReceiptScreen() {
       (r.customer_name  || '').toLowerCase().includes(q) ||
       (r.station_id     || '').toLowerCase().includes(q) ||
       (r.charger_no     || '').toLowerCase().includes(q) ||
+      (r.serial_no      || '').toLowerCase().includes(q) ||
       (r.fault_type     || '').toLowerCase().includes(q)
     );
     return list;
@@ -49,7 +69,14 @@ function AsReceiptScreen() {
       <div className="screen__head">
         <div>
           <h1 className="screen__title">AS 접수</h1>
-          <p className="screen__sub">전체 {receptions.length}건 · 처리 중 {(counts['담당자배정'] || 0) + (counts['처리중'] || 0)}건</p>
+          <div className="screen__sub as-receipt-subline">
+            <span>전체 {receptions.length}건 · 처리 중 {(counts['담당자배정'] || 0) + (counts['처리중'] || 0)}건</span>
+            {urgentOpenCount > 0 && (
+              <span className="badge badge--danger">
+                <span className="badge__dot"/> 긴급 {urgentOpenCount}건 대기
+              </span>
+            )}
+          </div>
         </div>
         <button className="btn btn--primary" onClick={() => setShowModal(true)}>
           <Icon name="plus" size={14}/> 새 접수 등록
@@ -66,16 +93,7 @@ function AsReceiptScreen() {
               aria-pressed={statusFilter === st}
               onClick={() => setStatusFilter(st)}>
               {st}
-              <span style={{
-                marginLeft: 5,
-                padding: '1px 7px',
-                borderRadius: 10,
-                background: statusFilter === st ? 'rgba(255,255,255,0.22)' : 'var(--surface-2)',
-                fontSize: 11,
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                {counts[st] || 0}
-              </span>
+              <span className="as-receipt-count">{counts[st] || 0}</span>
             </button>
           ))}
         </div>
@@ -83,8 +101,8 @@ function AsReceiptScreen() {
         <input
           className="input toolbar__search"
           style={{ width: 260 }}
-          aria-label="AS 접수 검색 — 접수번호, 고객사, 충전소 ID"
-          placeholder="접수번호, 고객사, 충전소 ID…"
+          aria-label="AS 접수 검색 — 접수번호, 시리얼번호, 고객사"
+          placeholder="접수번호, 시리얼번호, 고객사…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -92,51 +110,59 @@ function AsReceiptScreen() {
 
       {/* 접수 목록 */}
       <div className="table-wrap">
-        <table className="table" style={{ minWidth: 1000 }}>
+        <table className="table as-receipt-table">
             <caption className="sr-only">AS 접수 목록</caption>
             <thead>
               <tr>
                 <th scope="col">접수번호</th>
-                <th scope="col">고객사</th>
-                <th scope="col">충전소 ID</th>
-                <th scope="col">충전기 번호</th>
+                <th scope="col">충전기 시리얼넘버</th>
+                <th scope="col" className="as-receipt-table__col--model">모델</th>
                 <th scope="col">고장 유형</th>
                 <th scope="col">긴급도</th>
                 <th scope="col">상태</th>
-                <th scope="col">담당자</th>
-                <th scope="col">접수일시</th>
+                <th scope="col" className="as-receipt-table__col--assignee">담당자</th>
+                <th scope="col" className="as-receipt-table__col--received">접수일시</th>
                 <th scope="col"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '52px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: '52px 0' }}>
                     {search || statusFilter !== '전체' ? '검색 조건에 맞는 접수가 없습니다 — 필터나 검색어를 변경해 보세요' : '아직 접수된 AS가 없습니다 — 우측 상단 [새 AS 접수] 버튼으로 등록하세요'}
                   </td>
                 </tr>
-              ) : filtered.map(r => (
-                <tr key={r.id}>
+              ) : filtered.map(r => {
+                const modelName = getReceptionModelName(r);
+                const modelInfo = modelName ? window.findModelInfo(modelName) : null;
+                return (
+                <tr key={r.id} className={r.priority === '긴급' && r.status !== '처리완료' ? 'row--urgent' : undefined}>
                   <td className="cell-mono cell-strong">{r.reception_no}</td>
-                  <td>{r.customer_name || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
-                  <td className="cell-mono">{r.station_id || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
-                  <td className="cell-mono">{r.charger_no || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
+                  <td className="cell-mono">{r.serial_no || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
+                  <td className="as-receipt-table__col--model">
+                    {modelName
+                      ? <span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.3px' }}>
+                          {modelInfo?.model || modelName}
+                        </span>
+                      : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                  </td>
                   <td>{r.fault_type || <span style={{ color: 'var(--ink-4)' }}>—</span>}</td>
                   <td><AsPriorityBadge priority={r.priority}/></td>
                   <td><AsStatusBadge status={r.status}/></td>
-                  <td>
+                  <td className="as-receipt-table__col--assignee">
                     {r.assignee
                       ? r.assignee.split(',').map(id => getUserDisplayName(id.trim())).join(', ')
                       : <span style={{ color: 'var(--ink-4)' }}>미배정</span>}
                   </td>
-                  <td className="cell-muted">{(r.received_at || '').slice(0, 16)}</td>
+                  <td className="cell-muted as-receipt-table__col--received">{(r.received_at || '').slice(0, 16)}</td>
                   <td>
                     <button className="btn btn--sm btn--ghost" onClick={() => goProcessing(r.id)}>
                       처리 <Icon name="arrow-right" size={12}/>
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
         </table>
       </div>
@@ -184,7 +210,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
 
   // ── 시리얼번호로 충전기 조회 (tb_chargepoint_infor) ──────────────
   const [cpQuery, setCpQuery] = useStateAREC('');
-  const [cpResult, setCpResult] = useStateAREC(null);   // null | 충전기 row | 'notfound'
+  const [cpResult, setCpResult] = useStateAREC(null);   // null | 충전기 row | 'notfound' | 'invalid'
   const [showAddCp, setShowAddCp] = useStateAREC(false);
 
   const searchChargepoint = () => {
@@ -195,7 +221,8 @@ function AsReceiptModal({ onClose, onSubmit }) {
       setCpResult(found);
       set('serial_no', found.serial_no);
     } else {
-      setCpResult('notfound');
+      // 시리얼번호 생성규칙에 맞는 경우에만 신규 등록 허용 (헬퍼 미로드 시 기존 동작 유지)
+      setCpResult(window.isValidSerialNo && !window.isValidSerialNo(q) ? 'invalid' : 'notfound');
     }
   };
 
@@ -203,6 +230,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
     setCpResult(null);
     setCpQuery('');
     set('serial_no', '');
+    // 시리얼번호 조회를 해제하면 그 시리얼로 연동됐던 충전기 검색 선택도 함께 해제
+    setSelectedOrder(null);
+    setForm(f => ({ ...f, order_id: null }));
   };
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -225,7 +255,6 @@ function AsReceiptModal({ onClose, onSubmit }) {
 
   const validate = () => {
     const e = {};
-    if (!form.customer_name.trim()) e.customer_name = '고객사를 입력하세요';
     if (!form.fault_type)           e.fault_type    = '고장 유형을 선택하세요';
     if (!form.fault_detail.trim())  e.fault_detail  = '상세 증상을 입력하세요';
     return e;
@@ -244,15 +273,22 @@ function AsReceiptModal({ onClose, onSubmit }) {
   };
 
   const handleOrderSelect = (order) => {
+    const serial = order.production?.serial_no || '';
     setForm(f => ({
       ...f,
       customer_name: order.customer_name || f.customer_name,
       station_id:    order.station_id    || f.station_id,
       order_id:      order.order_id,
+      serial_no:     serial || f.serial_no,
     }));
     setSelectedOrder(order);
     setQuery('');
-    setErr(e => ({ ...e, customer_name: '' }));
+
+    // 충전기 검색으로 오더를 고르면 시리얼번호 조회 영역에도 그대로 반영
+    if (serial) {
+      setCpQuery(serial);
+      setCpResult(window.PMDB ? window.PMDB.getChargepointBySerial(serial) : null);
+    }
   };
 
   const clearOrder = () => {
@@ -277,16 +313,10 @@ function AsReceiptModal({ onClose, onSubmit }) {
               시리얼번호 조회
               <span style={{ color: 'var(--ink-4)', fontWeight: 400, fontSize: 13 }}> (선택)</span>
             </div>
-            {cpResult && cpResult !== 'notfound' ? (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '9px 12px',
-                background: 'var(--success-50)',
-                border: '1px solid var(--success)',
-                borderRadius: 'var(--r-sm)',
-              }}>
-                <Icon name="check" size={13} style={{ color: 'var(--success-700)', flexShrink: 0 }}/>
-                <span style={{ fontSize: 13, color: 'var(--ink-2)', flex: 1, minWidth: 0 }}>
+            {cpResult && typeof cpResult === 'object' ? (
+              <div className="ar-match ar-match--success">
+                <Icon name="check" size={13} className="ar-match__icon"/>
+                <span className="ar-match__text">
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{cpResult.serial_no}</span>
                   {cpResult.model_name ? <span style={{ color: 'var(--ink-4)' }}> · {cpResult.model_name}</span> : null}
                   {cpResult.install_address ? <span style={{ color: 'var(--ink-4)' }}> · {cpResult.install_address}</span> : null}
@@ -313,18 +343,22 @@ function AsReceiptModal({ onClose, onSubmit }) {
                   </button>
                 </div>
                 {cpResult === 'notfound' && (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
-                    padding: '9px 12px', background: 'var(--surface-2)',
-                    border: '1px solid var(--border-1)', borderRadius: 'var(--r-sm)',
-                  }}>
-                    <Icon name="alert" size={13} style={{ color: 'var(--ink-4)', flexShrink: 0 }}/>
-                    <span style={{ fontSize: 13, color: 'var(--ink-3)', flex: 1 }}>
+                  <div className="ar-match" style={{ flexWrap: 'wrap' }}>
+                    <Icon name="alert" size={13} className="ar-match__icon"/>
+                    <span className="ar-match__text">
                       등록된 충전기 정보가 없습니다
                     </span>
                     <button type="button" className="btn btn--sm btn--secondary" onClick={() => setShowAddCp(true)}>
                       <Icon name="plus" size={12}/> 신규 충전기 등록
                     </button>
+                  </div>
+                )}
+                {cpResult === 'invalid' && (
+                  <div role="alert" className="ar-match ar-match--danger" style={{ flexWrap: 'wrap' }}>
+                    <Icon name="alert" size={13} className="ar-match__icon"/>
+                    <span className="ar-match__text">
+                      시리얼번호 생성규칙에 맞지 않아 신규 등록할 수 없습니다 — 형식: G07-00P-D1-0001
+                    </span>
                   </div>
                 )}
               </div>
@@ -338,15 +372,9 @@ function AsReceiptModal({ onClose, onSubmit }) {
               <span style={{ color: 'var(--ink-4)', fontWeight: 400, fontSize: 13 }}> (선택)</span>
             </div>
             {selectedOrder ? (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '9px 12px',
-                background: 'var(--primary-50)',
-                border: '1px solid var(--primary-100)',
-                borderRadius: 'var(--r-sm)',
-              }}>
-                <Icon name="check" size={13} style={{ color: 'var(--primary)', flexShrink: 0 }}/>
-                <span style={{ fontSize: 13, color: 'var(--ink-2)', flex: 1, minWidth: 0 }}>
+              <div className="ar-match ar-match--primary">
+                <Icon name="check" size={13} className="ar-match__icon"/>
+                <span className="ar-match__text">
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>#{selectedOrder.order_id}</span>
                   {' · '}{selectedOrder.customer_name || ''}
                   {selectedOrder.station_id
@@ -406,24 +434,6 @@ function AsReceiptModal({ onClose, onSubmit }) {
                 )}
               </div>
             )}
-          </div>
-
-          {/* 고객사 — 필수. 충전기 검색 선택 시 자동 입력 */}
-          <div className="field">
-            <label className="field__label" htmlFor="ar-customer-name">
-              고객사 <span className="field__req">*</span>
-            </label>
-            <input
-              id="ar-customer-name"
-              className={`input ${err.customer_name ? 'input--error' : ''}`}
-              required
-              aria-required="true"
-              aria-invalid={!!err.customer_name}
-              placeholder="고객사명 입력 — 충전기 검색으로 선택하면 자동 입력됩니다"
-              value={form.customer_name}
-              onChange={(e) => { set('customer_name', e.target.value); clrErr('customer_name'); }}
-            />
-            {err.customer_name && <div className="field__err" role="alert">{err.customer_name}</div>}
           </div>
 
           {/* 고장 유형 / 긴급도 */}
@@ -552,9 +562,8 @@ function AsReceiptModal({ onClose, onSubmit }) {
 function AddChargepointModal({ serialNo, onClose, onAdded }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
-  const [modelName, setModelName] = useStateAREC('');
+  const [modelName, setModelName] = useStateAREC(() => window.findModelCodeFromSerial?.(serialNo) || '');
   const [installAddress, setInstallAddress] = useStateAREC('');
-  const [orderId, setOrderId] = useStateAREC('');
   const [err, setErr] = useStateAREC({});
   const [isSaving, setIsSaving] = useStateAREC(false);
 
@@ -567,15 +576,17 @@ function AddChargepointModal({ serialNo, onClose, onAdded }) {
     if (!installAddress.trim()) e.install_address = '설치 주소를 입력하세요';
     if (Object.keys(e).length) { setErr(e); return; }
     setIsSaving(true);
+    const created = new Date().toISOString().slice(0, 10);
     const result = window.PMDB.addChargepoint({
       serial_no: serialNo,
       model_name: modelName,
       install_address: installAddress.trim(),
-      order_id: orderId.trim() ? Number(orderId.trim()) : null,
+      order_id: null,
+      created,
     });
     setIsSaving(false);
     if (!result.ok) { setErr({ serial_no: result.msg }); return; }
-    onAdded({ serial_no: serialNo, model_name: modelName, install_address: installAddress.trim(), order_id: orderId.trim() ? Number(orderId.trim()) : null });
+    onAdded({ serial_no: serialNo, model_name: modelName, install_address: installAddress.trim(), order_id: null, created });
   };
 
   return (
@@ -587,8 +598,8 @@ function AddChargepointModal({ serialNo, onClose, onAdded }) {
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="field">
-            <label className="field__label">시리얼번호</label>
-            <input className="input input--readonly" style={{ fontFamily: 'var(--font-mono)' }} readOnly value={serialNo}/>
+            <label className="field__label" htmlFor="cp-serial">시리얼번호</label>
+            <input id="cp-serial" className="input input--readonly" style={{ fontFamily: 'var(--font-mono)' }} readOnly value={serialNo}/>
           </div>
           <div className="field">
             <label className="field__label" htmlFor="cp-model">모델 <span className="field__req">*</span></label>
@@ -607,15 +618,6 @@ function AddChargepointModal({ serialNo, onClose, onAdded }) {
                    value={installAddress}
                    onChange={(e) => { setInstallAddress(e.target.value); setErr(er => ({ ...er, install_address: '' })); }}/>
             {err.install_address && <div className="field__err" role="alert">{err.install_address}</div>}
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="cp-order-id">
-              연결 오더 ID <span style={{ color: 'var(--ink-4)', fontWeight: 400 }}>(선택)</span>
-            </label>
-            <input id="cp-order-id" className="input" style={{ fontFamily: 'var(--font-mono)' }}
-                   placeholder="예: 25001" inputMode="numeric"
-                   value={orderId}
-                   onChange={(e) => setOrderId(e.target.value.replace(/\D/g, ''))}/>
           </div>
           {err.serial_no && <div className="field__err" role="alert">{err.serial_no}</div>}
         </div>
