@@ -110,6 +110,8 @@ function SalesInputScreen() {
   const editing = s.editingOrderId ? s.orders.find(o => o.order_id === s.editingOrderId) : null;
   const isEdit = !!editing;
 
+  const clampQty = (v, max = 500) => Math.max(1, Math.min(max, parseInt(v) || 1));
+
   const emptyCommon = {
     customer_name: '', customer_manager: '',
     delivery_date: '',
@@ -120,6 +122,7 @@ function SalesInputScreen() {
     _power: '',
     model_name: '', usage_type: '공용', cpo_name: '',
     station_id: '', charger_no: '', router_no: '', usim_no: '',
+    qty: 1,
   });
 
   const [common, setCommon] = useStateSI(emptyCommon);
@@ -134,8 +137,14 @@ function SalesInputScreen() {
 
   const updateCommon = (k, v) => setCommon(c => ({ ...c, [k]: v }));
   const updateRow = (i, k, v) => setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
-  const addRow = () => setRows(r => [...r, makeRow()]);
+  const addRow = () => setRows(r => {
+    const last = r[r.length - 1];
+    const next = makeRow();
+    if (last && last.usage_type === '비공용') next.usage_type = '비공용';
+    return [...r, next];
+  });
   const removeRow = (i) => setRows(r => r.filter((_, idx) => idx !== i));
+  const duplicateRow = (i) => setRows(r => [...r.slice(0, i + 1), { ...r[i] }, ...r.slice(i + 1)]);
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
@@ -220,6 +229,7 @@ function SalesInputScreen() {
 
   const validRows = rows.filter((row, i) => row.model_name && Object.keys(rowErrors[i]).length === 0);
   const errorRowCount = rows.filter((row, i) => row.model_name && Object.keys(rowErrors[i]).length > 0).length;
+  const totalValidQty = validRows.reduce((sum, row) => sum + clampQty(row.qty), 0);
 
   const isDirty = useMemoSI(() => {
     if (!isEdit || !editing || !rows[0]) return false;
@@ -251,7 +261,10 @@ function SalesInputScreen() {
     submittingRef.current = true;
     const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
     const { install_address_detail, ...commonPayload } = { ...common, install_address: addr };
-    validRows.forEach(({ _power: _rp, ...cleanRow }) => window.actions.addOrder({ ...commonPayload, ...cleanRow }));
+    validRows.forEach(({ _power: _rp, qty, ...cleanRow }) => {
+      const count = clampQty(qty);
+      for (let q = 0; q < count; q++) window.actions.addOrder({ ...commonPayload, ...cleanRow });
+    });
     setCommon(emptyCommon);
     setRows([makeRow()]);
     setSubmitted(false);
@@ -292,7 +305,7 @@ function SalesInputScreen() {
           )}
           <button className="btn btn--primary btn--lg" onClick={submit}>
             <Icon name={isEdit ? 'check' : 'save'} size={14}/>
-            {' '}{isEdit ? '수정 저장' : validRows.length > 0 ? `${validRows.length}건 오더 등록` : '오더 등록'}
+            {' '}{isEdit ? '수정 저장' : totalValidQty > 0 ? `${totalValidQty}건 오더 등록` : '오더 등록'}
           </button>
         </div>
       </div>
@@ -415,7 +428,10 @@ function SalesInputScreen() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {validRows.length > 0 ? (
                 <span style={{ fontSize: 13, color: 'var(--success-700)', fontWeight: 600 }}>
-                  {validRows.length}건 등록 예정
+                  {totalValidQty}건 등록 예정
+                  {totalValidQty !== validRows.length && (
+                    <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}> ({validRows.length}행)</span>
+                  )}
                   {errorRowCount > 0 && <span style={{ color: 'var(--danger-700)', fontWeight: 400 }}> · 오류 {errorRowCount}건 제외</span>}
                 </span>
               ) : (
@@ -464,7 +480,7 @@ function SalesInputScreen() {
                     const isPub = row.usage_type === '공용';
                     const rowPower = row._power || masterModels.find(m => m.model === row.model_name)?.power || '';
                     return (
-                      <tr key={i} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : {}}>
+                      <tr key={i} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : (!isPub && (row.qty || 1) > 1) ? { background: 'var(--primary-50)' } : {}}>
                         <td style={{ textAlign: 'center', color: 'var(--ink-4)', fontSize: 12, paddingLeft: 12 }}>{i + 1}</td>
 
                         <td style={{ padding: 4, minWidth: 170 }}>
@@ -510,6 +526,38 @@ function SalesInputScreen() {
                               onChange={(v) => updateRow(i, 'cpo_name', v)}
                               options={cpoOptions}
                               placeholder="CPO 운영사"/>
+                          ) : !isEdit ? (
+                            <div style={{ padding: '4px 8px' }}>
+                              <div style={{ fontSize: 10, color: 'var(--ink-4)', fontWeight: 500, marginBottom: 4 }}>수량</div>
+                              {(() => {
+                                const stepBtn = { background: 'var(--surface-2)', border: '1px solid var(--border-1)', padding: '4px 9px', cursor: 'pointer', fontSize: 15, fontWeight: 700, color: 'var(--ink-2)', lineHeight: 1, minWidth: 28 };
+                                return (
+                                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                                  <button type="button"
+                                    style={{ ...stepBtn, borderRight: 'none', borderRadius: 'var(--r-md) 0 0 var(--r-md)' }}
+                                    onClick={(e) => { e.stopPropagation(); updateRow(i, 'qty', clampQty((row.qty || 1) - 1)); }}>−</button>
+                                  <input type="number"
+                                    style={{ width: 52, fontFamily: 'var(--font-mono)', fontSize: 13, textAlign: 'center', padding: '5px 4px', border: '1px solid var(--border-1)', borderRadius: 0, background: 'var(--surface-1)', outline: 'none', MozAppearance: 'textfield', WebkitAppearance: 'none' }}
+                                    min={1} max={500} value={row.qty === '' ? '' : (row.qty || 1)}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      if (raw === '') { updateRow(i, 'qty', ''); return; }
+                                      const digits = raw.replace(/\D/g, '').slice(0, 3);
+                                      updateRow(i, 'qty', digits === '' ? '' : Math.min(500, parseInt(digits, 10)));
+                                    }}
+                                    onBlur={() => updateRow(i, 'qty', clampQty(row.qty))}/>
+                                  <button type="button"
+                                    style={{ ...stepBtn, borderLeft: 'none', borderRadius: '0 var(--r-md) var(--r-md) 0' }}
+                                    onClick={(e) => { e.stopPropagation(); updateRow(i, 'qty', clampQty((row.qty || 1) + 1)); }}>+</button>
+                                </div>
+                                );
+                              })()}
+                              {(row.qty || 1) > 1 && (
+                                <div style={{ fontSize: 10.5, color: 'var(--primary)', marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <Icon name="copy" size={9}/>{row.qty}건 등록
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
                           )}
@@ -570,13 +618,20 @@ function SalesInputScreen() {
 
                         {!isEdit && (
                           <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-                            {rows.length > 1 && (
+                            <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                               <button type="button" className="btn btn--ghost btn--sm"
                                       style={{ padding: '4px 6px', color: 'var(--ink-4)' }}
-                                      onClick={() => removeRow(i)} title="행 삭제">
-                                <Icon name="x" size={13}/>
+                                      onClick={() => duplicateRow(i)} title="행 복제 (같은 모델·용도로 한 행 더 추가)">
+                                <Icon name="copy" size={13}/>
                               </button>
-                            )}
+                              {rows.length > 1 && (
+                                <button type="button" className="btn btn--ghost btn--sm"
+                                        style={{ padding: '4px 6px', color: 'var(--ink-4)' }}
+                                        onClick={() => removeRow(i)} title="행 삭제">
+                                  <Icon name="x" size={13}/>
+                                </button>
+                              )}
+                            </div>
                           </td>
                         )}
                       </tr>
