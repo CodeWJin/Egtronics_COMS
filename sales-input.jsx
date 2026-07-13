@@ -477,6 +477,18 @@ function SalesInputScreen() {
             </div>
           </div>
           <div className="card__body" style={{ padding: 0 }}>
+            {!isEdit && selectedRowIds.size > 0 && (
+              <div className="toolbar" style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-100)', margin: '12px 16px 0' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-700, var(--primary))' }}>
+                  <Icon name="check" size={13}/> {selectedRowIds.size}행 선택됨
+                </span>
+                <div style={{ flex: 1 }}/>
+                <button type="button" className="btn btn--secondary btn--sm" onClick={() => setModelModalRow('bulk')}>
+                  모델 일괄 지정
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelectedRowIds(new Set())}>선택 해제</button>
+              </div>
+            )}
             <div style={{ overflowX: 'auto' }}>
               <table className="table" style={{ minWidth: 900 }}>
                 <thead>
@@ -734,18 +746,22 @@ function SalesInputScreen() {
           onClose={() => setModal(null)}
           onChanged={() => setMasterCpos(window.PMDB.getCpos())}/>
       )}
-      {modelModalRow !== null && rows[modelModalRow] && (
+      {(modelModalRow === 'bulk' || (modelModalRow !== null && rows[modelModalRow])) && (
         <ModelSelectModal
           onClose={() => setModelModalRow(null)}
           onSelect={(model, power) => {
-            setRows(r => r.map((rw, idx) => idx === modelModalRow ? { ...rw, model_name: model, _power: power || rw._power } : rw));
+            if (modelModalRow === 'bulk') {
+              setRows(r => r.map(rw => selectedRowIds.has(rw._id) ? { ...rw, model_name: model, _power: power || rw._power } : rw));
+            } else {
+              setRows(r => r.map((rw, idx) => idx === modelModalRow ? { ...rw, model_name: model, _power: power || rw._power } : rw));
+            }
             setModelModalRow(null);
           }}
           powerOptions={powerOptions}
           modelsByPower={modelsByPower}
           masterModels={masterModels}
-          currentModel={rows[modelModalRow]?.model_name}
-          currentPower={rows[modelModalRow]?._power || masterModels.find(m => m.model === rows[modelModalRow]?.model_name)?.power || ''}
+          currentModel={modelModalRow === 'bulk' ? '' : rows[modelModalRow]?.model_name}
+          currentPower={modelModalRow === 'bulk' ? '' : (rows[modelModalRow]?._power || masterModels.find(m => m.model === rows[modelModalRow]?.model_name)?.power || '')}
         />
       )}
     </div>
