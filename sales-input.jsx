@@ -148,7 +148,18 @@ function SalesInputScreen() {
     if (last && last.usage_type === '비공용') next.usage_type = '비공용';
     return [...r, next];
   });
-  const removeRow = (i) => setRows(r => r.filter((_, idx) => idx !== i));
+  const removeRow = (i) => {
+    const removedId = rows[i]?._id;
+    setRows(r => r.filter((_, idx) => idx !== i));
+    if (removedId !== undefined) {
+      setSelectedRowIds(prev => {
+        if (!prev.has(removedId)) return prev;
+        const next = new Set(prev);
+        next.delete(removedId);
+        return next;
+      });
+    }
+  };
   const duplicateRow = (i) => setRows(r => [...r.slice(0, i + 1), { ...r[i], _id: nextRowIdRef.current++ }, ...r.slice(i + 1)]);
 
   const allRowIds = useMemoSI(() => rows.map(r => r._id), [rows]);
@@ -229,6 +240,7 @@ function SalesInputScreen() {
       setCommon(emptyCommon);
       setRows([makeRow()]);
     }
+    setSelectedRowIds(new Set());
     setSubmitted(false);
   }, [s.editingOrderId]);
 
@@ -303,6 +315,7 @@ function SalesInputScreen() {
     });
     setCommon(emptyCommon);
     setRows([makeRow()]);
+    setSelectedRowIds(new Set());
     setSubmitted(false);
     submittingRef.current = false;
   };
@@ -335,7 +348,7 @@ function SalesInputScreen() {
               <Icon name="arrow-left" size={13}/> 취소
             </button>
           ) : (
-            <button className="btn btn--secondary" onClick={() => { setCommon(emptyCommon); setRows([makeRow()]); setSubmitted(false); }}>
+            <button className="btn btn--secondary" onClick={() => { setCommon(emptyCommon); setRows([makeRow()]); setSelectedRowIds(new Set()); setSubmitted(false); }}>
               <Icon name="refresh" size={13}/> 초기화
             </button>
           )}
