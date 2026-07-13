@@ -138,15 +138,21 @@ function SalesInputScreen() {
   const [modelModalRow, setModelModalRow] = useStateSI(null);
   const [selectedRowIds, setSelectedRowIds] = useStateSI(() => new Set());
   const [bulkCpoValue, setBulkCpoValue] = useStateSI('');
+  const [addRowCount, setAddRowCount] = useStateSI(1);
   const selectAllRef = useRefSI(null);
 
   const updateCommon = (k, v) => setCommon(c => ({ ...c, [k]: v }));
   const updateRow = (i, k, v) => setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
-  const addRow = () => setRows(r => {
+  const addRow = (count = 1) => setRows(r => {
     const last = r[r.length - 1];
-    const next = makeRow();
-    if (last && last.usage_type === '비공용') next.usage_type = '비공용';
-    return [...r, next];
+    const isNonPublic = last && last.usage_type === '비공용';
+    const added = [];
+    for (let k = 0; k < count; k++) {
+      const row = makeRow();
+      if (isNonPublic) row.usage_type = '비공용';
+      added.push(row);
+    }
+    return [...r, ...added];
   });
   const removeRow = (i) => {
     const removedId = rows[i]?._id;
@@ -487,9 +493,20 @@ function SalesInputScreen() {
                 <span className="card__sub">모델을 입력한 행이 등록됩니다</span>
               )}
               {!isEdit && (
-                <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>
-                  <Icon name="plus" size={12}/> 행 추가
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input type="number" min={1} max={50} value={addRowCount}
+                         aria-label="추가할 행 개수"
+                         onChange={(e) => {
+                           const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+                           setAddRowCount(digits === '' ? '' : Math.min(50, parseInt(digits, 10)));
+                         }}
+                         onBlur={() => setAddRowCount(v => Math.max(1, Math.min(50, parseInt(v, 10) || 1)))}
+                         style={{ width: 44, fontFamily: 'var(--font-mono)', fontSize: 12.5, textAlign: 'center', padding: '5px 4px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', background: 'var(--surface-1)' }}/>
+                  <button type="button" className="btn btn--secondary btn--sm"
+                          onClick={() => addRow(Math.max(1, Math.min(50, parseInt(addRowCount, 10) || 1)))}>
+                    <Icon name="plus" size={12}/> 행 추가
+                  </button>
+                </div>
               )}
               {s.currentUser?.role === 'admin' && (<>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('add-model')} title="신규 모델 등록">
