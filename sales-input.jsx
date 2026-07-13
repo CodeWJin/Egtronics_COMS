@@ -110,6 +110,7 @@ function SalesInputScreen() {
   const editing = s.editingOrderId ? s.orders.find(o => o.order_id === s.editingOrderId) : null;
   const isEdit = !!editing;
 
+  const nextRowIdRef = useRefSI(1);
   const clampQty = (v, max = 500) => Math.max(1, Math.min(max, parseInt(v) || 1));
 
   const emptyCommon = {
@@ -119,6 +120,7 @@ function SalesInputScreen() {
     field_manager_name: '', field_manager_phone: '',
   };
   const makeRow = () => ({
+    _id: nextRowIdRef.current++,
     _power: '',
     model_name: '', usage_type: '공용', cpo_name: '',
     station_id: '', charger_no: '', router_no: '', usim_no: '',
@@ -144,7 +146,7 @@ function SalesInputScreen() {
     return [...r, next];
   });
   const removeRow = (i) => setRows(r => r.filter((_, idx) => idx !== i));
-  const duplicateRow = (i) => setRows(r => [...r.slice(0, i + 1), { ...r[i] }, ...r.slice(i + 1)]);
+  const duplicateRow = (i) => setRows(r => [...r.slice(0, i + 1), { ...r[i], _id: nextRowIdRef.current++ }, ...r.slice(i + 1)]);
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
@@ -180,6 +182,7 @@ function SalesInputScreen() {
         field_manager_phone: editing.field_manager_phone || '',
       });
       setRows([{
+        _id: nextRowIdRef.current++,
         _power: '',
         model_name: editing.model_name || '',
         usage_type: editing.usage_type || '공용',
@@ -249,7 +252,7 @@ function SalesInputScreen() {
       if (!row.model_name) return;
       submittingRef.current = true;
       const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
-      const { _power: _rp, ...cleanRow } = row;
+      const { _power: _rp, _id: _rid, ...cleanRow } = row;
       const payload = { ...common, ...cleanRow, install_address: addr };
       delete payload.install_address_detail;
       window.actions.updateOrder(editing.order_id, payload);
@@ -261,7 +264,7 @@ function SalesInputScreen() {
     submittingRef.current = true;
     const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
     const { install_address_detail, ...commonPayload } = { ...common, install_address: addr };
-    validRows.forEach(({ _power: _rp, qty, ...cleanRow }) => {
+    validRows.forEach(({ _power: _rp, _id: _rid, qty, ...cleanRow }) => {
       const count = clampQty(qty);
       for (let q = 0; q < count; q++) window.actions.addOrder({ ...commonPayload, ...cleanRow });
     });
@@ -480,7 +483,7 @@ function SalesInputScreen() {
                     const isPub = row.usage_type === '공용';
                     const rowPower = row._power || masterModels.find(m => m.model === row.model_name)?.power || '';
                     return (
-                      <tr key={i} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : (!isPub && (row.qty || 1) > 1) ? { background: 'var(--primary-50)' } : {}}>
+                      <tr key={row._id} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : (!isPub && (row.qty || 1) > 1) ? { background: 'var(--primary-50)' } : {}}>
                         <td style={{ textAlign: 'center', color: 'var(--ink-4)', fontSize: 12, paddingLeft: 12 }}>{i + 1}</td>
 
                         <td style={{ padding: 4, minWidth: 170 }}>
