@@ -137,6 +137,7 @@ function SalesInputScreen() {
   const [modal, setModal] = useStateSI(null);
   const [modelModalRow, setModelModalRow] = useStateSI(null);
   const [selectedRowIds, setSelectedRowIds] = useStateSI(() => new Set());
+  const [bulkCpoValue, setBulkCpoValue] = useStateSI('');
   const selectAllRef = useRefSI(null);
 
   const updateCommon = (k, v) => setCommon(c => ({ ...c, [k]: v }));
@@ -162,6 +163,16 @@ function SalesInputScreen() {
     return next;
   });
   const toggleAllRows = () => setSelectedRowIds(allRowsSelected ? new Set() : new Set(allRowIds));
+  const selectedHasPublic = rows.some(r => selectedRowIds.has(r._id) && r.usage_type === '공용');
+  const applyBulkUsageType = (t) => setRows(r => r.map(rw => {
+    if (!selectedRowIds.has(rw._id)) return rw;
+    if (t === '비공용') return { ...rw, usage_type: '비공용', cpo_name: '', station_id: '', charger_no: '' };
+    return { ...rw, usage_type: t };
+  }));
+  const applyBulkCpo = () => {
+    if (!bulkCpoValue.trim()) return;
+    setRows(r => r.map(rw => (selectedRowIds.has(rw._id) && rw.usage_type === '공용') ? { ...rw, cpo_name: bulkCpoValue } : rw));
+  };
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
@@ -486,6 +497,26 @@ function SalesInputScreen() {
                 <button type="button" className="btn btn--secondary btn--sm" onClick={() => setModelModalRow('bulk')}>
                   모델 일괄 지정
                 </button>
+                <div className="chips" style={{ gap: 4 }}>
+                  {['공용', '비공용'].map(t => (
+                    <button key={t} type="button" className="btn btn--tag btn--ghost" onClick={() => applyBulkUsageType(t)}>{t}로 일괄 지정</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
+                  <div style={{ width: 150, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', background: 'var(--surface-1)' }}>
+                    <BulkInlineCombo
+                      value={bulkCpoValue}
+                      onChange={setBulkCpoValue}
+                      options={cpoOptions}
+                      placeholder="CPO 운영사"
+                      ariaLabel="일괄 적용할 CPO 운영사"/>
+                  </div>
+                  <button type="button" className="btn btn--secondary btn--sm" disabled={!selectedHasPublic}
+                          title={!selectedHasPublic ? '선택한 행 중 공용 용도가 없습니다' : ''}
+                          onClick={applyBulkCpo}>
+                    CPO 적용
+                  </button>
+                </div>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelectedRowIds(new Set())}>선택 해제</button>
               </div>
             )}
