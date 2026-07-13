@@ -136,6 +136,8 @@ function SalesInputScreen() {
   const [managers, setManagers] = useStateSI([]);
   const [modal, setModal] = useStateSI(null);
   const [modelModalRow, setModelModalRow] = useStateSI(null);
+  const [selectedRowIds, setSelectedRowIds] = useStateSI(() => new Set());
+  const selectAllRef = useRefSI(null);
 
   const updateCommon = (k, v) => setCommon(c => ({ ...c, [k]: v }));
   const updateRow = (i, k, v) => setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
@@ -147,6 +149,19 @@ function SalesInputScreen() {
   });
   const removeRow = (i) => setRows(r => r.filter((_, idx) => idx !== i));
   const duplicateRow = (i) => setRows(r => [...r.slice(0, i + 1), { ...r[i], _id: nextRowIdRef.current++ }, ...r.slice(i + 1)]);
+
+  const allRowIds = useMemoSI(() => rows.map(r => r._id), [rows]);
+  const allRowsSelected = allRowIds.length > 0 && allRowIds.every(id => selectedRowIds.has(id));
+  const someRowsSelected = !allRowsSelected && allRowIds.some(id => selectedRowIds.has(id));
+  useEffectSI(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someRowsSelected;
+  }, [someRowsSelected]);
+  const toggleRowSelect = (id) => setSelectedRowIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const toggleAllRows = () => setSelectedRowIds(allRowsSelected ? new Set() : new Set(allRowIds));
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
@@ -466,7 +481,13 @@ function SalesInputScreen() {
               <table className="table" style={{ minWidth: 900 }}>
                 <thead>
                   <tr>
-                    <th style={{ width: 36, textAlign: 'center', paddingLeft: 12 }}>#</th>
+                    {!isEdit && (
+                      <th scope="col" style={{ width: 34, textAlign: 'center', paddingLeft: 12 }}>
+                        <input ref={selectAllRef} type="checkbox" aria-label="전체 행 선택/해제"
+                               checked={allRowsSelected} onChange={toggleAllRows}/>
+                      </th>
+                    )}
+                    <th style={{ width: 32, textAlign: 'center' }}>#</th>
                     <th style={{ minWidth: 170 }}>충전속도 (모델) <span className="field__req">*</span></th>
                     <th style={{ minWidth: 120 }}>충전기 용도</th>
                     <th style={{ minWidth: 160 }}>CPO 운영사</th>
@@ -484,6 +505,12 @@ function SalesInputScreen() {
                     const rowPower = row._power || masterModels.find(m => m.model === row.model_name)?.power || '';
                     return (
                       <tr key={row._id} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : (!isPub && (row.qty || 1) > 1) ? { background: 'var(--primary-50)' } : {}}>
+                        {!isEdit && (
+                          <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', paddingLeft: 12 }}>
+                            <input type="checkbox" aria-label={`${i + 1}번째 행 선택`}
+                                   checked={selectedRowIds.has(row._id)} onChange={() => toggleRowSelect(row._id)}/>
+                          </td>
+                        )}
                         <td style={{ textAlign: 'center', color: 'var(--ink-4)', fontSize: 12, paddingLeft: 12 }}>{i + 1}</td>
 
                         <td style={{ padding: 4, minWidth: 170 }}>
