@@ -173,6 +173,13 @@ function SalesInputScreen() {
     if (!bulkCpoValue.trim()) return;
     setRows(r => r.map(rw => (selectedRowIds.has(rw._id) && rw.usage_type === '공용') ? { ...rw, cpo_name: bulkCpoValue } : rw));
   };
+  const allSelected = allRowIds.length > 0 && selectedRowIds.size === allRowIds.length;
+  const bulkDeleteRows = () => {
+    window.actions.showConfirm(`선택한 ${selectedRowIds.size}행을 삭제할까요?`, () => {
+      setRows(r => r.filter(rw => !selectedRowIds.has(rw._id)));
+      setSelectedRowIds(new Set());
+    });
+  };
 
   useEffectSI(() => {
     setMasterCustomers(window.PMDB.getCustomers());
@@ -517,6 +524,12 @@ function SalesInputScreen() {
                     CPO 적용
                   </button>
                 </div>
+                <button type="button" className="btn btn--ghost btn--sm" style={{ color: 'var(--danger-700)' }}
+                        disabled={allSelected}
+                        title={allSelected ? '최소 1개 행은 남아야 합니다' : ''}
+                        onClick={bulkDeleteRows}>
+                  선택 삭제
+                </button>
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setSelectedRowIds(new Set())}>선택 해제</button>
               </div>
             )}
