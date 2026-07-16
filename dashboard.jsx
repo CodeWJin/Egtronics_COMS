@@ -163,7 +163,10 @@ function DashboardScreen() {
   // 오더 파이프라인 상태별 건수
   const pipelineCounts = useMemoDASH(() => {
     const c = { PENDING: 0, IN_PROGRESS: 0, AWAIT_PICKUP: 0, COMPLETED: 0 };
-    s.orders.forEach(o => { if (o.status in c) c[o.status] += 1; });
+    s.orders.forEach(o => {
+      if (o.status === 'AWAIT_PICKUP') { if (window.isSalesInfoComplete(o)) c.AWAIT_PICKUP += 1; }
+      else if (o.status in c) c[o.status] += 1;
+    });
     return c;
   }, [s.orders]);
 
@@ -250,7 +253,7 @@ function DashboardScreen() {
       <div className="statrow" style={{ marginBottom: 16 }}>
         {[
           { key: 'PENDING',      label: '생산대기',   icon: 'package', accent: 'var(--warning)',    view: 'waiting',     foot: '생산 시작 전 오더' },
-          { key: 'IN_PROGRESS',  label: '생산진행중', icon: 'factory', accent: 'var(--indigo-700)', view: 'mapping',     foot: '생산 라인 작업중' },
+          { key: 'IN_PROGRESS',  label: '생산진행중', icon: 'factory', accent: 'var(--indigo-700)', view: 'waiting',     foot: '생산 라인 작업중' },
           { key: 'AWAIT_PICKUP', label: '출하대기',   icon: 'truck',   accent: 'var(--primary)',    view: 'AwaitPickup', foot: '검사 완료 · 픽업 대기' },
           { key: 'COMPLETED',    label: '출하완료',   icon: 'check',   accent: 'var(--success)',    view: 'lookup',      foot: '누적 출하 건수' },
         ].map(p => {

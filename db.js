@@ -34,6 +34,72 @@
     return newHex === hashHex;
   }
 
+  // ── 시리얼 채번 규칙 (그룹코드-타입코드-연월코드-순번) ──────────────────────
+  // "생산 수락"(생산요청 → 생산착수, startProduction) 시점에 자동 채번되며,
+  // 생산착수 모달(production-waiting.jsx)에서 수동 수정 + 재생성도 가능하다.
+  const SERIAL_MODEL_CODES = {
+    'EGSW101101':    ['G00', '00S'],
+    'EGMI205001':    ['G01', '00P'],
+    'EGMI105001':    ['G01', '01P'],
+    'EGMI104001':    ['G01', '02P'],
+    'EGMI103001':    ['G01', '03P'],
+    'EGFA210001':    ['G02', '00P'],
+    'EGFA110001':    ['G02', '01P'],
+    'EGSW100701':    ['G03', '00S'],
+    'EGSW101102':    ['G04', '00H'],
+    'EGSW100702':    ['G05', '00H'],
+    'EGSW101103':    ['G07', '00P'],
+    'EGSW101103P':   ['G07', '01S'],
+    'EGSW101103I':   ['G07', '02P'],
+    'EGSW101103PI':  ['G07', '03P'],
+    'EGSW101103N':   ['G07', '04S'],
+    'EGSW100703':    ['G08', '00P'],
+    'EGSW100703P':   ['G08', '01S'],
+    'EGSW100703I':   ['G08', '02P'],
+    'EGSW100703PI':  ['G08', '03P'],
+    'EGSW100703N':   ['G08', '04S'],
+    'EGFA220001':    ['G09', '00P'],
+    'EGFA120001':    ['G09', '01P'],
+  };
+  window.SERIAL_MODEL_CODES = SERIAL_MODEL_CODES;
+
+  function makeSerialDateCode(dateISO) {
+    const d = new Date(dateISO);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const yearCode = String.fromCharCode('A'.charCodeAt(0) + (year - 2023) % 20);
+    const monthCode = month <= 9 ? String(month) : String.fromCharCode('A'.charCodeAt(0) + month - 10);
+    return yearCode + monthCode;
+  }
+  window.makeSerialDateCode = makeSerialDateCode;
+
+  // 시리얼번호가 생성규칙(그룹-타입-날짜코드-순번)에 맞는지 검증.
+  // 그룹·타입 코드는 SERIAL_MODEL_CODES에 등록된 조합만 유효.
+  // 날짜코드: 연도 A~T(2023=A) + 월 1~9/A~C(10월=A). 순번: 0001~9999.
+  // as-receipt.jsx(신규 충전기 등록 게이트) 등에서 사용.
+  //
+  // 2026-02 이전 구형 장비는 타입코드가 없는 3세그먼트(그룹-날짜코드-순번) 시리얼을 사용했다.
+  // 그룹 코드는 SERIAL_MODEL_CODES에 등록된 그룹만 유효, 날짜코드 규칙은 신형과 동일.
+  const LEGACY_GROUPS = new Set(Object.values(SERIAL_MODEL_CODES).map(([g]) => g));
+  const LEGACY_SERIAL_RE = /^([A-Z0-9]{3})-([A-T][1-9A-C])-(?!0000)(\d{4})$/;
+  window.isValidSerialNo = function (serial) {
+    const s = String(serial || '').trim().toUpperCase();
+    const m = s.match(/^([A-Z0-9]{3})-([A-Z0-9]{3})-([A-T][1-9A-C])-(?!0000)(\d{4})$/);
+    if (m) return Object.values(SERIAL_MODEL_CODES).some(([g, t]) => g === m[1] && t === m[2]);
+    const lm = s.match(LEGACY_SERIAL_RE);
+    return !!lm && LEGACY_GROUPS.has(lm[1]);
+  };
+
+  // 시리얼번호 앞 그룹-타입 코드로 모델(model_code)을 역추적.
+  // as-receipt.jsx(신규 충전기 등록 — 시리얼번호로 모델 자동 선택)에서 사용.
+  window.findModelCodeFromSerial = function (serial) {
+    const s = String(serial || '').trim().toUpperCase();
+    const m = s.match(/^([A-Z0-9]{3})-([A-Z0-9]{3})-/);
+    if (!m) return null;
+    const entry = Object.entries(SERIAL_MODEL_CODES).find(([, [g, t]]) => g === m[1] && t === m[2]);
+    return entry ? entry[0] : null;
+  };
+
   // ============================================================
   // DB 로거 — 브라우저 콘솔 + window.PMDB_LOGS 배열에 저장
   // 조회: window.pmdbLogs() 또는 window.pmdbLogs('ERROR')
@@ -269,9 +335,9 @@
 
       addOrder(form) {
         const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, install_address: form.install_address || '', field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY };
+        const row = { order_id: id, customer_name: form.customer_name || '', customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date || '', install_address: form.install_address || '', field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY, cable_length: form.cable_length || null, requested_by: form.requested_by || '' };
         cache.orders.push(row);
-        dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 고객=${form.customer_name}`);
+        dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 요청자=${form.requested_by || '—'}`);
         dbWrite('tb_sales_order', 'insert', async () => {
           await client.from('tb_sales_order').insert(row);
           if ((form.usage_type || '공용') === '공용') {
@@ -284,22 +350,36 @@
         return id;
       },
 
+      // 생산요청(PENDING) 수정과 생산완료(AWAIT_PICKUP) 영업정보 입력이 모두 이 함수를 쓰되
+      // 서로 다른 필드 부분집합만 보내므로, form에 실제로 담긴 키만 병합한다(전체 덮어쓰기 금지).
       updateOrder(order_id, form) {
         const o = cache.orders.find(x => x.order_id === order_id);
-        if (!o || o.status !== 'PENDING') {
+        if (!o || (o.status !== 'PENDING' && o.status !== 'AWAIT_PICKUP')) {
           dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const upd = { customer_name: form.customer_name, customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date, install_address: form.install_address || '', field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '' };
+        const FIELDS = ['customer_name', 'customer_manager', 'cpo_name', 'usage_type', 'model_name', 'delivery_date', 'install_address', 'field_manager_name', 'field_manager_phone', 'cable_length', 'requested_by'];
+        const upd = {};
+        FIELDS.forEach(k => { if (form[k] !== undefined) upd[k] = form[k]; });
         Object.assign(o, upd);
         dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'update', async () => {
           await client.from('tb_sales_order').update(upd).eq('order_id', order_id);
-          const pub = { order_id, station_id: form.station_id || '', charger_no: form.charger_no || '', router_no: form.router_no || '', usim_no: form.usim_no || '' };
-          const idx = cache.usage_type_public.findIndex(p => p.order_id === order_id);
-          if (idx !== -1) cache.usage_type_public[idx] = pub; else cache.usage_type_public.push(pub);
-          if ((form.usage_type || '공용') === '공용') {
-            return client.from('tb_usagetype_public').upsert(pub, { onConflict: 'order_id' });
+          const hasPubFields = ['station_id', 'charger_no', 'router_no', 'usim_no'].some(k => form[k] !== undefined);
+          if (hasPubFields) {
+            const existing = cache.usage_type_public.find(p => p.order_id === order_id) || {};
+            const pub = {
+              order_id,
+              station_id: form.station_id ?? existing.station_id ?? '',
+              charger_no: form.charger_no ?? existing.charger_no ?? '',
+              router_no:  form.router_no  ?? existing.router_no  ?? '',
+              usim_no:    form.usim_no    ?? existing.usim_no    ?? '',
+            };
+            const idx = cache.usage_type_public.findIndex(p => p.order_id === order_id);
+            if (idx !== -1) cache.usage_type_public[idx] = pub; else cache.usage_type_public.push(pub);
+            if ((o.usage_type || '공용') === '공용') {
+              return client.from('tb_usagetype_public').upsert(pub, { onConflict: 'order_id' });
+            }
           }
           return { error: null };
         });
@@ -431,11 +511,32 @@
         o.status = 'IN_PROGRESS';
         dbLog('INFO', 'write:tb_sales_order', `생산 시작 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'start', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        // "생산 수락" 시점에 충전기 시리얼번호 자동 채번 — 생산착수 모달에서 이미 채워진 값으로 표시됨
+        const serial = this.generateSerialSuggestion(o.model_name, o.usage_type, TODAY, order_id);
+        if (serial) this.saveProduction(order_id, { serial_no: serial });
         return true;
       },
 
       serialExists(serial, excludeOrderId) {
-        return cache.production.some(p => p.serial_no === serial && p.order_id !== excludeOrderId);
+        if (cache.production.some(p => p.serial_no === serial && p.order_id !== excludeOrderId)) return true;
+        const cp = this.getChargepointBySerial(serial);
+        return !!cp && cp.order_id !== excludeOrderId;
+      },
+
+      // 모델·용도·생산일자로 다음 사용 가능한 시리얼번호를 추천(중복 자동 회피)
+      generateSerialSuggestion(model_name, usage_type, prodDateISO, excludeOrderId) {
+        const entry = window.findModelInfo ? window.findModelInfo(model_name) : null;
+        const modelCode = entry ? entry.model : model_name;
+        const codes = SERIAL_MODEL_CODES[modelCode];
+        if (!codes) return '';
+        const dateCode = makeSerialDateCode(prodDateISO || TODAY);
+        const base = `${codes[0]}-${codes[1]}-${dateCode}`;
+        let idx = 1, candidate;
+        do {
+          candidate = `${base}-${String(idx).padStart(4, '0')}`;
+          idx++;
+        } while (this.serialExists(candidate, excludeOrderId) && idx <= 9999);
+        return candidate;
       },
 
       getManagers(customer_name) {
@@ -1099,6 +1200,7 @@
     awaitToInProgress(id)    { return this.backend.awaitToInProgress(id); },
     startProduction(id)      { return this.backend.startProduction(id); },
     serialExists(s, excl)    { return this.backend.serialExists(s, excl); },
+    generateSerialSuggestion(model, usage, prodDate, excl) { return this.backend.generateSerialSuggestion(model, usage, prodDate, excl); },
     getManagers(c)           { return this.backend.getManagers(c); },
     addManager(m)            { return this.backend.addManager(m); },
     updateManager(id, m)     { return this.backend.updateManager(id, m); },

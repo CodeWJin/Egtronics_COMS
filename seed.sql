@@ -22,7 +22,7 @@ ALTER TABLE tb_users DISABLE ROW LEVEL SECURITY;
 -- 영업 오더 (공용 충전기 전용 필드는 tb_usagetype_public으로 분리)
 CREATE TABLE IF NOT EXISTS tb_sales_order (
   order_id             TEXT    PRIMARY KEY,
-  customer_name        TEXT    NOT NULL,
+  customer_name        TEXT    DEFAULT '',
   customer_manager     TEXT    DEFAULT '',
   cpo_name             TEXT    DEFAULT '',
   usage_type           TEXT    DEFAULT '공용',
@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS tb_sales_order (
   field_manager_phone  TEXT    DEFAULT '',
   status               TEXT    NOT NULL DEFAULT 'PENDING',
   created              TEXT    DEFAULT '',
-  cable_length         SMALLINT
+  cable_length         SMALLINT,
+  requested_by         TEXT    DEFAULT ''
 );
 ALTER TABLE tb_sales_order DISABLE ROW LEVEL SECURITY;
 
@@ -68,17 +69,6 @@ CREATE TABLE IF NOT EXISTS tb_production_info (
 );
 ALTER TABLE tb_production_info DISABLE ROW LEVEL SECURITY;
 
--- 오더 변경 이력
-CREATE TABLE IF NOT EXISTS tb_order_history (
-  history_id     SERIAL  PRIMARY KEY,
-  order_id       TEXT    NOT NULL,
-  serial_no      TEXT    DEFAULT '',
-  changed_at     TEXT    NOT NULL,
-  changed_by     TEXT    DEFAULT '',
-  action         TEXT    DEFAULT 'update',
-  changed_fields TEXT    DEFAULT '[]'
-);
-ALTER TABLE tb_order_history DISABLE ROW LEVEL SECURITY;
 
 -- 충전기 설치 정보
 CREATE TABLE IF NOT EXISTS tb_chargepoint_infor (
@@ -138,8 +128,7 @@ ALTER TABLE tb_program_version DISABLE ROW LEVEL SECURITY;
 -- 기능 검사 성적서 (order_id UNIQUE)
 CREATE TABLE IF NOT EXISTS tb_func_inspection (
   id          SERIAL  PRIMARY KEY,
-  order_id    TEXT    NOT NULL UNIQUE,
-  serial_no   TEXT    DEFAULT '',
+  serial_no   TEXT    NOT NULL UNIQUE,
   insp_date   TEXT    NOT NULL,
   inspector   TEXT    DEFAULT '',
   checks      TEXT    DEFAULT '{}',
@@ -151,8 +140,7 @@ ALTER TABLE tb_func_inspection DISABLE ROW LEVEL SECURITY;
 -- 출하 검사 성적서 (order_id UNIQUE, photos: JSON 배열)
 CREATE TABLE IF NOT EXISTS tb_ship_inspection (
   id          SERIAL  PRIMARY KEY,
-  order_id    TEXT    NOT NULL UNIQUE,
-  serial_no   TEXT    DEFAULT '',
+  serial_no   TEXT    NOT NULL UNIQUE,
   insp_date   TEXT    NOT NULL,
   inspector   TEXT    DEFAULT '',
   checks      TEXT    DEFAULT '{}',

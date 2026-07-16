@@ -220,8 +220,8 @@ function AdminUsersScreen() {
             </div>
             <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
-              {r.value === 'sales' && '영업 입력 · 생산 대기 · 조회 · A/S 접수'}
-              {r.value === 'production' && '생산 대기 · 생산 입력 · 출하 대기 · 조회'}
+              {r.value === 'sales' && '생산 요청 · 생산 대기 · 조회 · A/S 접수'}
+              {r.value === 'production' && '생산 대기 · 출하 대기 · 조회'}
               {r.value === 'quality' && '출하 대기 · 조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
             </div>
             <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>

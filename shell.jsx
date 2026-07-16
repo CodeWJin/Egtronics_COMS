@@ -11,14 +11,12 @@ window[STORE_KEY] = window[STORE_KEY] || {
   editingOrderId: null,
   currentUser: null,
   dbReady: false,
-  view: 'sales', // 'sales' | 'waiting' | 'mapping' | 'AwaitPickup' | 'lookup' | 'as-receipt' | 'as-processing'
-  waitingView: 'kanban', // 'table' | 'card' | 'kanban' | 'timeline'
+  view: 'sales', // 'sales' | 'waiting' | 'AwaitPickup' | 'lookup' | 'as-receipt' | 'as-processing'
   toast: null,
   completingOrderId: null,
   asReceptions: [],
   selectedAsId: null,
   confirmModal: null,
-  batchOrderIds: null, // 생산대기 목록에서 다중선택 후 일괄 처리로 진입한 오더 id 배열
 };
 
 function notify() {
@@ -44,13 +42,32 @@ window.findModelInfo = function (modelName) {
   return window.PMDB.getModels().find(m => m.model === modelName) || null;
 };
 
+// 생산완료(AWAIT_PICKUP) 단계 영업정보 입력이 끝났는지 — "생산완료"와 "출하대기"를
+// 같은 status(AWAIT_PICKUP)에서 구분하는 파생 플래그
+window.isSalesInfoComplete = function (o) {
+  if (!o) return false;
+  const commonOk = !!(o.customer_name && o.delivery_date && o.install_address && o.cable_length && o.customer_manager && o.field_manager_phone);
+  if (!commonOk) return false;
+  if ((o.usage_type || '공용') === '공용') return !!(o.station_id && o.charger_no && o.router_no && o.usim_no);
+  return true;
+};
+
 // main 스크롤 잠금 훅 — 드로어·모달 공용
 function useLockScroll() {
   useEffectSH(() => {
     const el = document.querySelector('main');
     if (!el) return;
+    const scrollTop = el.scrollTop;
+    const inner = el.firstElementChild;
     el.style.overflow = 'hidden';
-    return () => { el.style.overflow = ''; };
+    // overflow:hidden 적용 시 브라우저가 scrollTop을 0으로 리셋하므로
+    // 첫 번째 자식을 위로 밀어 시각적 위치를 유지
+    if (inner && scrollTop > 0) inner.style.marginTop = `-${scrollTop}px`;
+    return () => {
+      el.style.overflow = '';
+      if (inner) inner.style.marginTop = '';
+      el.scrollTop = scrollTop;
+    };
   }, []);
 }
 window.useLockScroll = useLockScroll;
@@ -59,6 +76,7 @@ const ORDER_FIELD_LABELS = {
   customer_name: '고객사', customer_manager: '고객사 담당자', model_name: '모델',
   delivery_date: '납품일자', install_address: '설치주소',
   station_id: '충전소 ID', router_no: '라우터번호', usim_no: 'USIM번호',
+  cable_length: '케이블 길이', field_manager_phone: '담당자 전화번호', requested_by: '생산요청자',
 };
 function localTimestamp() {
   const d = new Date(), p = (n) => String(n).padStart(2, '0');
@@ -195,31 +213,6 @@ window.actions = {
   selectOrder(id) {
     const s = window[STORE_KEY];
     s.selectedOrderId = id;
-    s.batchOrderIds = null; // 개별 오더 선택 시 이전 일괄 처리 상태 초기화
-    notify();
-  },
-  // 생산대기 목록에서 여러 오더를 다중선택해 곧바로 일괄 처리 화면으로 진입
-  startBatchMapping(orderIds) {
-    const s = window[STORE_KEY];
-    if (!orderIds || orderIds.length === 0) return;
-    const orders = orderIds.map(id => s.orders.find(o => o.order_id === id)).filter(Boolean);
-    if (orders.length === 0) return;
-    const first = orders[0];
-    const sameGroup = orders.every(o =>
-      o.model_name === first.model_name && (o.usage_type || '공용') === (first.usage_type || '공용')
-    );
-    if (!sameGroup) {
-      window.actions.flashToast('같은 모델·용도의 오더만 함께 선택할 수 있습니다', 'error');
-      return;
-    }
-    orders.filter(o => o.status === 'PENDING').forEach(o => window.PMDB.startProduction(o.order_id));
-    s.orders = window.PMDB.loadOrders();
-    s.batchOrderIds = orderIds;
-    s.selectedOrderId = orderIds[0];
-    window.actions.setView('mapping');
-  },
-  exitBatchMapping() {
-    window[STORE_KEY].batchOrderIds = null;
     notify();
   },
   setView(v) {
@@ -234,10 +227,6 @@ window.actions = {
     const s = window[STORE_KEY];
     history.replaceState({ view: v, selectedOrderId: s.selectedOrderId }, '', '#' + v);
     s.view = v;
-    notify();
-  },
-  setWaitingView(v) {
-    window[STORE_KEY].waitingView = v;
     notify();
   },
   completeOrder(order_id, production) {
@@ -332,7 +321,7 @@ window.HelpDot = HelpDot;
 function TopNav() {
   const s = useStore();
   const pendingCount = s.orders.filter(o => o.status === 'PENDING').length;
-  const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP').length;
+  const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP' && window.isSalesInfoComplete(o)).length;
   const user = s.currentUser;
   const allowed = user ? (window.ROLE_TABS[user.role] || []) : [];
 
@@ -340,9 +329,8 @@ function TopNav() {
 
   const TAB_META = {
     dashboard:       { label: '대시보드' },
-    sales:           { label: '영업 입력' },
+    sales:           { label: '생산 요청' },
     waiting:         { label: '생산 대기', count: pendingCount },
-    mapping:         { label: '생산 입력' },
     AwaitPickup:     { label: '출하대기', count: awaitPickupCount },
     lookup:          { label: '조회' },
     admin:           { label: '사용자 관리' },
@@ -355,7 +343,7 @@ function TopNav() {
       <div className="topnav__brand">
         <img className="topnav__logo" src="logo_header.png" alt="Egtronics" />
         <span style={{ display: 'inline-block' }}>COMS</span>
-        <span className="topnav__version">v1.0</span>
+        <span className="topnav__version">v2.0</span>
       </div>
       <nav className="topnav__tabs">
         {allowed.map(k => (
@@ -545,7 +533,7 @@ function MobileTabBar() {
   const allowed = window.ROLE_TABS[user.role] || [];
 
   const pendingCount = s.orders.filter(o => o.status === 'PENDING').length;
-  const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP').length;
+  const awaitPickupCount = s.orders.filter(o => o.status === 'AWAIT_PICKUP' && window.isSalesInfoComplete(o)).length;
   const asCount = (s.asReceptions || []).filter(r => r.status !== '처리완료').length;
 
   const META = {

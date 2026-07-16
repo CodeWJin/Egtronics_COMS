@@ -2,9 +2,9 @@
 
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
-  admin:      ['dashboard', 'sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
+  admin:      ['dashboard', 'sales', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
   sales:      ['dashboard', 'sales', 'waiting', 'lookup','as-receipt','as-processing'],
-  production: ['dashboard', 'waiting', 'mapping', 'AwaitPickup', 'lookup'],
+  production: ['dashboard', 'waiting', 'AwaitPickup', 'lookup'],
   quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
 window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질' };
@@ -59,7 +59,7 @@ function LoginScreen() {
             AS 접수·처리 이력 통합 관리
           </li>
         </ul>
-        <div className="login__side__foot">© 2025 Egtronics Co., Ltd.</div>
+        <div className="login__side__foot">© 2026 Egtronics Co., Ltd.</div>
         <svg className="login__side__watermark" viewBox="0 0 220 320" fill="currentColor" aria-hidden="true">
           <polygon points="128,18 52,162 118,162 88,302 186,148 120,148"/>
         </svg>

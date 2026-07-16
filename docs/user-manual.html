@@ -138,6 +138,7 @@
       font-size: 16px; font-weight: 700;
       color: var(--ink);
       margin: 28px 0 12px;
+      scroll-margin-top: 32px;
     }
     h3.sub-title::before {
       content: ''; display: inline-block;
@@ -184,7 +185,6 @@
     .role--sales  { color: #0369a1; background: #f0f9ff; border-color: #bae6fd; }
     .role--prod   { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
     .role--qual   { color: #b45309; background: #fffbeb; border-color: #fde68a; }
-    .role--as     { color: #9d174d; background: #fdf2f8; border-color: #fbcfe8; }
 
     /* ── 기능 목록 ── */
     .feature-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
@@ -338,7 +338,7 @@
       <div class="sidebar__logo-mark">EG</div>
       <div>
         <div class="sidebar__logo-text">COMS 매뉴얼</div>
-        <div class="sidebar__logo-sub">v1.0 · 2026</div>
+        <div class="sidebar__logo-sub">v2.0 · 2026</div>
       </div>
     </div>
 
@@ -351,11 +351,11 @@
 
     <div class="sidebar__section">
       <div class="sidebar__section-title">화면별 사용법</div>
-      <a href="#sales" class="sidebar__link">영업 입력 <span class="sidebar__num">1</span></a>
-      <a href="#waiting" class="sidebar__link">생산 대기 <span class="sidebar__num">2</span></a>
-      <a href="#mapping" class="sidebar__link">생산 입력 <span class="sidebar__num">3</span></a>
+      <a href="#dashboard" class="sidebar__link">대시보드 <span class="sidebar__num">1</span></a>
+      <a href="#sales" class="sidebar__link">생산요청 <span class="sidebar__num">2</span></a>
+      <a href="#waiting" class="sidebar__link">생산 대기 <span class="sidebar__num">3</span></a>
       <a href="#await-pickup" class="sidebar__link">출하대기 <span class="sidebar__num">4</span></a>
-      <a href="#lookup" class="sidebar__link">오더 조회 <span class="sidebar__num">5</span></a>
+      <a href="#lookup" class="sidebar__link">통합 조회 <span class="sidebar__num">5</span></a>
       <a href="#as-receipt" class="sidebar__link">AS 접수 <span class="sidebar__num">6</span></a>
       <a href="#as-processing" class="sidebar__link">AS 처리 <span class="sidebar__num">7</span></a>
       <a href="#admin" class="sidebar__link">사용자 관리 <span class="sidebar__num">8</span></a>
@@ -378,8 +378,8 @@
       <div class="cover__sub">EV 충전기 영업·생산 통합 관리 시스템(COMS)의 전체 기능을 화면별로 설명합니다.<br>역할에 맞는 챕터를 참고하여 업무에 활용하세요.</div>
       <div class="cover__meta">
         <span>이지트로닉스</span>
-        <span>버전 v1.0</span>
-        <span>최종 수정 2026-07-07</span>
+        <span>버전 v2.0</span>
+        <span>최종 수정 2026-07-15</span>
         <span>대상 : 내부 직원 전체</span>
       </div>
     </div>
@@ -391,11 +391,11 @@
         <li class="toc__item"><a href="#overview"><span class="toc__num">00</span>시스템 개요</a></li>
         <li class="toc__item"><a href="#roles"><span class="toc__num">00</span>역할 및 권한</a></li>
         <li class="toc__item"><a href="#login"><span class="toc__num">00</span>로그인</a></li>
-        <li class="toc__item"><a href="#sales"><span class="toc__num">01</span>영업 입력</a></li>
-        <li class="toc__item"><a href="#waiting"><span class="toc__num">02</span>생산 대기</a></li>
-        <li class="toc__item"><a href="#mapping"><span class="toc__num">03</span>생산 입력</a></li>
+        <li class="toc__item"><a href="#dashboard"><span class="toc__num">01</span>대시보드</a></li>
+        <li class="toc__item"><a href="#sales"><span class="toc__num">02</span>생산요청</a></li>
+        <li class="toc__item"><a href="#waiting"><span class="toc__num">03</span>생산 대기 (생산착수 · 생산완료)</a></li>
         <li class="toc__item"><a href="#await-pickup"><span class="toc__num">04</span>출하대기</a></li>
-        <li class="toc__item"><a href="#lookup"><span class="toc__num">05</span>오더 조회</a></li>
+        <li class="toc__item"><a href="#lookup"><span class="toc__num">05</span>통합 조회</a></li>
         <li class="toc__item"><a href="#as-receipt"><span class="toc__num">06</span>AS 접수</a></li>
         <li class="toc__item"><a href="#as-processing"><span class="toc__num">07</span>AS 처리</a></li>
         <li class="toc__item"><a href="#admin"><span class="toc__num">08</span>사용자 관리</a></li>
@@ -407,41 +407,45 @@
     <!-- ① 시스템 개요 -->
     <section class="section" id="overview">
       <h2 class="section-title">시스템 개요</h2>
-      <p>EGTRONICS COMS(Charge Order Management System)는 EV 충전기의 <strong>수주 → 생산 → 출하 → AS</strong> 전 과정을 한 곳에서 관리하는 사내 업무 시스템입니다.</p>
-      <p>PC 브라우저와 태블릿·모바일 모두에서 사용할 수 있으며, 부서별 역할에 따라 접근 가능한 화면이 다르게 설정됩니다.</p>
+      <p>EGTRONICS COMS(Charger Operation Management System)는 EV 충전기의 <strong>생산요청 → 생산착수 → 생산완료 → 출하 → AS</strong> 전 과정을 한 곳에서 관리하는 사내 업무 시스템입니다.</p>
+      <p>빌드 없이 브라우저에서 바로 동작하는 웹앱으로, PC와 태블릿·모바일 모두에서 사용할 수 있습니다. 사무실과 현장(태블릿)을 오가며 쓰는 것을 고려해 터치 조작에 맞춰 설계되어 있습니다. 로그인한 계정의 역할에 따라 접근 가능한 화면이 자동으로 조정됩니다.</p>
 
       <h3 class="sub-title">주요 업무 흐름</h3>
       <div class="flow">
-        <div class="flow__step">영업 오더 등록</div>
+        <div class="flow__step">생산요청 등록</div>
         <div class="flow__arrow">→</div>
         <div class="flow__step">생산 착수</div>
         <div class="flow__arrow">→</div>
-        <div class="flow__step">생산 완료·검사</div>
+        <div class="flow__step">생산 완료 (영업정보 입력)</div>
         <div class="flow__arrow">→</div>
-        <div class="flow__step">출하</div>
+        <div class="flow__step">출하 검사·완료</div>
         <div class="flow__arrow">→</div>
         <div class="flow__step">AS 접수·처리</div>
       </div>
 
       <h3 class="sub-title">오더 상태 정의</h3>
       <div class="status-list">
-        <div class="status status--pending"><span class="status__dot"></span>생산대기 (PENDING)</div>
-        <div class="status status--progress"><span class="status__dot"></span>생산진행중 (IN_PROGRESS)</div>
-        <div class="status status--await"><span class="status__dot"></span>출하대기 (AWAIT_PICKUP)</div>
+        <div class="status status--pending"><span class="status__dot"></span>생산요청 (PENDING)</div>
+        <div class="status status--progress"><span class="status__dot"></span>생산착수 (IN_PROGRESS)</div>
+        <div class="status status--await"><span class="status__dot"></span>생산완료 / 출하대기 (AWAIT_PICKUP)</div>
         <div class="status status--done"><span class="status__dot"></span>출하완료 (COMPLETED)</div>
+      </div>
+      <div class="callout callout--info">
+        <div class="callout__icon">ℹ️</div>
+        <div class="callout__body">DB상 상태값은 4가지뿐이지만 업무 단계는 <strong>생산완료</strong>와 <strong>출하대기</strong>로 나뉩니다. 둘 다 <code>AWAIT_PICKUP</code> 상태이며, 발주처·납품정보(영업정보) 입력이 끝났는지 여부로만 구분됩니다. 자세한 내용은 <a href="#order-flow">오더 상태 흐름</a>을 참고하세요.</div>
       </div>
     </section>
 
     <!-- ② 역할 및 권한 -->
     <section class="section" id="roles">
       <h2 class="section-title">역할 및 권한</h2>
-      <p>COMS는 5개 역할을 지원합니다. 로그인 후 역할에 따라 상단 탭 메뉴가 자동으로 조정됩니다.</p>
+      <p>COMS는 4개 역할(관리자·영업·생산·품질)을 지원합니다. 별도의 "AS 담당자" 역할은 없으며, AS 접수·처리 화면은 관리자·영업·품질 역할에게 열려 있습니다. 로그인 후 역할에 따라 상단 탭 메뉴가 자동으로 조정됩니다.</p>
 
       <table class="info-table">
         <thead>
           <tr>
             <th>역할</th>
-            <th>부서</th>
+            <th>부서 예시</th>
             <th>접근 가능 화면</th>
           </tr>
         </thead>
@@ -449,42 +453,41 @@
           <tr>
             <td><span class="role role--admin">관리자</span></td>
             <td>충전기개발실</td>
-            <td>모든 화면 + 사용자 관리</td>
+            <td>대시보드, 생산요청, 생산 대기, 출하대기, 통합 조회, AS 접수, AS 처리, 사용자 관리 (전체)</td>
           </tr>
           <tr>
             <td><span class="role role--sales">영업</span></td>
-            <td>영업부</td>
-            <td>영업 입력, 생산 대기, 조회, AS 접수</td>
+            <td>영업본부</td>
+            <td>대시보드, 생산요청, 생산 대기, 통합 조회, AS 접수, AS 처리</td>
           </tr>
           <tr>
             <td><span class="role role--prod">생산</span></td>
-            <td>생산부 / 생산2팀</td>
-            <td>생산 대기, 생산 입력, 출하대기, 조회</td>
+            <td>제조생산본부</td>
+            <td>대시보드, 생산 대기, 출하대기, 통합 조회</td>
           </tr>
           <tr>
             <td><span class="role role--qual">품질</span></td>
             <td>품질관리본부</td>
-            <td>출하대기, 조회, AS 접수, AS 처리</td>
-          </tr>
-          <tr>
-            <td><span class="role role--as">A/S</span></td>
-            <td>기술지원팀</td>
-            <td>조회 (AS 이력 포함)</td>
+            <td>대시보드, 출하대기, 통합 조회, AS 접수, AS 처리</td>
           </tr>
         </tbody>
       </table>
+      <div class="callout callout--tip">
+        <div class="callout__icon">💡</div>
+        <div class="callout__body">모든 역할이 <strong>대시보드</strong>와 <strong>통합 조회</strong>에는 접근할 수 있습니다. 목록에 없는 화면으로 직접 URL·상태를 이동해도 조회 화면으로 대체 표시됩니다.</div>
+      </div>
     </section>
 
     <!-- ③ 로그인 -->
     <section class="section" id="login">
       <h2 class="section-title">로그인</h2>
-      <p>COMS는 이메일 인증 방식으로 로그인합니다. 초기 비밀번호는 관리자에게 문의하세요.</p>
+      <p>COMS는 아이디(ID)와 비밀번호로 로그인합니다. 계정은 <strong>사용자 관리</strong> 화면(관리자 전용)에서 발급합니다.</p>
 
       <div class="steps">
         <div class="step">
           <div class="step__num">1</div>
           <div class="step__content">
-            <div class="step__title">아이디(ID) 입력</div>
+            <div class="step__title">아이디 입력</div>
             <div class="step__desc">관리자로부터 발급받은 아이디를 입력합니다.</div>
           </div>
         </div>
@@ -492,195 +495,206 @@
           <div class="step__num">2</div>
           <div class="step__content">
             <div class="step__title">비밀번호 입력 후 로그인</div>
-            <div class="step__desc">비밀번호를 입력하고 로그인 버튼을 누릅니다.</div>
+            <div class="step__desc">비밀번호를 입력하고 <strong>로그인</strong> 버튼을 누릅니다. 확인하는 동안 버튼이 <strong>확인 중…</strong>으로 바뀝니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">3</div>
           <div class="step__content">
             <div class="step__title">역할별 시작 화면으로 이동</div>
-            <div class="step__desc">로그인 성공 시 역할에 맞는 기본 화면으로 자동 이동됩니다. 화면 우측 상단에 이름·역할이 표시됩니다.</div>
+            <div class="step__desc">로그인 성공 시 역할에 맞는 대시보드로 자동 이동됩니다. 로그인 정보는 새로고침해도 유지됩니다.</div>
           </div>
         </div>
       </div>
+
+      <p style="font-size:13.5px;color:var(--ink-4);">아이디·비밀번호를 비운 채 로그인하면 <strong>아이디와 비밀번호를 입력하세요</strong>, 잘못 입력하면 <strong>아이디 또는 비밀번호가 올바르지 않습니다</strong> 메시지가 표시됩니다.</p>
 
       <div class="callout callout--info">
         <div class="callout__icon">ℹ️</div>
-        <div class="callout__body">비밀번호를 분실한 경우 <strong>관리자(박우진)</strong>에게 초기화를 요청하세요. 이메일 인증 코드 발송도 지원합니다.</div>
+        <div class="callout__body">비밀번호를 분실한 경우 <strong>관리자</strong>에게 초기화를 요청하세요. 사용자 관리 화면에서 <strong>비밀번호 재설정</strong> 필드로 즉시 처리할 수 있습니다.</div>
       </div>
     </section>
 
-    <!-- 01 영업 입력 -->
-    <section class="section" id="sales">
-      <h2 class="section-title"><span class="num">1</span>영업 입력</h2>
-
-      <div class="role-list">
-        <span class="role role--admin">관리자</span>
-        <span class="role role--sales">영업</span>
-      </div>
-      <p>고객으로부터 수주한 EV 충전기 오더를 신규 등록합니다. 등록 즉시 <strong>생산 대기</strong> 큐에 추가됩니다.</p>
-
-      <div class="screen-block">
-        <div class="screen-block__header">
-          <div class="screen-block__title">화면 구성</div>
-          <div class="screen-block__badge">영업 부서 · 신규 오더 등록</div>
-        </div>
-        <div class="screen-block__body">
-          <table class="info-table">
-            <thead><tr><th>섹션</th><th>입력 항목</th><th>필수</th></tr></thead>
-            <tbody>
-              <tr><td>① 발주 정보</td><td>고객사, 고객 담당자, 충전기 용도(공용/비공용), 모델, 케이블 길이, 납품일자, 충전소 ID, 충전기 번호, CPO 운영사</td><td>고객사·모델·케이블·납품일</td></tr>
-              <tr><td>② 통신 모듈</td><td>라우터번호(S/N), USIM번호(ICCID)</td><td>—</td></tr>
-              <tr><td>③ 설치 정보</td><td>설치주소, 현장 담당자 이름·전화번호</td><td>—</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <h3 class="sub-title">고객사 / 담당자 추가</h3>
-      <p>목록에 없는 고객사는 <strong>+ 추가</strong> 버튼으로 즉시 마스터에 등록할 수 있습니다. 담당자도 동일하게 <strong>관리</strong> 버튼을 통해 추가합니다.</p>
-
-      <h3 class="sub-title">입력 미리보기</h3>
-      <p>화면 우측의 <strong>입력 미리보기</strong> 패널이 실시간으로 입력 값을 요약 표시합니다. 등록 전 내용을 최종 확인할 때 활용하세요.</p>
-
-      <h3 class="sub-title">CSV 업로드</h3>
-      <p>다수 오더를 한 번에 등록할 때는 <strong>CSV 업로드</strong> 버튼을 사용합니다. 템플릿 파일은 <code>docs/order_test.csv</code>를 참고하세요.</p>
-
-      <div class="steps">
-        <div class="step">
-          <div class="step__num">1</div>
-          <div class="step__content">
-            <div class="step__title">고객사 선택 또는 입력</div>
-            <div class="step__desc">드롭다운에서 기존 고객사를 선택하거나, 새 이름을 직접 입력 후 <strong>+ 추가</strong>를 누릅니다.</div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step__num">2</div>
-          <div class="step__content">
-            <div class="step__title">충전기 용도 선택</div>
-            <div class="step__desc"><strong>공용</strong>: 환경부 CPO 등록 대상 · 검정일자 입력 필요 / <strong>비공용</strong>: 독립 운영</div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step__num">3</div>
-          <div class="step__content">
-            <div class="step__title">모델 및 케이블 길이 선택</div>
-            <div class="step__desc">드롭다운에서 모델 라인업을 선택하고, 케이블 길이(3m / 5m / 7m / 10m 또는 직접 입력)를 지정합니다.</div>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step__num">4</div>
-          <div class="step__content">
-            <div class="step__title">오더 등록</div>
-            <div class="step__desc">우측 상단 <strong>오더 등록</strong> 버튼을 누릅니다. 오더 ID가 자동 채번되고 생산 대기 목록에 추가됩니다.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="callout callout--warn">
-        <div class="callout__icon">⚠️</div>
-        <div class="callout__body"><strong>충전소 ID</strong>는 영문·숫자 조합이며, 환경부 ME카 또는 자체 관제 ID(예: CT3006, ME0001) 형식을 따릅니다.</div>
-      </div>
-    </section>
-
-    <!-- 02 생산 대기 -->
-    <section class="section" id="waiting">
-      <h2 class="section-title"><span class="num">2</span>생산 대기</h2>
+    <!-- 01 대시보드 -->
+    <section class="section" id="dashboard">
+      <h2 class="section-title"><span class="num">1</span>대시보드</h2>
 
       <div class="role-list">
         <span class="role role--admin">관리자</span>
         <span class="role role--sales">영업</span>
         <span class="role role--prod">생산</span>
+        <span class="role role--qual">품질</span>
       </div>
-      <p>등록된 오더의 생산 현황을 확인하고 오더를 선택해 <strong>생산 입력</strong> 화면으로 이동합니다. 4가지 뷰(칸반·카드·타임라인·테이블)를 지원합니다.</p>
+      <p>로그인 직후 보이는 화면(<strong>운영 현황</strong>)으로, 역할별 핵심 지표와 처리해야 할 오더를 한눈에 보여줍니다. 상단의 <strong>주간 / 월간</strong> 칩으로 집계 단위를 전환할 수 있습니다.</p>
 
-      <h3 class="sub-title">뷰 전환</h3>
-      <div class="view-tabs">
-        <div class="view-tab active">칸반</div>
-        <div class="view-tab">카드</div>
-        <div class="view-tab">타임라인</div>
-        <div class="view-tab">테이블</div>
-      </div>
+      <h3 class="sub-title">오더 파이프라인 타일</h3>
+      <p>4개의 클릭 가능한 타일이 각 상태의 건수를 보여주며, 클릭하면 해당 화면으로 바로 이동합니다.</p>
       <table class="info-table">
-        <thead><tr><th>뷰</th><th>특징</th><th>추천 상황</th></tr></thead>
+        <thead><tr><th>타일</th><th>기준</th><th>이동 화면</th></tr></thead>
         <tbody>
-          <tr><td><strong>칸반</strong></td><td>신규접수 / 긴급 / 작업중 / 출하대기 컬럼으로 상태별 분류</td><td>생산팀 현황판 · 상태별 빠른 파악</td></tr>
-          <tr><td><strong>카드</strong></td><td>오더를 카드 형태로 격자 배치, 수정됨·긴급 태그 표시</td><td>태블릿·모바일에서 터치 접근</td></tr>
-          <tr><td><strong>타임라인</strong></td><td>납품일 기준 시간순 정렬, 날짜 강조</td><td>납기 준수 여부 한눈에 파악</td></tr>
-          <tr><td><strong>테이블</strong></td><td>오더#·고객사·모델·충전소ID·주소·납품일·상태 컬럼</td><td>다수 오더 비교·정렬·검색</td></tr>
+          <tr><td>생산대기</td><td>PENDING</td><td>생산 대기</td></tr>
+          <tr><td>생산진행중</td><td>IN_PROGRESS</td><td>생산 대기</td></tr>
+          <tr><td>출하대기</td><td>AWAIT_PICKUP + 영업정보 입력 완료</td><td>출하대기</td></tr>
+          <tr><td>출하완료</td><td>COMPLETED</td><td>통합 조회</td></tr>
         </tbody>
       </table>
 
-      <h3 class="sub-title">D-day 색상 규칙</h3>
+      <h3 class="sub-title">납품 임박 오더 / AS 미처리 현황</h3>
       <ul class="feature-list">
-        <li><strong style="color:var(--red)">빨간색 (D-7 이하)</strong> — 긴급. 즉시 조치 필요</li>
-        <li><strong style="color:var(--orange)">주황색 (D-8 ~ D-14)</strong> — 주의. 생산 착수 확인</li>
-        <li><strong>검정 (D-15 이상)</strong> — 여유</li>
+        <li><strong>납품 임박 오더</strong> — 납품일이 D-7 이내(또는 초과)인 오더를 최대 6건까지 D-day 배지와 함께 표시</li>
+        <li><strong>AS 미처리 현황</strong> — AS 접수 화면 접근 권한이 있는 역할에게만 표시. 처리완료를 제외한 전체 미처리 건수와 상태별 건수를 보여주며, <strong>AS 접수 화면</strong> / <strong>AS 처리 화면</strong> 버튼으로 바로 이동</li>
       </ul>
 
-      <h3 class="sub-title">검색 및 필터</h3>
-      <ul class="feature-list">
-        <li>상단 검색창에서 고객사·모델·충전소 ID·오더번호로 검색</li>
-        <li>모델 드롭다운으로 특정 모델만 필터링 가능</li>
-        <li><strong>초기화</strong> 버튼으로 검색 조건을 모두 지웁니다</li>
-      </ul>
-
-      <div class="callout callout--tip">
-        <div class="callout__icon">💡</div>
-        <div class="callout__body">영업 담당자는 생산대기 목록에서 <strong>수정됨</strong> 태그가 붙은 오더를 클릭해 발주 정보를 수정할 수 있습니다.</div>
-      </div>
+      <h3 class="sub-title">역할별 지표</h3>
+      <table class="info-table">
+        <thead><tr><th>역할</th><th>지표</th><th>집계 기준</th></tr></thead>
+        <tbody>
+          <tr><td>영업</td><td>영업 · 발주수량</td><td>오더 등록일 기준</td></tr>
+          <tr><td>생산</td><td>생산 · 생산수량</td><td>생산일자 기준, 출하대기 진입 전 생산 실적</td></tr>
+          <tr><td>품질</td><td>품질 · AS건수</td><td>AS 처리완료 시점 기준</td></tr>
+          <tr><td>관리자</td><td>위 3개 지표 전체</td><td>상단 버튼으로 지표를 전환하며 확인</td></tr>
+        </tbody>
+      </table>
+      <p>각 지표는 이번 주/이번 달 건수와 이전 기간 대비 증감, 최근 N주(개월) 합계, 막대 차트, 표 형태로 함께 제공됩니다.</p>
     </section>
 
-    <!-- 03 생산 입력 -->
-    <section class="section" id="mapping">
-      <h2 class="section-title"><span class="num">3</span>생산 입력</h2>
+    <!-- 02 생산요청 -->
+    <section class="section" id="sales">
+      <h2 class="section-title"><span class="num">2</span>생산요청</h2>
 
       <div class="role-list">
         <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
+      </div>
+      <p>생산할 충전기의 <strong>모델·용도·수량</strong>만 입력해 <code>PENDING</code> 오더를 등록하는 화면입니다. 발주처·납품일·설치주소 등 상세 정보는 이 단계에서 입력하지 않으며, <a href="#waiting">생산 대기</a> 화면의 <strong>생산완료</strong> 단계에서 입력합니다.</p>
+
+      <h3 class="sub-title">행 입력</h3>
+      <p>한 행이 모델·용도 조합 하나를 의미하며, 여러 행을 동시에 등록할 수 있습니다.</p>
+      <table class="info-table">
+        <thead><tr><th>항목</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td>충전속도(모델) <span style="color:var(--red)">*</span></td><td><strong>모델 선택...</strong> 버튼으로 팝업을 열어 충전속도 칩을 먼저 고른 뒤 해당 속도의 모델 목록에서 선택</td></tr>
+          <tr><td>충전기 용도</td><td><strong>공용</strong> / <strong>비공용</strong> 칩 토글 (기본값 공용, 새 행 추가 시 직전 행의 용도를 이어받음)</td></tr>
+          <tr><td>수량</td><td><code>−</code>/<code>+</code> 스테퍼 또는 직접 입력, 1~500 범위로 자동 보정</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="sub-title">행 추가 / 복제 / 삭제</h3>
+      <ul class="feature-list">
+        <li>표 하단의 개수 입력(1~50) + <strong>+ 행 추가</strong> 버튼으로 한 번에 여러 행을 추가</li>
+        <li>행의 복제 아이콘으로 같은 모델·용도의 행을 바로 아래에 추가</li>
+        <li>행의 삭제(×) 아이콘으로 개별 행 삭제 (마지막 한 행은 삭제 버튼이 숨겨짐)</li>
+      </ul>
+
+      <h3 class="sub-title">다중 선택 일괄 처리</h3>
+      <p>행 왼쪽 체크박스로 여러 행을 선택하면 툴바가 나타나며 <strong>모델 일괄 지정</strong>, <strong>공용/비공용 일괄 지정</strong>, <strong>선택 삭제</strong>, <strong>선택 해제</strong>를 한 번에 적용할 수 있습니다.</p>
+
+      <h3 class="sub-title">등록</h3>
+      <p>화면 상단에 <strong>{건수}건 등록 예정</strong> 요약이 실시간으로 표시됩니다. <strong>{n}건 생산요청 등록</strong> 버튼을 누르면 각 행이 수량만큼 반복 등록되어 생산 대기 목록에 추가됩니다. 등록 시 <code>requested_by</code>에 로그인한 사용자 이름이 함께 저장됩니다.</p>
+
+      <div class="callout callout--warn">
+        <div class="callout__icon">⚠️</div>
+        <div class="callout__body">등록된 오더는 <strong>PENDING</strong> 상태일 때만 수정할 수 있으며, 모델과 용도만 고칠 수 있습니다. 목록에서 카드를 클릭하면(영업 역할만) 수정 화면이 열립니다.</div>
+      </div>
+
+      <h3 class="sub-title">마스터 데이터 관리</h3>
+      <p>고객사·담당자·CPO 운영사는 <a href="#waiting">생산완료 단계</a>에서 입력하지만, 목록에 없는 값은 해당 입력창의 <strong>+ 추가</strong> 버튼으로 바로 등록할 수 있습니다. 관리자는 이 화면 상단 <strong>모델</strong> / <strong>모델 관리</strong> 버튼으로 모델 마스터를 직접 추가·수정할 수 있습니다.</p>
+    </section>
+
+    <!-- 03 생산 대기 -->
+    <section class="section" id="waiting">
+      <h2 class="section-title"><span class="num">3</span>생산 대기</h2>
+
+      <div class="role-list">
+        <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
         <span class="role role--prod">생산</span>
       </div>
-      <p>생산 대기 목록에서 오더를 선택하면 이 화면으로 진입합니다. 생산 실적 7개 항목을 입력하고 기능 검사 성적서를 작성합니다.</p>
+      <p>모든 진행 중인 오더를 <strong>칸반 보드</strong> 하나로 관리하는 화면입니다. 카드를 클릭하면 역할과 컬럼에 따라 서로 다른 입력창이 열립니다.</p>
 
+      <h3 class="sub-title">칸반 컬럼</h3>
+      <table class="info-table">
+        <thead><tr><th>컬럼</th><th>오더 상태</th><th>카드 클릭 시 (해당 권한)</th></tr></thead>
+        <tbody>
+          <tr><td><strong>생산요청</strong></td><td>PENDING</td><td>영업 — 모델·용도 수정 화면</td></tr>
+          <tr><td><strong>생산착수</strong></td><td>IN_PROGRESS</td><td>생산 — 생산착수 모달</td></tr>
+          <tr><td><strong>생산완료</strong></td><td>AWAIT_PICKUP (영업정보 미입력)</td><td>영업 — 생산완료 모달</td></tr>
+          <tr><td><strong>출하대기</strong></td><td>AWAIT_PICKUP (영업정보 입력 완료)</td><td>출하대기 화면 접근 권한이 있는 역할 — 출하대기 화면으로 이동</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13.5px;color:var(--ink-4);">생산착수·생산완료·출하대기 컬럼은 해당하는 오더가 없으면 화면에서 자동으로 숨겨집니다.</p>
+
+      <h3 class="sub-title">검색 · 필터 · 신규 생산요청</h3>
+      <ul class="feature-list">
+        <li>상단 검색창에서 고객사·모델·충전소 ID·오더번호로 검색</li>
+        <li>모델 드롭다운 필터, <strong>비공용만</strong> 칩 토글, <strong>초기화</strong> 버튼</li>
+        <li>우측 상단 <strong>신규 생산요청</strong> 버튼으로 생산요청 화면으로 바로 이동</li>
+      </ul>
+
+      <h3 class="sub-title">다중 선택 일괄 생산착수</h3>
+      <p><strong>생산요청</strong> 컬럼(영업 역할 제외)에서 카드 체크박스로 여러 건을 선택하면 <strong>생산 착수 ({n}건)</strong> 버튼이 나타납니다. 클릭 시 확인창(<em>생산대기 {n}건을 생산착수로 전환할까요?</em>) 후 한 번에 IN_PROGRESS로 전환되며, 생산 실적(시리얼 등)은 이후 개별 카드를 눌러 입력합니다.</p>
+
+      <h3 class="sub-title">D-day 배지</h3>
+      <p><strong>출하대기</strong> 컬럼 카드에만 납품일 기준 D-day 배지가 표시됩니다.</p>
+      <ul class="feature-list">
+        <li>날짜 미정 — 회색 <strong>일정 미정</strong></li>
+        <li>납품일 경과 또는 D-7 이내 — 빨간색 <strong>D+n</strong> / <strong>D-n</strong></li>
+        <li>D-8 ~ D-14 — 주황색 <strong>D-n</strong></li>
+        <li>D-15 이상 — 회색 <strong>D-n</strong></li>
+      </ul>
+
+      <h3 class="sub-title">생산착수 모달 (생산 · 관리자)</h3>
+      <p><strong>생산착수</strong> 컬럼 카드를 클릭하면 열립니다. <code>PENDING → IN_PROGRESS</code> 전환 시 시리얼이 이미 자동 채번되어 있으며, 이 화면에서 나머지 생산 실적을 입력합니다.</p>
       <div class="screen-block">
         <div class="screen-block__header">
-          <div class="screen-block__title">생산 실적 입력 항목</div>
+          <div class="screen-block__title">입력 항목</div>
+          <div class="screen-block__badge">오더 #{id} 생산착수 입력</div>
         </div>
         <div class="screen-block__body">
           <table class="info-table">
             <thead><tr><th>#</th><th>항목</th><th>설명</th></tr></thead>
             <tbody>
               <tr><td>1</td><td>생산일자 <span style="color:var(--red)">*</span></td><td>공장 조립 및 최종 자체 검사 완료일</td></tr>
-              <tr><td>2</td><td>로트번호 <span style="color:var(--red)">*</span></td><td>생산일자 기준 자동 제안, 수정 가능 (예: L26-W28-A)</td></tr>
-              <tr><td>3</td><td>시리얼 <span style="color:var(--red)">*</span></td><td>외형/제어보드 고유 시리얼 — 추천값 클릭으로 자동 입력, 중복 확인 내장</td></tr>
-              <tr><td>4</td><td>검정일자 <span style="color:var(--red)">*</span></td><td>KTC 등 공인기관 형식승인·검정 완료일 (유효기간 7년)</td></tr>
-              <tr><td>5</td><td>S/W 버전 <span style="color:var(--red)">*</span></td><td>버전 칩에서 클릭 선택 또는 직접 입력</td></tr>
-              <tr><td>6</td><td>F/W 버전 <span style="color:var(--red)">*</span></td><td>버전 칩에서 클릭 선택 또는 직접 입력 (BETA 버전 별도 표시)</td></tr>
-              <tr><td>7</td><td>기능 검사 성적서 <span style="color:var(--red)">*</span></td><td>작성하기 버튼으로 체크리스트 작성 — 출하대기 등록 전 필수</td></tr>
+              <tr><td>2</td><td>시리얼 <span style="color:var(--red)">*</span></td><td>착수 시 자동 채번됨. <strong>중복 확인</strong> 버튼으로 검증, <strong>재생성: {제안값}</strong> 링크로 다시 채번 가능</td></tr>
+              <tr><td>3</td><td>검정일자 <span style="color:var(--red)">*</span></td><td><strong>공용</strong> 용도 오더에만 표시 (KTC 등 공인기관 검정 완료일)</td></tr>
+              <tr><td>4</td><td>S/W 버전 <span style="color:var(--red)">*</span></td><td>등록된 버전 태그 중 선택, <strong>+ 버전 추가</strong>로 신규 버전 등록(정식/BETA 구분)</td></tr>
+              <tr><td>5</td><td>F/W 버전 <span style="color:var(--red)">*</span></td><td>S/W 버전과 동일한 방식</td></tr>
+              <tr><td>6</td><td>기능 검사 성적서 <span style="color:var(--red)">*</span></td><td><strong>작성하기</strong>(신규) / <strong>수정</strong>(기작성) 버튼으로 검사 체크리스트 작성</td></tr>
             </tbody>
           </table>
         </div>
       </div>
+      <p>하단 버튼: <strong>대기로 되돌리기</strong>(생산요청으로 되돌림, 입력 중인 내용은 저장되지 않음), <strong>임시저장</strong>, <strong>닫기</strong>, <strong>생산완료 처리</strong>(기능 검사 항목을 모두 완료해야 활성화).</p>
 
-      <h3 class="sub-title">생산 단계 흐름</h3>
-      <div class="flow">
-        <div class="flow__step">생산대기(PENDING)</div>
-        <div class="flow__arrow">→</div>
-        <div class="flow__step">생산 시작 클릭</div>
-        <div class="flow__arrow">→</div>
-        <div class="flow__step">실적 입력(IN_PROGRESS)</div>
-        <div class="flow__arrow">→</div>
-        <div class="flow__step">출하대기 등록</div>
-        <div class="flow__arrow">→</div>
-        <div class="flow__step">AWAIT_PICKUP</div>
+      <h3 class="sub-title">생산완료 모달 (영업 · 관리자)</h3>
+      <p><strong>생산완료</strong> 컬럼 카드를 클릭하면 열립니다. 발주처·납품 정보를 입력해 <strong>출하대기</strong>로 넘기는 단계입니다.</p>
+      <div class="screen-block">
+        <div class="screen-block__header">
+          <div class="screen-block__title">입력 항목</div>
+          <div class="screen-block__badge">오더 #{id} 생산완료 · 영업정보 입력</div>
+        </div>
+        <div class="screen-block__body">
+          <table class="info-table">
+            <thead><tr><th>항목</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td>케이블 길이(m) <span style="color:var(--red)">*</span></td><td>3 / 5 / 7 / 10 / 15 / 20 / 30 목록 또는 직접 입력</td></tr>
+              <tr><td>납품일자 <span style="color:var(--red)">*</span></td><td>—</td></tr>
+              <tr><td>발주처 <span style="color:var(--red)">*</span></td><td>목록에 없으면 <strong>+</strong> 버튼으로 즉시 등록</td></tr>
+              <tr><td>발주처 담당자 <span style="color:var(--red)">*</span></td><td>선택한 발주처에 연결된 담당자 목록에서 선택 또는 추가</td></tr>
+              <tr><td>발주처 담당자 전화번호 <span style="color:var(--red)">*</span></td><td>입력 시 010-0000-0000 형식으로 자동 정리</td></tr>
+              <tr><td>CPO 운영사</td><td>용도가 <strong>공용</strong>일 때만 표시 (선택)</td></tr>
+              <tr><td>납품장소(설치주소) <span style="color:var(--red)">*</span></td><td><strong>우편번호</strong> 버튼(카카오 우편번호 검색) + 상세주소 입력</td></tr>
+              <tr><td>충전소 ID / 충전기 ID / 라우터 번호 / USIM 번호 <span style="color:var(--red)">*</span></td><td>용도가 <strong>공용</strong>일 때만 표시되며 전부 필수</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+      <p><strong>저장</strong>을 누르면 영업정보 입력이 완료되어 칸반에서 <strong>출하대기</strong> 컬럼으로 이동합니다.</p>
 
-      <div class="callout callout--warn">
-        <div class="callout__icon">⚠️</div>
-        <div class="callout__body"><strong>기능 검사 성적서</strong>를 작성하지 않으면 출하대기 등록 버튼이 비활성화됩니다. 반드시 체크리스트를 완료한 뒤 저장하세요.</div>
+      <div class="callout callout--tip">
+        <div class="callout__icon">💡</div>
+        <div class="callout__body"><strong>수정됨</strong> 배지가 붙은 카드는 등록 이후 발주 정보가 변경된 오더입니다. 상세 변경 내역은 <a href="#lookup">통합 조회</a>의 변경 이력에서 확인할 수 있습니다.</div>
       </div>
-
-      <h3 class="sub-title">수정 이력</h3>
-      <p>영업 담당자가 발주 정보를 변경한 경우 <strong>수정이력 N건</strong> 배지가 표시됩니다. 클릭하면 변경 내용을 확인할 수 있습니다.</p>
     </section>
 
     <!-- 04 출하대기 -->
@@ -692,7 +706,7 @@
         <span class="role role--prod">생산</span>
         <span class="role role--qual">품질</span>
       </div>
-      <p>생산·검정이 완료되어 출하 대기 중인 오더를 관리합니다. 출하 전 검사 성적서 확인 후 <strong>출하 완료</strong> 처리합니다.</p>
+      <p>생산·영업정보 입력이 모두 끝나 출하를 기다리는 오더를 관리합니다. 출하 전 검사 성적서를 작성한 뒤 <strong>출하 완료</strong> 처리합니다.</p>
 
       <div class="screen-block">
         <div class="screen-block__header">
@@ -717,53 +731,68 @@
           <div class="step__num">1</div>
           <div class="step__content">
             <div class="step__title">기능 검사 성적서 확인</div>
-            <div class="step__desc">목록의 <strong>기능검사성적서</strong> 버튼을 클릭해 생산팀이 작성한 내용을 검토합니다.</div>
+            <div class="step__desc">행의 <strong>기능검사성적서</strong> 버튼으로 생산팀이 작성한 내용을 검토합니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">2</div>
           <div class="step__content">
             <div class="step__title">출하 전 검사 작성</div>
-            <div class="step__desc"><strong>출하검사 N항</strong> 버튼을 클릭해 출하 전 체크리스트를 작성합니다. 사진 첨부도 가능합니다.</div>
+            <div class="step__desc">행 또는 <strong>출하검사</strong> 버튼을 클릭해 출하 전 체크리스트를 작성합니다. 성적서를 먼저 저장해야 사진 첨부 탭이 활성화됩니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">3</div>
           <div class="step__content">
             <div class="step__title">출하 완료</div>
-            <div class="step__desc"><strong>출하 완료</strong> 버튼을 클릭하면 상태가 COMPLETED로 전환되고 조회 화면으로 이동됩니다.</div>
+            <div class="step__desc">출하검사를 통과해야 <strong>출하 완료</strong> 버튼이 활성화됩니다. 클릭하면 상태가 COMPLETED로 전환되고 목록에서 제외됩니다.</div>
           </div>
         </div>
       </div>
 
+      <h3 class="sub-title">일괄 출하 완료</h3>
+      <p>출하검사가 완료된 행만 체크박스로 선택할 수 있으며, 선택 시 <strong>선택 {n}건 일괄 출하완료</strong> 버튼으로 한 번에 처리할 수 있습니다.</p>
+
       <div class="callout callout--tip">
         <div class="callout__icon">💡</div>
-        <div class="callout__body">CSV 내보내기 버튼으로 출하대기 목록 전체를 Excel 파일로 다운로드할 수 있습니다 (한국어 UTF-8 BOM 포함).</div>
+        <div class="callout__body"><strong>CSV 내보내기</strong> 버튼으로 출하대기 목록 전체(오더번호·고객사·모델·충전소ID·생산일자·로트·시리얼·검정일자·S/W·F/W버전·케이블·납품일자)를 Excel 파일로 다운로드할 수 있습니다 (한국어 UTF-8 BOM 포함).</div>
       </div>
     </section>
 
-    <!-- 05 오더 조회 -->
+    <!-- 05 통합 조회 -->
     <section class="section" id="lookup">
-      <h2 class="section-title"><span class="num">5</span>오더 조회</h2>
+      <h2 class="section-title"><span class="num">5</span>통합 조회</h2>
 
       <div class="role-list">
         <span class="role role--admin">관리자</span>
         <span class="role role--sales">영업</span>
         <span class="role role--prod">생산</span>
         <span class="role role--qual">품질</span>
-        <span class="role role--as">A/S</span>
       </div>
-      <p>출하 완료된 오더를 검색하고 전체 이력을 조회합니다. A/S 역할은 AS 접수·처리 이력도 함께 확인할 수 있습니다.</p>
+      <p>등록된 충전기(시리얼번호 기준)를 검색하고 연결된 오더의 상세 정보·검사 성적서·변경 이력·AS 이력을 확인합니다.</p>
 
       <h3 class="sub-title">검색 방법</h3>
       <ul class="feature-list">
-        <li>검색창에 <strong>고객사 · 충전소 ID · 시리얼 · 주소 · 납품일</strong> 등 키워드를 자유롭게 입력</li>
-        <li><strong>고급 필터</strong>로 모델, 날짜 범위, 상태를 세분화</li>
-        <li>상단 <strong>출하완료 오더만 표시</strong> 토글로 전체/완료만 전환</li>
+        <li>통합 검색창에 <strong>시리얼번호 · 모델 · 설치주소 · 고객사 · 오더번호</strong> 등 키워드를 자유롭게 입력</li>
+        <li><strong>고급 필터</strong>로 모델, 고객사, 등록일 범위, <strong>A/S 이력 있는 충전기만</strong> 조건을 추가 지정</li>
+        <li>테이블 헤더(시리얼번호 · 등록일 · 연결 오더)를 클릭하면 정렬 방향이 바뀝니다</li>
       </ul>
 
       <h3 class="sub-title">상세 정보 확인</h3>
-      <p>목록 행을 클릭하면 우측에 상세 패널이 열리고 <strong>기본 정보 · 생산 정보 · 성적서 · 변경 이력</strong> 탭을 확인할 수 있습니다.</p>
+      <p>행을 클릭하면 우측에 상세 드로어가 열리고 <strong>영업 정보 · 생산 실적 정보 · 출하 전 사진 · 오더 변경 이력 · A/S 접수 현황</strong>을 확인할 수 있습니다. 하단 버튼으로 <strong>기능검사성적서</strong> / <strong>출하검사성적서</strong>를 열람하며(미작성 시 비활성화), 영업은 PENDING 오더의 <strong>영업 정보 수정</strong>, 생산은 아직 생산되지 않은 오더의 <strong>생산 대기 화면으로 이동</strong> 버튼을 사용할 수 있습니다.</p>
+
+      <h3 class="sub-title">상태 되돌리기 (생산 · 관리자 전용)</h3>
+      <p>오더 상태에 따라 아래 버튼이 나타납니다.</p>
+      <table class="info-table">
+        <thead><tr><th>현재 상태</th><th>버튼</th><th>전환</th></tr></thead>
+        <tbody>
+          <tr><td>AWAIT_PICKUP</td><td>작업중으로 되돌리기</td><td>→ IN_PROGRESS</td></tr>
+          <tr><td rowspan="3">COMPLETED</td><td>출하대기로 되돌리기</td><td>→ AWAIT_PICKUP</td></tr>
+          <tr><td>작업중으로 되돌리기</td><td>→ IN_PROGRESS</td></tr>
+          <tr><td>생산대기로 되돌리기 <span style="color:var(--red)">(위험)</span></td><td>→ PENDING, 시리얼 초기화 · 기능/출하 검사 삭제 · 출하 사진 삭제</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13.5px;color:var(--ink-4);">클릭 시 <em>오더 #{id}을(를) {버튼명} 처리할까요?</em> 확인창이 뜹니다.</p>
     </section>
 
     <!-- 06 AS 접수 -->
@@ -775,7 +804,7 @@
         <span class="role role--sales">영업</span>
         <span class="role role--qual">품질</span>
       </div>
-      <p>현장에서 발생한 충전기 고장·이상을 접수합니다. 접수번호는 <code>AS-{연도월일}-{순번}</code> 형식으로 자동 채번됩니다.</p>
+      <p>현장에서 발생한 충전기 고장·이상을 접수합니다. 접수번호는 <code>AS-{연도월일}-{4자리 순번}</code> 형식으로 자동 채번됩니다.</p>
 
       <div class="screen-block">
         <div class="screen-block__header">
@@ -794,6 +823,7 @@
           </table>
         </div>
       </div>
+      <p>목록 상단에는 <strong>전체 {n}건 · 처리 중 {n}건</strong>과, 있을 경우 <strong>긴급 {n}건 대기</strong> 배지가 표시됩니다.</p>
 
       <h3 class="sub-title">새 접수 등록</h3>
       <div class="steps">
@@ -801,26 +831,38 @@
           <div class="step__num">1</div>
           <div class="step__content">
             <div class="step__title">새 접수 등록 버튼 클릭</div>
-            <div class="step__desc">우측 상단 <strong>+ 새 접수 등록</strong>을 클릭합니다.</div>
+            <div class="step__desc">우측 상단 <strong>새 접수 등록</strong>을 클릭합니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">2</div>
           <div class="step__content">
-            <div class="step__title">고객사·충전소·고장 유형 입력</div>
-            <div class="step__desc">고객사, 충전소 ID, 고장 유형, 긴급도(일반/긴급), 접수자 정보를 입력합니다.</div>
+            <div class="step__title">시리얼번호 조회</div>
+            <div class="step__desc">시리얼번호를 입력해 <strong>조회</strong>하면 등록된 충전기 정보가 자동으로 채워집니다. 조회되지 않으면 <strong>신규 충전기 등록</strong> 버튼으로 모델·설치주소를 입력해 즉시 등록할 수 있습니다. 시리얼번호를 모를 때는 충전소 ID·고객사·설치주소로 <strong>충전기 검색</strong>도 가능합니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">3</div>
           <div class="step__content">
-            <div class="step__title">등록</div>
-            <div class="step__desc">저장하면 접수번호가 자동 발번되고 상태가 <strong>접수대기</strong>로 설정됩니다.</div>
+            <div class="step__title">고장 정보 입력</div>
+            <div class="step__desc">고장 유형(select), 긴급도(일반/긴급), 상세 증상(필수), 신고자·연락처(선택), 접수 일시(기본값 현재 시각)를 입력합니다.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step__num">4</div>
+          <div class="step__content">
+            <div class="step__title">접수 등록</div>
+            <div class="step__desc"><strong>접수 등록</strong>을 누르면 접수번호가 자동 발번되고 상태가 <strong>접수대기</strong>로 설정됩니다.</div>
           </div>
         </div>
       </div>
 
       <p>목록의 <strong>처리 →</strong> 버튼을 누르면 AS 처리 화면으로 이동해 담당자 배정 및 조치를 진행합니다.</p>
+
+      <div class="callout callout--warn">
+        <div class="callout__icon">⚠️</div>
+        <div class="callout__body">시리얼번호 형식이 채번 규칙(신형: <code>G07-00P-D1-0001</code> / 구형(2026-02 이전): <code>G05-B7-0001</code>)에 맞지 않으면 신규 등록이 거부됩니다.</div>
+      </div>
     </section>
 
     <!-- 07 AS 처리 -->
@@ -829,9 +871,10 @@
 
       <div class="role-list">
         <span class="role role--admin">관리자</span>
+        <span class="role role--sales">영업</span>
         <span class="role role--qual">품질</span>
       </div>
-      <p>좌측 목록에서 AS 건을 선택하면 우측에 처리 패널이 열립니다. 담당자 배정, 상태 변경, 조치 내용 입력, 사진 첨부까지 한 화면에서 처리합니다.</p>
+      <p>좌측 목록(기본값 <strong>진행중</strong> 필터, <strong>전체</strong> / <strong>처리완료</strong>로 전환 가능)에서 AS 건을 선택하면 우측에 처리 패널이 열립니다.</p>
 
       <div class="screen-block">
         <div class="screen-block__header">
@@ -841,21 +884,26 @@
           <table class="info-table">
             <thead><tr><th>탭</th><th>내용</th></tr></thead>
             <tbody>
-              <tr><td>처리 현황</td><td>담당자 배정, 출동 예정일, 처리 상태, 조치 유형, 발생 비용, 조치 상세 내용 입력</td></tr>
+              <tr><td>처리 현황</td><td>담당자 배정, 출동 예정일, 처리 상태, 조치 유형, 발생 비용, 조치 상세 내용, 비고 입력</td></tr>
               <tr><td>접수 정보</td><td>최초 접수 시 입력한 고장 내용·고객 연락처 등 원본 정보</td></tr>
               <tr><td>처리 이력</td><td>상태 변경 이력 (타임라인 형식)</td></tr>
-              <tr><td>사진</td><td>현장 사진 첨부 및 조회</td></tr>
+              <tr><td>사진</td><td>현장 사진 첨부 및 조회 (다중 업로드, 파일당 10MB 이하, JPG/PNG/GIF)</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
+      <p><strong>담당자 배정</strong>과 <strong>처리 상태</strong> 변경, <strong>처리 완료</strong> 버튼은 품질·관리자 역할만 사용할 수 있습니다.</p>
+
+      <h3 class="sub-title">고장 유형</h3>
+      <p>통신 장애, 결제/인증 오류, 하드웨어 파손, 커넥터 인식 불량, SW/펌웨어 오류, 기타</p>
+
       <h3 class="sub-title">조치 유형 분류</h3>
       <ul class="feature-list">
-        <li><strong>하드웨어(HW) 및 부품 관리</strong> — 부품 교체, 배선 교체, 외형 교체, 하드웨어 교체, 제품교체</li>
+        <li><strong>하드웨어(HW) 및 부품 관리</strong> — 부품 교체(냉땜 등), 배선 교체, 외함 교체, 하드웨어 교체, 제품교체</li>
         <li><strong>소프트웨어(SW) 및 설정 관리</strong> — 펌웨어 업데이트, HMI 업데이트, 설정 변경, 원격 리셋</li>
         <li><strong>통신 및 네트워크</strong> — 통신연결불량, 무선모뎀 문제</li>
-        <li><strong>인프라 설치 및 외부 요인</strong> — 설치 문제, 차량 이상 진단, 사용자 사용 문제</li>
+        <li><strong>인프라 설치 및 외부 요인</strong> — 충전기 설치 문제/시공문제, 차량 이상 진단, 사용자 사용 문제</li>
         <li><strong>원인 분석 및 기타</strong> — 원인분석, 특이사항없음</li>
       </ul>
 
@@ -874,8 +922,17 @@
       </div>
       <p>시스템 계정을 추가하고 역할·권한을 설정합니다. 관리자(admin) 역할만 접근할 수 있습니다.</p>
 
-      <h3 class="sub-title">역할 카드</h3>
-      <p>화면 상단에 역할별 카드가 표시되며, 각 카드에 접근 가능한 탭 목록과 현재 인원 수가 요약됩니다.</p>
+      <h3 class="sub-title">역할 요약 카드</h3>
+      <table class="info-table">
+        <thead><tr><th>역할</th><th>접근 화면 요약</th></tr></thead>
+        <tbody>
+          <tr><td>관리자</td><td>모든 탭 + 사용자 관리</td></tr>
+          <tr><td>영업본부</td><td>생산 요청 · 생산 대기 · 조회 · A/S 접수</td></tr>
+          <tr><td>제조생산본부</td><td>생산 대기 · 출하 대기 · 조회</td></tr>
+          <tr><td>품질관리본부</td><td>출하 대기 · 조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13.5px;color:var(--ink-4);">각 카드에는 실시간 인원 수(예: <strong>3명</strong>)가 함께 표시됩니다.</p>
 
       <h3 class="sub-title">사용자 추가</h3>
       <div class="steps">
@@ -883,27 +940,27 @@
           <div class="step__num">1</div>
           <div class="step__content">
             <div class="step__title">사용자 추가 버튼 클릭</div>
-            <div class="step__desc">우측 상단 <strong>+ 사용자 추가</strong>를 클릭합니다.</div>
+            <div class="step__desc">우측 상단 <strong>사용자 추가</strong>를 클릭합니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">2</div>
           <div class="step__content">
             <div class="step__title">정보 입력</div>
-            <div class="step__desc">이름, 아이디(ID), 역할, 부서, 전화번호, 이메일을 입력하고 임시 비밀번호를 설정합니다.</div>
+            <div class="step__desc">아이디, 초기 비밀번호(필수), 이름(필수), 역할(필수), 부서·전화번호·이메일(선택)을 입력합니다.</div>
           </div>
         </div>
         <div class="step">
           <div class="step__num">3</div>
           <div class="step__content">
             <div class="step__title">저장</div>
-            <div class="step__desc">저장 즉시 해당 계정으로 로그인이 가능합니다. 사용자에게 아이디와 임시 비밀번호를 전달하세요.</div>
+            <div class="step__desc">저장 즉시 해당 계정으로 로그인이 가능합니다. 사용자에게 아이디와 초기 비밀번호를 전달하세요.</div>
           </div>
         </div>
       </div>
 
       <h3 class="sub-title">사용자 수정 / 삭제</h3>
-      <p>각 행의 <strong>✏️ 편집</strong> 버튼으로 정보를 수정하고, <strong>🗑️ 삭제</strong> 버튼으로 계정을 삭제합니다. 자기 자신의 계정은 삭제할 수 없습니다.</p>
+      <p>행 클릭 또는 편집 아이콘으로 정보를 수정합니다. 수정 화면에서는 아이디·초기 비밀번호 대신 <strong>비밀번호 재설정</strong> 필드가 나타나며, 비워두면 비밀번호가 변경되지 않습니다. 삭제 아이콘으로 계정을 삭제할 수 있으며, <strong>로그인 중인 본인 계정은 삭제할 수 없습니다.</strong></p>
     </section>
 
     <!-- 오더 상태 흐름 -->
@@ -912,25 +969,33 @@
 
       <div class="flow" style="flex-direction:column;align-items:flex-start;gap:16px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <div class="flow__step">영업 오더 등록</div>
+          <div class="flow__step">생산요청 등록</div>
           <div class="flow__arrow">→</div>
-          <div class="status status--pending"><span class="status__dot"></span>PENDING (생산대기)</div>
+          <div class="status status--pending"><span class="status__dot"></span>PENDING (생산요청)</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
-          <div class="flow__arrow">↓ 생산 시작</div>
+          <div class="flow__arrow">↓ 생산 착수 (시리얼 자동 채번)</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <div class="flow__step">생산 실적 입력</div>
+          <div class="flow__step">생산 실적 입력 + 기능검사</div>
           <div class="flow__arrow">→</div>
-          <div class="status status--progress"><span class="status__dot"></span>IN_PROGRESS (생산진행중)</div>
+          <div class="status status--progress"><span class="status__dot"></span>IN_PROGRESS (생산착수)</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
-          <div class="flow__arrow">↓ 출하대기 등록</div>
+          <div class="flow__arrow">↓ 생산완료 처리 (영업정보 미입력)</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <div class="flow__step">출하 검사</div>
+          <div class="flow__step">영업정보(발주처·납품정보) 입력</div>
           <div class="flow__arrow">→</div>
-          <div class="status status--await"><span class="status__dot"></span>AWAIT_PICKUP (출하대기)</div>
+          <div class="status status--await"><span class="status__dot"></span>AWAIT_PICKUP · 생산완료</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
+          <div class="flow__arrow">↓ 영업정보 저장 완료</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="flow__step">출하 전 검사</div>
+          <div class="flow__arrow">→</div>
+          <div class="status status--await"><span class="status__dot"></span>AWAIT_PICKUP · 출하대기</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;padding-left:24px;">
           <div class="flow__arrow">↓ 출하 완료</div>
@@ -942,19 +1007,26 @@
         </div>
       </div>
 
-      <h3 class="sub-title">상태 되돌리기 (관리자 전용)</h3>
+      <div class="callout callout--info">
+        <div class="callout__icon">ℹ️</div>
+        <div class="callout__body">DB의 <code>status</code> 컬럼은 4가지뿐이며, <strong>생산완료</strong>와 <strong>출하대기</strong>는 둘 다 <code>AWAIT_PICKUP</code>입니다. 영업정보(발주처·납품정보) 입력 완료 여부로 두 업무 단계를 구분합니다.</div>
+      </div>
+
+      <h3 class="sub-title">상태 되돌리기 (생산 · 관리자 전용)</h3>
       <table class="info-table">
-        <thead><tr><th>액션</th><th>전환</th><th>데이터 처리</th></tr></thead>
+        <thead><tr><th>액션</th><th>전환</th><th>데이터 처리</th><th>사용 위치</th></tr></thead>
         <tbody>
-          <tr><td>전체 초기화</td><td>어느 상태 → PENDING</td><td>시리얼 초기화, 기능·출하 검사 삭제, 출하 사진 삭제</td></tr>
-          <tr><td>출하대기로 되돌리기</td><td>COMPLETED → AWAIT_PICKUP</td><td>모든 데이터 유지</td></tr>
-          <tr><td>생산중으로 되돌리기</td><td>COMPLETED → IN_PROGRESS</td><td>모든 데이터 유지</td></tr>
+          <tr><td>대기로 되돌리기</td><td>IN_PROGRESS → PENDING</td><td>시리얼 초기화, 기능·출하 검사 삭제, 출하 사진 삭제</td><td>생산 대기 · 생산착수 모달</td></tr>
+          <tr><td>작업중으로 되돌리기</td><td>AWAIT_PICKUP → IN_PROGRESS</td><td>모든 데이터 유지</td><td>통합 조회</td></tr>
+          <tr><td>출하대기로 되돌리기</td><td>COMPLETED → AWAIT_PICKUP</td><td>모든 데이터 유지</td><td>통합 조회</td></tr>
+          <tr><td>작업중으로 되돌리기</td><td>COMPLETED → IN_PROGRESS</td><td>모든 데이터 유지</td><td>통합 조회</td></tr>
+          <tr><td>생산대기로 되돌리기</td><td>어느 상태 → PENDING</td><td>시리얼 초기화, 기능·출하 검사 삭제, 출하 사진 삭제</td><td>통합 조회</td></tr>
         </tbody>
       </table>
 
       <div class="callout callout--warn">
         <div class="callout__icon">⚠️</div>
-        <div class="callout__body">되돌리기 기능은 COMPLETED 상태에서만 사용 가능합니다. 전체 초기화는 시리얼·성적서 데이터가 삭제되므로 신중하게 사용하세요.</div>
+        <div class="callout__body"><strong>생산대기로 되돌리기</strong>는 시리얼·검사 성적서·출하 사진 데이터가 모두 삭제되므로 신중하게 사용하세요. 각 전환마다 오더 변경 이력에 기록이 남습니다.</div>
       </div>
     </section>
 
@@ -962,26 +1034,32 @@
     <section class="section" id="faq">
       <h2 class="section-title">자주 묻는 질문</h2>
 
+      <h3 class="sub-title">Q. 생산완료와 출하대기는 어떻게 다른가요?</h3>
+      <p>둘 다 상태값은 <code>AWAIT_PICKUP</code>으로 동일합니다. 발주처·납품정보(영업정보) 입력이 끝나지 않았으면 <strong>생산완료</strong> 컬럼에, 끝났으면 <strong>출하대기</strong> 컬럼과 화면에 나타납니다.</p>
+
+      <h3 class="sub-title">Q. 여러 건을 한 번에 생산착수할 수 있나요?</h3>
+      <p>네. 생산 대기 화면의 <strong>생산요청</strong> 컬럼에서 카드를 다중 선택한 뒤 <strong>생산 착수 ({n}건)</strong> 버튼을 누르면 한 번에 IN_PROGRESS로 전환됩니다. 시리얼 등 생산 실적은 이후 개별 카드에서 입력합니다.</p>
+
       <h3 class="sub-title">Q. 오더 등록 후 수정이 가능한가요?</h3>
-      <p>영업 역할은 오더가 <strong>PENDING · IN_PROGRESS</strong> 상태일 때 발주 정보를 수정할 수 있습니다. 수정 시 생산 화면에 <strong>수정이력 N건</strong> 배지가 표시됩니다.</p>
+      <p>영업 역할은 오더가 <strong>PENDING</strong> 상태일 때만 모델·용도를 수정할 수 있습니다. 발주처·납품정보는 생산완료 모달에서 저장 후에도 다시 열어 수정할 수 있습니다.</p>
 
-      <h3 class="sub-title">Q. 시리얼 번호 추천값은 어떻게 계산되나요?</h3>
-      <p>모델 코드 + 연도/월 알파벳 코드(2023년=A, 이후 +1) + 로트 내 순번으로 자동 생성됩니다. 동일 시리얼이 이미 존재하면 중복 경고가 표시됩니다.</p>
+      <h3 class="sub-title">Q. 시리얼 번호는 언제, 어떻게 채번되나요?</h3>
+      <p><strong>생산 착수</strong> 시점(<code>PENDING → IN_PROGRESS</code> 전환 직후)에 모델 코드 + 생산 시점 기반 채번 규칙으로 자동 채번됩니다. 생산착수 모달에서 <strong>재생성</strong> 링크로 다시 채번하거나 직접 수정할 수 있으며, <strong>중복 확인</strong> 버튼으로 검증합니다.</p>
 
-      <h3 class="sub-title">Q. 기능 검사 체크리스트는 어디서 관리하나요?</h3>
-      <p><code>docs/func/{모델코드}.json</code> 파일로 모델별 체크리스트를 관리합니다. 파일이 없으면 시스템 기본 체크리스트가 사용됩니다.</p>
+      <h3 class="sub-title">Q. 기능·출하 검사 체크리스트는 어디서 관리하나요?</h3>
+      <p><code>docs/func/{모델코드}.json</code>(기능검사), <code>docs/ship/{모델코드}.json</code>(출하검사) 파일로 모델별 체크리스트를 관리합니다. 파일이 없으면 시스템 기본 체크리스트가 사용됩니다.</p>
 
       <h3 class="sub-title">Q. 출하 전 사진은 어떻게 첨부하나요?</h3>
-      <p>출하대기 목록에서 <strong>성적서 보기</strong> → 출하 검사 드로어의 사진 첨부 영역에서 파일을 선택하면 Supabase Storage(<code>ship-photos</code> 버킷)에 자동 업로드됩니다.</p>
+      <p>출하대기 목록에서 <strong>출하검사</strong> 성적서를 먼저 저장한 뒤, 드로어 하단의 사진 첨부 탭에서 파일을 선택하면 Supabase Storage(<code>ship-photos</code> 버킷)에 자동 업로드됩니다.</p>
 
       <h3 class="sub-title">Q. CSV 내보내기 시 한국어가 깨집니다.</h3>
-      <p>파일을 Excel에서 열 때는 <strong>데이터 → 텍스트/CSV에서 가져오기</strong>를 사용하고 인코딩을 <strong>UTF-8</strong>로 선택하세요. 직접 파일을 열면 인코딩이 자동으로 인식되지 않을 수 있습니다.</p>
+      <p>파일을 Excel에서 열 때는 <strong>데이터 → 텍스트/CSV에서 가져오기</strong>를 사용하고 인코딩을 <strong>UTF-8</strong>로 선택하세요. 파일을 더블클릭해서 바로 열면 인코딩이 자동으로 인식되지 않을 수 있습니다.</p>
 
       <h3 class="sub-title">Q. 비밀번호를 잊었을 때는?</h3>
-      <p>관리자(박우진, admin)에게 비밀번호 초기화를 요청하세요. 사용자 관리 화면에서 즉시 처리가 가능합니다.</p>
+      <p>관리자에게 비밀번호 초기화를 요청하세요. 사용자 관리 화면에서 <strong>비밀번호 재설정</strong> 필드로 즉시 처리할 수 있습니다.</p>
 
       <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; color: var(--ink-6); font-size: 12px;">
-        EGTRONICS CO., LTD. · COMS v1.0 · 2026 · 내부 배포용
+        EGTRONICS CO., LTD. · COMS v2.0 · 2026 · 내부 배포용
       </div>
     </section>
 

@@ -113,35 +113,22 @@ function SalesInputScreen() {
   const nextRowIdRef = useRefSI(1);
   const clampQty = (v, max = 500) => Math.max(1, Math.min(max, parseInt(v) || 1));
 
-  const emptyCommon = {
-    customer_name: '', customer_manager: '',
-    delivery_date: '',
-    install_address: '', install_address_detail: '',
-    field_manager_name: '', field_manager_phone: '',
-  };
   const makeRow = () => ({
     _id: nextRowIdRef.current++,
     _power: '',
-    model_name: '', usage_type: '공용', cpo_name: '',
-    station_id: '', charger_no: '', router_no: '', usim_no: '',
+    model_name: '', usage_type: '공용',
     qty: 1,
   });
 
-  const [common, setCommon] = useStateSI(emptyCommon);
   const [rows, setRows] = useStateSI([makeRow()]);
   const [submitted, setSubmitted] = useStateSI(false);
-  const [masterCustomers, setMasterCustomers] = useStateSI([]);
-  const [masterCpos, setMasterCpos] = useStateSI([]);
   const [masterModels, setMasterModels] = useStateSI([]);
-  const [managers, setManagers] = useStateSI([]);
   const [modal, setModal] = useStateSI(null);
   const [modelModalRow, setModelModalRow] = useStateSI(null);
   const [selectedRowIds, setSelectedRowIds] = useStateSI(() => new Set());
-  const [bulkCpoValue, setBulkCpoValue] = useStateSI('');
   const [addRowCount, setAddRowCount] = useStateSI(1);
   const selectAllRef = useRefSI(null);
 
-  const updateCommon = (k, v) => setCommon(c => ({ ...c, [k]: v }));
   const updateRow = (i, k, v) => setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
   const addRow = (count = 1) => setRows(r => {
     const last = r[r.length - 1];
@@ -180,16 +167,7 @@ function SalesInputScreen() {
     return next;
   });
   const toggleAllRows = () => setSelectedRowIds(allRowsSelected ? new Set() : new Set(allRowIds));
-  const selectedHasPublic = rows.some(r => selectedRowIds.has(r._id) && r.usage_type === '공용');
-  const applyBulkUsageType = (t) => setRows(r => r.map(rw => {
-    if (!selectedRowIds.has(rw._id)) return rw;
-    if (t === '비공용') return { ...rw, usage_type: '비공용', cpo_name: '', station_id: '', charger_no: '' };
-    return { ...rw, usage_type: t };
-  }));
-  const applyBulkCpo = () => {
-    if (!bulkCpoValue.trim()) return;
-    setRows(r => r.map(rw => (selectedRowIds.has(rw._id) && rw.usage_type === '공용') ? { ...rw, cpo_name: bulkCpoValue } : rw));
-  };
+  const applyBulkUsageType = (t) => setRows(r => r.map(rw => selectedRowIds.has(rw._id) ? { ...rw, usage_type: t } : rw));
   const allSelected = allRowIds.length > 0 && selectedRowIds.size === allRowIds.length;
   const bulkDeleteRows = () => {
     window.actions.showConfirm(`선택한 ${selectedRowIds.size}행을 삭제할까요?`, () => {
@@ -199,51 +177,19 @@ function SalesInputScreen() {
   };
 
   useEffectSI(() => {
-    setMasterCustomers(window.PMDB.getCustomers());
-    setMasterCpos(window.PMDB.getCpos());
     setMasterModels(window.PMDB.getModels());
   }, []);
 
-  const refreshManagersRef = useRefSI(null);
-  refreshManagersRef.current = () => {
-    if (!common.customer_name || !window.PMDB.getManagers) { setManagers([]); return []; }
-    const raw = window.PMDB.getManagers(common.customer_name);
-    const list = raw.map(m => ({ ...m, display: m.phone ? `${m.name} (${m.phone})` : m.name }));
-    setManagers(list);
-    return list;
-  };
-  useEffectSI(() => {
-    const list = refreshManagersRef.current();
-    if (!common.customer_manager && list.length) {
-      const primary = list.find(m => m.is_primary) || list[0];
-      updateCommon('customer_manager', primary.display || primary.name);
-    }
-  }, [common.customer_name]);
-
   useEffectSI(() => {
     if (editing) {
-      setCommon({
-        customer_name: editing.customer_name || '',
-        customer_manager: editing.customer_manager || '',
-        delivery_date: editing.delivery_date || '',
-        install_address: editing.install_address || '',
-        install_address_detail: '',
-        field_manager_name: editing.field_manager_name || '',
-        field_manager_phone: editing.field_manager_phone || '',
-      });
       setRows([{
         _id: nextRowIdRef.current++,
         _power: '',
         model_name: editing.model_name || '',
         usage_type: editing.usage_type || '공용',
-        cpo_name: editing.cpo_name || '',
-        station_id: editing.station_id || '',
-        charger_no: editing.charger_no || '',
-        router_no: editing.router_no || '',
-        usim_no: editing.usim_no || '',
+        qty: 1,
       }]);
     } else {
-      setCommon(emptyCommon);
       setRows([makeRow()]);
     }
     setSelectedRowIds(new Set());
@@ -251,8 +197,6 @@ function SalesInputScreen() {
   }, [s.editingOrderId]);
 
   const modelCodes = useMemoSI(() => new Set(masterModels.map(m => m.model)), [masterModels]);
-  const modelOptions = useMemoSI(() => masterModels.map(m => m.model), [masterModels]);
-  const cpoOptions = useMemoSI(() => masterCpos.map(c => c.name), [masterCpos]);
   const powerOptions = useMemoSI(() => {
     const unique = [...new Set(masterModels.map(m => m.power).filter(Boolean))];
     return unique.sort((a, b) => {
@@ -266,18 +210,10 @@ function SalesInputScreen() {
     return map;
   }, [masterModels]);
 
-  const commonErrors = {
-    customer_name: !common.customer_name && '고객사를 입력해 주세요',
-    delivery_date: !common.delivery_date && '납품일자를 선택해 주세요',
-    install_address: !common.install_address && '납품장소를 입력해 주세요',
-  };
-  const hasCommonErr = Object.values(commonErrors).some(Boolean);
-
   const rowErrors = rows.map(row => {
     const e = {};
     if (!row.model_name) e.model_name = '모델 필수';
     else if (!modelCodes.has(row.model_name)) e.model_name = '미등록 모델';
-    if (row.usim_no && row.usim_no.length < 19) e.usim_no = '19자리 이상';
     return e;
   });
 
@@ -288,59 +224,49 @@ function SalesInputScreen() {
   const isDirty = useMemoSI(() => {
     if (!isEdit || !editing || !rows[0]) return false;
     const row = rows[0];
-    return Object.keys(emptyCommon).some(k => k !== 'install_address_detail' && (common[k] || '') !== (editing[k] || ''))
-      || ['model_name', 'usage_type', 'cpo_name', 'station_id', 'charger_no', 'router_no', 'usim_no'].some(k => (row[k] || '') !== (editing[k] || ''));
-  }, [isEdit, editing, common, rows]);
+    return ['model_name', 'usage_type'].some(k => (row[k] || '') !== (editing[k] || ''));
+  }, [isEdit, editing, rows]);
 
   const submittingRef = useRefSI(false);
 
   const submit = () => {
     if (submittingRef.current) return;
     setSubmitted(true);
-    if (hasCommonErr) return;
     if (isEdit) {
       const row = rows[0] || {};
       if (!row.model_name) return;
       submittingRef.current = true;
-      const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
-      const { _power: _rp, _id: _rid, ...cleanRow } = row;
-      const payload = { ...common, ...cleanRow, install_address: addr };
-      delete payload.install_address_detail;
-      window.actions.updateOrder(editing.order_id, payload);
+      window.actions.updateOrder(editing.order_id, { model_name: row.model_name, usage_type: row.usage_type });
       submittingRef.current = false;
       window.actions.setView('waiting');
       return;
     }
     if (validRows.length === 0) return;
     submittingRef.current = true;
-    const addr = [common.install_address.trim(), common.install_address_detail.trim()].filter(Boolean).join(' ');
-    const { install_address_detail, ...commonPayload } = { ...common, install_address: addr };
-    validRows.forEach(({ _power: _rp, _id: _rid, qty, ...cleanRow }) => {
+    const requestedBy = s.currentUser?.name || '';
+    validRows.forEach(({ model_name, usage_type, qty }) => {
       const count = clampQty(qty);
-      for (let q = 0; q < count; q++) window.actions.addOrder({ ...commonPayload, ...cleanRow });
+      for (let q = 0; q < count; q++) window.actions.addOrder({ model_name, usage_type, requested_by: requestedBy });
     });
-    setCommon(emptyCommon);
     setRows([makeRow()]);
     setSelectedRowIds(new Set());
     setSubmitted(false);
     submittingRef.current = false;
   };
 
-  const showCommonErr = (k) => submitted && commonErrors[k];
-
   return (
     <div className="screen">
       <div className="screen__head">
         <div>
-          <div className="screen__crumbs">영업 부서 · {isEdit ? `오더 #${editing.order_id} 수정` : '신규 오더 등록'}</div>
+          <div className="screen__crumbs">영업 부서 · {isEdit ? `오더 #${editing.order_id} 수정` : '신규 생산요청'}</div>
           <h1 className="screen__title">
-            {isEdit ? '오더 정보 수정' : '신규 오더 입력'}
+            {isEdit ? '생산요청 수정' : '생산 요청'}
             {isDirty && <span className="badge badge--info" style={{ marginLeft: 10, verticalAlign: 'middle', fontSize: 12, fontWeight: 500 }}>수정됨</span>}
           </h1>
           <p className="screen__sub">
             {isEdit
               ? <>생산대기 상태의 오더만 수정할 수 있습니다. 변경 후 <strong>수정 저장</strong>을 누르세요.</>
-              : <>발주 정보를 입력하고 제품을 추가하면 즉시 <strong>생산 대기</strong> 큐에 등록됩니다.</>}
+              : <>모델과 수량만으로 생산요청이 등록됩니다. 발주처·납품정보 등 상세 정보는 <strong>생산완료</strong> 단계에서 입력합니다.</>}
           </p>
         </div>
         <div className="sales-buttons">
@@ -354,132 +280,23 @@ function SalesInputScreen() {
               <Icon name="arrow-left" size={13}/> 취소
             </button>
           ) : (
-            <button className="btn btn--secondary" onClick={() => { setCommon(emptyCommon); setRows([makeRow()]); setSelectedRowIds(new Set()); setSubmitted(false); }}>
+            <button className="btn btn--secondary" onClick={() => { setRows([makeRow()]); setSelectedRowIds(new Set()); setSubmitted(false); }}>
               <Icon name="refresh" size={13}/> 초기화
             </button>
           )}
           <button className="btn btn--primary btn--lg" onClick={submit}>
             <Icon name={isEdit ? 'check' : 'save'} size={14}/>
-            {' '}{isEdit ? '수정 저장' : totalValidQty > 0 ? `${totalValidQty}건 오더 등록` : '오더 등록'}
+            {' '}{isEdit ? '수정 저장' : totalValidQty > 0 ? `${totalValidQty}건 생산요청 등록` : '생산요청 등록'}
           </button>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* ── Section 1: 발주 정보 ── */}
+        {/* ── 제품 선택 ── */}
         <div className="card">
           <div className="card__head">
-            <h2 className="card__title"><span className="section-title__num">1</span>발주 정보</h2>
-            <span className="card__sub">고객사 · 납품일자 · 납품장소</span>
-          </div>
-          <div className="card__body">
-            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-
-              <div className="field">
-                <div className="field__label">
-                  <label>고객사 <span className="field__req">*</span></label>
-                  <HelpDot text="자주 사용하는 고객사는 드롭다운에서 선택"/>
-                </div>
-                <div className="mgr-field">
-                  <ComboField
-                    value={common.customer_name}
-                    onChange={(v) => setCommon(c => ({ ...c, customer_name: v, customer_manager: '' }))}
-                    options={masterCustomers}
-                    placeholder="고객사명 입력 또는 선택"
-                    ariaLabel="고객사"
-                    error={showCommonErr('customer_name')}
-                    metaKey="last"/>
-                  <button type="button" className="btn btn--secondary mgr-field__manage"
-                          onClick={() => setModal('add-customer')} title="신규 고객사 등록">
-                    <Icon name="plus" size={13}/> 추가
-                  </button>
-                  <button type="button" className="btn btn--secondary mgr-field__manage"
-                          onClick={() => setModal('customer-mgr')} title="고객사 목록 관리">
-                    <Icon name="settings" size={13}/> 관리
-                  </button>
-                </div>
-                {showCommonErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {commonErrors.customer_name}</div>}
-              </div>
-
-              <div className="field">
-                <label className="field__label" htmlFor="si-delivery-date">납품일자 <span className="field__req">*</span></label>
-                <input id="si-delivery-date" type="date"
-                       className={`input ${showCommonErr('delivery_date') ? 'input--error' : ''}`}
-                       value={common.delivery_date}
-                       onChange={(e) => updateCommon('delivery_date', e.target.value)}/>
-                {showCommonErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {commonErrors.delivery_date}</div>}
-              </div>
-
-              <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label className="field__label" htmlFor="si-install-address">납품장소 (설치주소) <span className="field__req">*</span></label>
-                <AddressField
-                  id="si-install-address"
-                  value={common.install_address}
-                  onChange={(v) => updateCommon('install_address', v)}
-                  error={showCommonErr('install_address')}/>
-                <input className="input" style={{ marginTop: 6 }}
-                       placeholder="상세주소 (동·호수, 층수 등)"
-                       value={common.install_address_detail}
-                       onChange={(e) => updateCommon('install_address_detail', e.target.value)}/>
-                {showCommonErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {commonErrors.install_address}</div>}
-                <div className="field__hint"><Icon name="map-pin" size={11}/> 우편번호 검색 버튼을 눌러 도로명 주소를 선택하세요</div>
-              </div>
-
-            </div>
-
-            <details className="sales-summary-strip" style={{ marginTop: 16 }}
-                     open={!!(common.customer_manager || common.field_manager_name || common.field_manager_phone)}>
-              <summary><Icon name="chevron-down" size={13}/> 담당자 정보 (선택사항)</summary>
-              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', padding: '12px 16px' }}>
-                <div className="field">
-                  <div className="field__label"><label>고객사 담당자</label></div>
-                  <div className="mgr-field">
-                    <ComboField
-                      value={common.customer_manager}
-                      onChange={(v) => updateCommon('customer_manager', v)}
-                      options={managers}
-                      placeholder={common.customer_name ? '담당자 선택 또는 입력' : '고객사를 먼저 선택하세요'}
-                      ariaLabel="고객사 담당자"
-                      displayKey="display"/>
-                    <button type="button" className="btn btn--secondary mgr-field__manage"
-                            onClick={() => {
-                              if (!common.customer_name) { window.actions.flashToast('고객사를 먼저 선택해 주세요', 'error'); return; }
-                              setModal('mgr');
-                            }} title="고객사 담당자 관리">
-                      <Icon name="user" size={13}/> 관리
-                    </button>
-                  </div>
-                  {common.customer_name && (
-                    <div className="field__hint"><Icon name="info" size={11}/> {managers.length}명 등록됨</div>
-                  )}
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-field-mgr-name">현장담당자</label>
-                  <input id="si-field-mgr-name" className="input" placeholder="담당자 이름"
-                         value={common.field_manager_name}
-                         onChange={(e) => updateCommon('field_manager_name', e.target.value)}/>
-                </div>
-                <div className="field">
-                  <label className="field__label" htmlFor="si-field-mgr-phone">현장담당자 연락처</label>
-                  <input id="si-field-mgr-phone" type="tel" className="input" style={{ fontFamily: 'var(--font-mono)' }}
-                         placeholder="010-0000-0000" autoComplete="tel"
-                         value={common.field_manager_phone}
-                         onChange={(e) => {
-                           const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
-                           const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
-                           updateCommon('field_manager_phone', fmt);
-                         }}/>
-                </div>
-              </div>
-            </details>
-          </div>
-        </div>
-
-        {/* ── Section 2: 제품 선택 ── */}
-        <div className="card">
-          <div className="card__head">
-            <h2 className="card__title"><span className="section-title__num">2</span>제품 선택</h2>
+            <h2 className="card__title">제품 선택</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {validRows.length > 0 ? (
                 <span style={{ fontSize: 13, color: 'var(--success-700)', fontWeight: 600 }}>
@@ -515,12 +332,6 @@ function SalesInputScreen() {
                 <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('model-mgr')} title="모델 목록 관리">
                   <Icon name="settings" size={12}/> 모델 관리
                 </button>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('add-cpo')} title="신규 CPO 등록">
-                  <Icon name="plus" size={12}/> CPO
-                </button>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('cpo-mgr')} title="CPO 운영사 관리">
-                  <Icon name="settings" size={12}/> CPO 관리
-                </button>
               </>)}
             </div>
           </div>
@@ -539,21 +350,6 @@ function SalesInputScreen() {
                     <button key={t} type="button" className="btn btn--tag btn--ghost" onClick={() => applyBulkUsageType(t)}>{t}로 일괄 지정</button>
                   ))}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-                  <div style={{ width: 150, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', background: 'var(--surface-1)' }}>
-                    <BulkInlineCombo
-                      value={bulkCpoValue}
-                      onChange={setBulkCpoValue}
-                      options={cpoOptions}
-                      placeholder="CPO 운영사"
-                      ariaLabel="일괄 적용할 CPO 운영사"/>
-                  </div>
-                  <button type="button" className="btn btn--secondary btn--sm" disabled={!selectedHasPublic}
-                          title={!selectedHasPublic ? '선택한 행 중 공용 용도가 없습니다' : ''}
-                          onClick={applyBulkCpo}>
-                    CPO 적용
-                  </button>
-                </div>
                 <button type="button" className="btn btn--ghost btn--sm" style={{ color: 'var(--danger-700)' }}
                         disabled={allSelected}
                         title={allSelected ? '최소 1개 행은 남아야 합니다' : ''}
@@ -564,7 +360,7 @@ function SalesInputScreen() {
               </div>
             )}
             <div style={{ overflowX: 'auto' }}>
-              <table className="table" style={{ minWidth: 900 }}>
+              <table className="table" style={{ minWidth: 560 }}>
                 <thead>
                   <tr>
                     {!isEdit && (
@@ -576,21 +372,15 @@ function SalesInputScreen() {
                     <th style={{ width: 32, textAlign: 'center' }}>#</th>
                     <th style={{ minWidth: 170 }}>충전속도 (모델) <span className="field__req">*</span></th>
                     <th style={{ minWidth: 120 }}>충전기 용도</th>
-                    <th style={{ minWidth: 160 }}>CPO 운영사</th>
-                    <th style={{ minWidth: 110 }}>충전소 ID</th>
-                    <th style={{ minWidth: 90 }}>충전기 번호</th>
-                    <th style={{ minWidth: 150 }}>라우터 번호</th>
-                    <th style={{ minWidth: 180 }}>USIM 번호</th>
+                    <th style={{ minWidth: 140 }}>수량</th>
                     {!isEdit && <th style={{ width: 44 }}></th>}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row, i) => {
                     const errs = submitted ? rowErrors[i] : {};
-                    const isPub = row.usage_type === '공용';
-                    const rowPower = row._power || masterModels.find(m => m.model === row.model_name)?.power || '';
                     return (
-                      <tr key={row._id} style={errs.model_name || errs.usim_no ? { background: 'var(--danger-50)' } : (!isPub && (row.qty || 1) > 1) ? { background: 'var(--primary-50)' } : {}}>
+                      <tr key={row._id} style={errs.model_name ? { background: 'var(--danger-50)' } : (row.qty || 1) > 1 ? { background: 'var(--primary-50)' } : {}}>
                         {!isEdit && (
                           <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', paddingLeft: 12 }}>
                             <input type="checkbox" aria-label={`${i + 1}번째 행 선택`}
@@ -620,15 +410,7 @@ function SalesInputScreen() {
                             {['공용', '비공용'].map(t => (
                               <button key={t} type="button"
                                       className={`btn btn--tag ${row.usage_type === t ? 'btn--primary' : 'btn--ghost'}`}
-                                      onClick={() => {
-                                        if (t === '비공용') {
-                                          setRows(r => r.map((rw, idx) => idx === i
-                                            ? { ...rw, usage_type: '비공용', cpo_name: '', station_id: '', charger_no: '' }
-                                            : rw));
-                                        } else {
-                                          updateRow(i, 'usage_type', t);
-                                        }
-                                      }}>
+                                      onClick={() => updateRow(i, 'usage_type', t)}>
                                 {t}
                               </button>
                             ))}
@@ -636,19 +418,12 @@ function SalesInputScreen() {
                         </td>
 
                         <td style={{ padding: 4 }}>
-                          {isPub ? (
-                            <BulkInlineCombo
-                              value={row.cpo_name}
-                              onChange={(v) => updateRow(i, 'cpo_name', v)}
-                              options={cpoOptions}
-                              placeholder="CPO 운영사"/>
-                          ) : !isEdit ? (
-                            <div style={{ padding: '4px 8px' }}>
-                              <div style={{ fontSize: 10, color: 'var(--ink-4)', fontWeight: 500, marginBottom: 4 }}>수량</div>
+                          {!isEdit ? (
+                            <div style={{ display: 'flex', alignItems: 'stretch' }}>
                               {(() => {
                                 const stepBtn = { background: 'var(--surface-2)', border: '1px solid var(--border-1)', padding: '4px 9px', cursor: 'pointer', fontSize: 15, fontWeight: 700, color: 'var(--ink-2)', lineHeight: 1, minWidth: 28 };
                                 return (
-                                <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                                <>
                                   <button type="button"
                                     style={{ ...stepBtn, borderRight: 'none', borderRadius: 'var(--r-md) 0 0 var(--r-md)' }}
                                     onClick={(e) => { e.stopPropagation(); updateRow(i, 'qty', clampQty((row.qty || 1) - 1)); }}>−</button>
@@ -665,68 +440,10 @@ function SalesInputScreen() {
                                   <button type="button"
                                     style={{ ...stepBtn, borderLeft: 'none', borderRadius: '0 var(--r-md) var(--r-md) 0' }}
                                     onClick={(e) => { e.stopPropagation(); updateRow(i, 'qty', clampQty((row.qty || 1) + 1)); }}>+</button>
-                                </div>
+                                </>
                                 );
                               })()}
-                              {(row.qty || 1) > 1 && (
-                                <div style={{ fontSize: 10.5, color: 'var(--primary)', marginTop: 3, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                  <Icon name="copy" size={9}/>{row.qty}건 등록
-                                </div>
-                              )}
                             </div>
-                          ) : (
-                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
-                          )}
-                        </td>
-
-                        <td style={{ padding: 4 }}>
-                          {isPub ? (
-                            <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
-                                   placeholder="예: CT3006"
-                                   value={row.station_id}
-                                   onChange={(e) => updateRow(i, 'station_id', e.target.value)}/>
-                          ) : (
-                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
-                          )}
-                        </td>
-
-                        <td style={{ padding: 4 }}>
-                          {isPub ? (
-                            <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
-                                   placeholder="예: 01"
-                                   value={row.charger_no}
-                                   onChange={(e) => updateRow(i, 'charger_no', e.target.value)}/>
-                          ) : (
-                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
-                          )}
-                        </td>
-
-                        <td style={{ padding: 4 }}>
-                          {isPub ? (
-                          <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
-                                 placeholder="RTR-2024-00001"
-                                 value={row.router_no}
-                                 onChange={(e) => updateRow(i, 'router_no', e.target.value)}/>
-                          ) : (
-                            <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
-                          )}
-
-                        </td>
-
-                        <td style={{ padding: 4 }}>
-                          {isPub ? (
-                            <>
-                              <input className={`input ${submitted && errs.usim_no ? 'input--error' : ''}`}
-                                     style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}
-                                     placeholder="ICCID 19~20자리"
-                                     value={row.usim_no}
-                                     maxLength={20}
-                                     inputMode="numeric"
-                                     onChange={(e) => updateRow(i, 'usim_no', e.target.value.replace(/\D/g, ''))}/>
-                              {submitted && errs.usim_no && (
-                                <div role="alert" className="field__err" style={{ marginTop: 2 }}>{errs.usim_no}</div>
-                              )}
-                            </>
                           ) : (
                             <span style={{ color: 'var(--ink-4)', fontSize: 12, padding: '0 8px', display: 'block' }}>—</span>
                           )}
@@ -765,41 +482,6 @@ function SalesInputScreen() {
       {modal === 'history' && isEdit && (
         <OrderHistoryModal orderId={editing.order_id} onClose={() => setModal(null)}/>
       )}
-      {modal === 'mgr' && (
-        <ManagerManageModal
-          customerName={common.customer_name}
-          onClose={() => setModal(null)}
-          onChanged={(picked) => {
-            const list = refreshManagersRef.current();
-            if (picked) {
-              const mgr = list.find(m => m.name === picked);
-              updateCommon('customer_manager', mgr ? (mgr.display || mgr.name) : picked);
-            } else if (common.customer_manager) {
-              const baseName = common.customer_manager.split(' (')[0];
-              if (!list.some(m => m.name === baseName || m.display === common.customer_manager)) {
-                updateCommon('customer_manager', list[0] ? (list[0].display || list[0].name) : '');
-              }
-            }
-          }}/>
-      )}
-      {modal === 'add-customer' && (
-        <AddCustomerModal
-          onClose={() => setModal(null)}
-          onAdded={(name) => {
-            setMasterCustomers(window.PMDB.getCustomers());
-            setCommon(c => ({ ...c, customer_name: name, customer_manager: '' }));
-            setModal(null);
-          }}/>
-      )}
-      {modal === 'customer-mgr' && (
-        <CustomerManageModal
-          onClose={() => setModal(null)}
-          onChanged={() => {
-            const updated = window.PMDB.getCustomers();
-            setMasterCustomers(updated);
-            if (!updated.find(c => c.name === common.customer_name)) updateCommon('customer_name', '');
-          }}/>
-      )}
       {modal === 'add-model' && (
         <AddModelModal
           onClose={() => setModal(null)}
@@ -809,16 +491,6 @@ function SalesInputScreen() {
         <ModelManageModal
           onClose={() => setModal(null)}
           onChanged={() => setMasterModels(window.PMDB.getModels())}/>
-      )}
-      {modal === 'add-cpo' && (
-        <AddCpoModal
-          onClose={() => setModal(null)}
-          onAdded={() => { setMasterCpos(window.PMDB.getCpos()); setModal(null); }}/>
-      )}
-      {modal === 'cpo-mgr' && (
-        <CpoManageModal
-          onClose={() => setModal(null)}
-          onChanged={() => setMasterCpos(window.PMDB.getCpos())}/>
       )}
       {(modelModalRow === 'bulk' || (modelModalRow !== null && rows[modelModalRow])) && (
         <ModelSelectModal
@@ -833,7 +505,6 @@ function SalesInputScreen() {
           }}
           powerOptions={powerOptions}
           modelsByPower={modelsByPower}
-          masterModels={masterModels}
           currentModel={modelModalRow === 'bulk' ? '' : rows[modelModalRow]?.model_name}
           currentPower={modelModalRow === 'bulk' ? '' : (rows[modelModalRow]?._power || masterModels.find(m => m.model === rows[modelModalRow]?.model_name)?.power || '')}
         />
@@ -1570,12 +1241,12 @@ function BulkInlineCombo({ value, onChange, options, placeholder, error, ariaLab
 }
 
 /* ────────── 모델 선택 모달 (충전속도 → 모델 코드 + 설명) ────────── */
-function ModelSelectModal({ onClose, onSelect, powerOptions, modelsByPower, masterModels, currentModel, currentPower }) {
+function ModelSelectModal({ onClose, onSelect, powerOptions, modelsByPower, currentModel, currentPower }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
-  const [selectedPower, setSelectedPower] = useStateSI(currentPower || powerOptions[0] || '');
+  const [selectedPower, setSelectedPower] = useStateSI(currentPower || '');
 
-  const models = selectedPower ? (modelsByPower[selectedPower] || []) : masterModels;
+  const models = selectedPower ? (modelsByPower[selectedPower] || []) : [];
 
   return (
     <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -1595,7 +1266,12 @@ function ModelSelectModal({ onClose, onSelect, powerOptions, modelsByPower, mast
             ))}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: 360, overflowY: 'auto' }}>
-            {models.length === 0 ? (
+            {!selectedPower ? (
+              <div className="emptystate" style={{ padding: '20px 0' }}>
+                <div className="emptystate__title">충전속도를 선택하세요</div>
+                <div className="emptystate__sub">선택한 충전속도에 해당하는 모델 목록이 표시됩니다</div>
+              </div>
+            ) : models.length === 0 ? (
               <div className="emptystate" style={{ padding: '20px 0' }}>
                 <div className="emptystate__title">해당 충전속도의 모델이 없습니다</div>
               </div>

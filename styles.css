@@ -307,6 +307,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--ink-1);
   display: flex; align-items: center; gap: 8px;
   text-wrap: balance;
+  word-break: keep-all; /* 한글은 어절(공백) 단위로만 줄바꿈 — 음절 중간 절단 방지 */
 }
 .card__sub {
   font-size: 12px;
@@ -583,11 +584,11 @@ input, select, textarea { font-family: inherit; }
 }
 .btn--ghost:hover { background: var(--surface-3); color: var(--ink-1); }
 .btn--success {
-  background: var(--success);
+  background: var(--success-700);
   color: white;
-  border-color: var(--success);
+  border-color: var(--success-700);
 }
-.btn--success:hover { background: var(--success-700); border-color: var(--success-700); }
+.btn--success:hover { filter: brightness(0.9); }
 .btn--danger {
   background: var(--danger);
   color: white;
@@ -1016,6 +1017,21 @@ input, select, textarea { font-family: inherit; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+/* 좌우로 더 스크롤할 내용이 있을 때만 나타나는 그림자 힌트 — 모바일 폭에서
+   테이블 오른쪽이 화면 밖으로 잘려도 스크롤 가능함을 알 수 있도록 함 */
+.scroll-shadow-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background:
+    linear-gradient(to right, var(--surface) 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(to left, var(--surface) 30%, rgba(255, 255, 255, 0)) right,
+    linear-gradient(to right, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0)),
+    linear-gradient(to left, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0)) right;
+  background-repeat: no-repeat;
+  background-color: var(--surface);
+  background-size: 24px 100%, 24px 100%, 8px 100%, 8px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -1104,6 +1120,29 @@ input, select, textarea { font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .btn--primary .as-receipt-count { background: rgba(255, 255, 255, 0.22); }
+
+/* ============================================================
+   Model group header (생산대기 테이블 뷰 서브그룹)
+   ============================================================ */
+.model-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.model-group-head__desc {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.model-group-head__cust {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
 
 /* ============================================================
    Kanban
@@ -1615,6 +1654,76 @@ input, select, textarea { font-family: inherit; }
     max-width: 90vw; font-size: 13px; padding: 10px 16px;
   }
   .btn--lg { height: 44px; padding: 0 18px; font-size: 15px; }
+
+  /* ── 충전기 통합 조회 — 모바일 카드 리스트 ──
+     테이블 레이아웃을 해제하고 각 행을 2컬럼 그리드 카드로 재구성.
+     좌: 시리얼(상) / 설치주소(중) / 등록일(하), 우: 모델배지(상) / 연결오더(중하) */
+  .ol-hint { display: none; }
+  .ol-table { display: block; min-width: 0 !important; }
+  .ol-table colgroup,
+  .ol-table thead { display: none; }
+  .ol-table tbody { display: block; }
+  .ol-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-1);
+    column-gap: 10px;
+    min-height: 72px;
+  }
+  .ol-table tr:last-child { border-bottom: none; }
+  .ol-table td { display: block; padding: 0; border: 0; }
+
+  /* 시리얼번호 — 행 식별자, 모노스페이스 굵게 */
+  .ol-table .ol-table__col--serial {
+    grid-column: 1; grid-row: 1;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ink-1);
+    letter-spacing: -0.1px;
+    padding-bottom: 4px;
+    align-self: end;
+  }
+  /* 모델 배지 — 오른쪽 상단 */
+  .ol-table .ol-table__col--model {
+    grid-column: 2; grid-row: 1;
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    align-self: end;
+    padding-bottom: 4px;
+  }
+  /* 설치 주소 — 좌 중단, 말줄임 */
+  .ol-table .ol-table__col--address {
+    grid-column: 1; grid-row: 2;
+    font-size: 13px;
+    color: var(--ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    padding-bottom: 3px;
+  }
+  /* 등록일 — 좌 하단, 900px에서 숨긴 것을 카드 모드에서 재표시 */
+  .ol-table .ol-table__col--created {
+    display: block !important;
+    grid-column: 1; grid-row: 3;
+  }
+  /* 연결 오더 — 우 중하단, 900px에서 숨긴 것을 카드 모드에서 재표시 */
+  .ol-table .ol-table__col--linked {
+    display: flex !important;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    grid-column: 2; grid-row: 2 / 4;
+    align-self: start;
+  }
+  .ol-table .ol-table__col--linked .cell-strong { font-size: 12px; }
+  .ol-table .ol-table__col--linked .cell-muted { font-size: 11px; }
+  /* 화살표 아이콘 — 카드 레이아웃에서 불필요 */
+  .ol-table .ol-table__col--arrow { display: none !important; }
 }
 
 /* Sales controls — 진행률(위) + 버튼(아래) 수직 정렬 */
@@ -2287,14 +2396,18 @@ input, select, textarea { font-family: inherit; }
   padding: 2px 8px; border-radius: 999px;
   background: var(--surface-3); color: var(--ink-2);
 }
-.login__demo__role[data-role="admin"],
-.usermenu__role[data-role="admin"] { background: var(--violet-50); color: var(--violet-700); }
-.login__demo__role[data-role="sales"],
-.usermenu__role[data-role="sales"] { background: var(--primary-50); color: var(--primary); }
+.login__demo__role[data-role="admin"] { background: var(--violet-50); color: var(--violet-700); }
+.login__demo__role[data-role="sales"] { background: var(--primary-50); color: var(--primary); }
 .login__demo__role[data-role="production"],
 .usermenu__role[data-role="production"] { background: var(--success-50); color: var(--success-700); }
 .login__demo__role[data-role="quality"],
 .usermenu__role[data-role="quality"] { background: var(--indigo-50); color: var(--indigo-700); }
+/* usermenu__role admin/sales render on the dark top nav (nav-void) — the shared
+   rgba(...,0.08-0.10) tint tokens above composite to a near-black chip there and
+   fail contrast, unlike the opaque success-50/indigo-50 tints. Bumped opacity +
+   lighter on-dark text keeps the same brand hue while clearing 4.5:1. */
+.usermenu__role[data-role="admin"] { background: rgba(124, 58, 237, 0.22); color: #c4b5fd; }
+.usermenu__role[data-role="sales"] { background: rgba(37, 99, 235, 0.22); color: var(--primary-on-dark); }
 
 .login__foot {
   display: flex; align-items: center; gap: 6px;

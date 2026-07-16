@@ -357,7 +357,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
                   <div role="alert" className="ar-match ar-match--danger" style={{ flexWrap: 'wrap' }}>
                     <Icon name="alert" size={13} className="ar-match__icon"/>
                     <span className="ar-match__text">
-                      시리얼번호 생성규칙에 맞지 않아 신규 등록할 수 없습니다 — 형식: G07-00P-D1-0001
+                      시리얼번호 생성규칙에 맞지 않아 신규 등록할 수 없습니다 <br/>— 신형: G07-00P-D1-0001 / 구형(2026-02 이전): G05-B7-0001
                     </span>
                   </div>
                 )}

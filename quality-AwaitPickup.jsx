@@ -37,6 +37,7 @@ function ProductionCompleteScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStatePC('');
   const [filterModel, setFilterModel] = useStatePC('all');
+  const [filterUsage, setFilterUsage] = useStatePC('all');
   const [report, setReport] = useStatePC(null);
   const [shipInspections, setShipInspections] = useStatePC(() => {
     // tb_ship_inspection DB 캐시만 사용 — localStorage(pm_ship_inspections) 무시
@@ -114,7 +115,7 @@ function ProductionCompleteScreen() {
   }, []);
 
   const completed = useMemoPC(
-    () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.production?.serial_no),
+    () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.production?.serial_no && window.isSalesInfoComplete(o)),
     [s.orders]
   );
 
@@ -134,6 +135,7 @@ function ProductionCompleteScreen() {
         const mName = window.findModelInfo(o.model_name)?.model || o.model_name;
         if (mName !== filterModel) return false;
       }
+      if (filterUsage !== 'all' && (o.usage_type || '공용') !== filterUsage) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = [o.customer_name, o.model_name, o.station_id, o.production.serial_no, o.production.lot_no, o.production.doc_no, String(o.order_id)].join(' ').toLowerCase();
@@ -141,7 +143,7 @@ function ProductionCompleteScreen() {
       }
       return true;
     });
-  }, [completed, search, filterModel]);
+  }, [completed, search, filterModel, filterUsage]);
 
   // ── 출하검사 완료건 다중선택 → 일괄 출하완료 ──────────────────────
   const isShipAllDone = React.useCallback((o) => {
@@ -251,10 +253,17 @@ function ProductionCompleteScreen() {
         <select className="select" aria-label="모델 필터" style={{ width: 160 }}
                 value={filterModel} onChange={(e) => setFilterModel(e.target.value)}>
           <option value="all">모델 전체</option>
-          {models.map(m => <option key={m.model} value={m.model}>{m.description || m.model}</option>)}
+          {models.map(m => <option key={m.model} value={m.model}>{m.model}</option>)}
         </select>
-        <button className={`toolbar__filter ${search || filterModel !== 'all' ? 'toolbar__filter--active' : ''}`}
-                onClick={() => { setSearch(''); setFilterModel('all'); }}
+        <button className={`chip ${filterUsage === '비공용' ? 'chip--active' : ''}`}
+                style={{ whiteSpace: 'nowrap', fontSize: 12, padding: '5px 10px' }}
+                onClick={() => setFilterUsage(v => v === '비공용' ? 'all' : '비공용')}
+                aria-pressed={filterUsage === '비공용'}
+                title="비공용 오더만 표시">
+          비공용만
+        </button>
+        <button className={`toolbar__filter ${search || filterModel !== 'all' || filterUsage !== 'all' ? 'toolbar__filter--active' : ''}`}
+                onClick={() => { setSearch(''); setFilterModel('all'); setFilterUsage('all'); }}
                 aria-label="필터 초기화">
           <Icon name="filter" size={12}/><span aria-hidden="true"> 초기화</span>
         </button>
@@ -311,15 +320,7 @@ function ProductionCompleteScreen() {
                 const shipInsp = shipInspections.get(o.order_id);
                 const shipAllDone = isShipAllDone(o);
                 const checked = selectedIds.has(o.order_id);
-                const openRow = () => {
-                  const role = s.currentUser?.role;
-                  if (role === 'admin' || role === 'production') {
-                    window.actions.selectOrder(o.order_id);
-                    window.actions.setView('mapping');
-                  } else {
-                    setShipInspectOrder(o);
-                  }
-                };
+                const openRow = () => setShipInspectOrder(o);
                 return (
                   <tr key={o.order_id} className="row--clickable"
                     tabIndex={0}
@@ -353,25 +354,21 @@ function ProductionCompleteScreen() {
                       </button>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <button
                           className={`btn btn--sm ${shipAllDone ? 'btn--success' : shipInsp ? 'btn--warning' : 'btn--secondary'}`}
                           onClick={(e) => { e.stopPropagation(); setShipInspectOrder(o); }}>
                           <Icon name={shipAllDone ? 'check' : 'doc'} size={12}/> 출하검사
                           {(() => {
                             const cnt = shipPhotoCounts.get(o.order_id) || 0;
-                            return cnt > 0 ? (
-                              <span style={{ marginLeft: 4, background: 'rgba(0,0,0,0.15)', borderRadius: 'var(--r-pill, 9999px)', padding: '1px 6px', fontSize: 10.5 }}>
-                                {cnt}장
-                              </span>
-                            ) : null;
+                            return cnt > 0 ? <span className="badge badge--neutral badge--dday" style={{ marginLeft: 4 }}>{cnt}장</span> : null;
                           })()}
                         </button>
                         {shipAllDone && (
-                          <button className="btn btn--sm btn--ghost"
-                            onClick={(e) => { e.stopPropagation(); setShipReport({ order: o, inspectionData: shipInsp }); }}
-                            style={{ fontSize: 11 }}>
-                            <Icon name="doc" size={11}/> 성적서 보기
+                          <button className="btn btn--ghost btn--sm btn--icon" aria-label="성적서 보기"
+                            title="성적서 보기"
+                            onClick={(e) => { e.stopPropagation(); setShipReport({ order: o, inspectionData: shipInsp }); }}>
+                            <Icon name="doc" size={13}/>
                           </button>
                         )}
                       </div>

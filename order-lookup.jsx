@@ -231,7 +231,7 @@ function OrderLookupScreen() {
           검색 결과 <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{filtered.length}</strong>건
         </span>
         <div style={{ flex: 1 }}/>
-        <span style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>행을 클릭하면 상세 정보가 열립니다</span>
+        <span className="ol-hint" style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>행을 클릭하면 상세 정보가 열립니다</span>
       </div>
 
       {filtered.length === 0 ? (
@@ -282,8 +282,8 @@ function OrderLookupScreen() {
                     aria-label={`충전기 ${cp.serial_no} 상세 정보 열기`}
                     onClick={() => setSelSerial(cp.serial_no)}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelSerial(cp.serial_no); } }}>
-                  <td className="cell-mono cell-strong">{cp.serial_no}</td>
-                  <td>
+                  <td className="cell-mono cell-strong ol-table__col--serial">{cp.serial_no}</td>
+                  <td className="ol-table__col--model">
                     <span className="badge badge--neutral" style={{ fontFamily: 'var(--font-mono)', letterSpacing: '-0.3px' }}>
                       {mi?.model || cp.model_name || '—'}
                     </span>
@@ -291,7 +291,7 @@ function OrderLookupScreen() {
                       <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{mi.description}</div>
                     )}
                   </td>
-                  <td className="cell-muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td className="cell-muted ol-table__col--address" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {cp.install_address || <span style={{ color: 'var(--ink-5)' }}>—</span>}
                   </td>
                   <td className="ol-table__col--created" style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
@@ -307,7 +307,7 @@ function OrderLookupScreen() {
                       <span className="badge badge--neutral">미연결</span>
                     )}
                   </td>
-                  <td><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
+                  <td className="ol-table__col--arrow"><Icon name="chevron-right" size={14} style={{ color: 'var(--ink-4)' }}/></td>
                 </tr>
                 );
               })}
@@ -640,8 +640,18 @@ function OrderDrawer({ order, onClose }) {
   }, [order.customer_manager, order.customer_name]);
   const canMap = role === 'production' || role === 'admin';
   const canEditSales = (role === 'sales' || role === 'admin') && order.status === 'PENDING';
-  const goMapping = () => { window.actions.selectOrder(order.order_id); window.actions.setView('mapping'); };
+  const canRevert = role === 'production' || role === 'admin';
+  const goWaiting = () => { window.actions.setView('waiting'); handleClose(); };
   const goEdit = () => { window.actions.editOrder(order.order_id); handleClose(); };
+  const revertAction = (label, action, danger) => (
+    <button className="btn btn--secondary btn--sm" onClick={() => window.actions.showConfirm(
+      `오더 #${order.order_id}을(를) ${label} 처리할까요?`,
+      () => { action(order.order_id); handleClose(); },
+      { danger, confirmLabel: label }
+    )}>
+      <Icon name="refresh" size={12}/> {label}
+    </button>
+  );
   return ReactDOM.createPortal(
     <>
       <div className={`drawer-backdrop${closing ? ' drawer-backdrop--closing' : ''}`} onClick={handleClose}/>
@@ -651,11 +661,6 @@ function OrderDrawer({ order, onClose }) {
             <div className="drawer__eyebrow">{order.customer_name} · 접수 {order.created}</div>
             <div className="drawer__title" style={{ margin: '5px 0 10px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               오더 #{order.order_id}
-              {role === 'production' && p && (
-                <button className="btn btn--secondary btn--sm" onClick={goMapping}>
-                  <Icon name="doc" size={13}/> 생산 기록 열기
-                </button>
-              )}
             </div>
             {statusBadge(order)}
           </div>
@@ -668,18 +673,23 @@ function OrderDrawer({ order, onClose }) {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
                 <Icon name="cart" size={16} style={{ color: 'var(--primary-600)' }}/>
               </div>
-              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>영업 입력 정보</span>
+              <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>영업 정보</span>
+              {!window.isSalesInfoComplete(order) && (order.status === 'PENDING' || order.status === 'IN_PROGRESS' || order.status === 'AWAIT_PICKUP') && (
+                <span className="badge badge--pending" style={{ marginLeft: 4 }}>생산완료 단계 입력 예정</span>
+              )}
             </div>
             <div className="dgrid">
               <Field k="모델 코드" v={modelObj?.model || '—'} mono/>
               <Field k="모델명" v={order.model_name}/>
-              <Field k="케이블 길이" v={order.cable_length}/>
-              <Field k="담당자" v={managerDisplay}/>
-              <Field k="납품일자" v={order.delivery_date} mono/>
-              <Field k="충전소 ID" v={order.station_id} mono/>
-              <Field k="라우터 S/N" v={order.router_no} mono/>
-              <Field k="USIM (ICCID)" v={order.usim_no} mono full/>
-              <Field k="설치주소" v={order.install_address} full/>
+              <Field k="생산요청자" v={order.requested_by || '미입력'}/>
+              <Field k="케이블 길이" v={order.cable_length || '미입력'}/>
+              <Field k="발주처" v={order.customer_name || '미입력'}/>
+              <Field k="담당자" v={order.customer_manager ? managerDisplay : '미입력'}/>
+              <Field k="납품일자" v={order.delivery_date || '미입력'} mono/>
+              <Field k="충전소 ID" v={order.station_id || '—'} mono/>
+              <Field k="라우터 S/N" v={order.router_no || '—'} mono/>
+              <Field k="USIM (ICCID)" v={order.usim_no || '—'} mono full/>
+              <Field k="설치주소" v={order.install_address || '미입력'} full/>
               {(order.field_manager_name || order.field_manager_phone) && (
                 <Field k="현장담당자"
                        v={[order.field_manager_name, order.field_manager_phone].filter(Boolean).join(' · ')}
@@ -765,19 +775,18 @@ function OrderDrawer({ order, onClose }) {
               <Icon name="save" size={13}/> 영업 정보 수정
             </button>
           )}
-          {canMap && (
-            p ? (
-              role !== 'production' && (
-                <button className="btn btn--secondary" onClick={goMapping}>
-                  <Icon name="doc" size={13}/> 생산 기록 열기
-                </button>
-              )
-            ) : (
-              <button className="btn btn--primary" onClick={goMapping}>
-                <Icon name="factory" size={13}/> 생산 입력으로 이동
-              </button>
-            )
+          {canMap && !p && (
+            <button className="btn btn--primary" onClick={goWaiting}>
+              <Icon name="factory" size={13}/> 생산 대기 화면으로 이동
+            </button>
           )}
+          {canRevert && order.status === 'AWAIT_PICKUP' &&
+            revertAction('작업중으로 되돌리기', window.actions.awaitToInProgress)}
+          {canRevert && order.status === 'COMPLETED' && (<>
+            {revertAction('출하대기로 되돌리기', window.actions.revertToAwaitPickup)}
+            {revertAction('작업중으로 되돌리기', window.actions.revertToInProgress)}
+            {revertAction('생산대기로 되돌리기', window.actions.revertOrder, true)}
+          </>)}
           <button className="btn btn--ghost" onClick={handleClose}>닫기</button>
         </div>
       </aside>

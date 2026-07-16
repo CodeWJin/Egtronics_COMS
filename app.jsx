@@ -7,7 +7,7 @@ function App() {
   React.useEffect(() => {
     const store = window['__pm_store__'];
     if (!history.state || !history.state.view) {
-      const validViews = ['dashboard', 'sales', 'waiting', 'mapping', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
+      const validViews = ['dashboard', 'sales', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
       const hashView = window.location.hash.slice(1);
       if (hashView && validViews.includes(hashView)) {
         store.view = hashView;
@@ -26,20 +26,11 @@ function App() {
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
 
-  // Initial deep-link if no order selected and on mapping
-  React.useEffect(() => {
-    if (s.view === 'mapping' && !s.selectedOrderId) {
-      const first = s.orders.find(o => o.status === 'PENDING');
-      if (first) window.actions.selectOrder(first.order_id);
-    }
-  }, [s.view]);
-
   // Tweaks
   const [t, setTweak] = useTweaks({
     accent: '#2563EB',
     density: 'regular',
     cornerStyle: 'soft',
-    defaultView: 'kanban',
   });
 
   // Apply tweak side-effects
@@ -80,15 +71,6 @@ function App() {
     document.documentElement.style.setProperty('--r-2xl', r.xxl + 'px');
   }, [t.cornerStyle]);
 
-  // Persist defaultView into store once on mount
-  const setDefaultViewRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!setDefaultViewRef.current) {
-      window.actions.setWaitingView(t.defaultView);
-      setDefaultViewRef.current = true;
-    }
-  }, [t.defaultView]);
-
   // Redirect away from tabs the current role cannot access
   React.useEffect(() => {
     const u = s.currentUser;
@@ -112,7 +94,6 @@ function App() {
           {s.view === 'dashboard'      && <DashboardScreen/>}
           {s.view === 'sales'          && <SalesInputScreen/>}
           {s.view === 'waiting'        && <ProductionWaitingScreen/>}
-          {s.view === 'mapping'        && <ProductionMappingScreen/>}
           {s.view === 'AwaitPickup'    && <ProductionCompleteScreen/>}
           {s.view === 'lookup'         && <OrderLookupScreen/>}
           {s.view === 'admin'          && <AdminUsersScreen/>}
@@ -140,24 +121,11 @@ function App() {
                     value={t.density}
                     options={['compact', 'regular', 'comfy']}
                     onChange={(v) => setTweak('density', v)}/>
-        <TweakSection label="생산대기 기본 보기" />
-        <TweakRadio label="레이아웃"
-                    value={t.defaultView}
-                    options={['table', 'card', 'kanban', 'timeline']}
-                    onChange={(v) => { setTweak('defaultView', v); window.actions.setWaitingView(v); }}/>
         <TweakSection label="데모 액션" />
-        <TweakButton label="신규 오더 화면으로" onClick={() => window.actions.setView('sales')}/>
+        <TweakButton label="신규 생산요청 화면으로" onClick={() => window.actions.setView('sales')}/>
         <TweakButton label="생산 대기 화면으로" onClick={() => window.actions.setView('waiting')}/>
         <TweakButton label="생산 완료 화면으로" onClick={() => window.actions.setView('AwaitPickup')}/>
         <TweakButton label="통합 조회 화면으로" onClick={() => window.actions.setView('lookup')}/>
-        <TweakButton label="첫 오더 매핑 시작" onClick={() => {
-          const store = window['__pm_store__'];
-          const pending = store ? store.orders.find(o => o.status === 'PENDING') : null;
-          if (pending) {
-            window.actions.selectOrder(pending.order_id);
-            window.actions.setView('mapping');
-          }
-        }}/>
       </TweaksPanel>
       )}
     </div>
