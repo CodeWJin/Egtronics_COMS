@@ -1,15 +1,9 @@
 // 생산대기 목록 — 칸반 전용 (생산요청 → 생산착수 → 생산완료 → 출하대기)
 // 카드 클릭 시 화면 이동 대신 모달로 입력을 처리한다 (생산착수: ProductionEntryModal, 생산완료: SalesCompletionModal)
 
-const { useState: useStatePW, useMemo: useMemoPW, useRef: useRefPW } = React;
+const { useState: useStatePW, useMemo: useMemoPW } = React;
 
 const CABLE_LENGTH_OPTIONS = ['3', '5', '7', '10', '15', '20', '30'];
-
-function priorityBadge(p) {
-  if (p === 'high') return <span className="badge badge--info"><Icon name="fire" size={10}/>긴급</span>;
-  if (p === 'low')  return <span className="badge badge--neutral">낮음</span>;
-  return null;
-}
 
 function daysUntil(date) {
   const today = new Date();
@@ -32,7 +26,7 @@ function deliveryHint(d) {
 const KANBAN_COLS = [
   { id: 'request',  title: '생산요청', dot: 'var(--ink-4)',   filter: (o) => o.status === 'PENDING' },
   { id: 'progress', title: '생산착수', dot: 'var(--primary)', filter: (o) => o.status === 'IN_PROGRESS' },
-  { id: 'done',     title: '생산완료', dot: 'var(--warning, #f59e0b)', filter: (o) => o.status === 'AWAIT_PICKUP' && !window.isSalesInfoComplete(o) },
+  { id: 'done',     title: '생산완료', dot: 'var(--warning)', filter: (o) => o.status === 'AWAIT_PICKUP' && !window.isSalesInfoComplete(o) },
   { id: 'ready',    title: '출하대기', dot: 'var(--success)', filter: (o) => o.status === 'AWAIT_PICKUP' && window.isSalesInfoComplete(o) },
 ];
 
@@ -70,7 +64,7 @@ function progressColor(prog) {
   const ratio = prog.done / prog.total;
   if (ratio >= 0.8) return 'var(--success)';
   if (ratio >= 0.4) return 'var(--primary)';
-  return 'var(--warning, #f59e0b)';
+  return 'var(--warning)';
 }
 
 function ProductionWaitingScreen() {
@@ -82,6 +76,7 @@ function ProductionWaitingScreen() {
   const [selectedIds, setSelectedIds] = useStatePW(() => new Set());
   const [entryOrder, setEntryOrder] = useStatePW(null);
   const [salesOrder, setSalesOrder] = useStatePW(null);
+  const [revertReviewOrder, setRevertReviewOrder] = useStatePW(null);
 
   React.useEffect(() => {
     const sync = () => setModels(window.PMDB.getModels());
@@ -110,13 +105,12 @@ function ProductionWaitingScreen() {
 
   const editedIds = useMemoPW(() => {
     const set = new Set();
-    s.orders.forEach(o => {
-      if (o.status === 'COMPLETED') return;
+    filtered.forEach(o => {
       const hist = window.PMDB.getHistory(o.order_id) || [];
       if (hist.some(h => h.action !== 'create')) set.add(o.order_id);
     });
     return set;
-  }, [s.orders]);
+  }, [filtered]);
 
   const role = s.currentUser?.role;
   const isSales = role === 'sales';
@@ -131,7 +125,8 @@ function ProductionWaitingScreen() {
       return;
     }
     if (colId === 'done') {
-      if (role === 'sales' || role === 'admin') setSalesOrder(order);
+      if (role === 'sales' || role === 'admin') { setSalesOrder(order); return; }
+      if (role === 'production') setRevertReviewOrder(order);
       return;
     }
     if (colId === 'ready') {
@@ -202,11 +197,13 @@ function ProductionWaitingScreen() {
             ? '영업 담당자는 생산요청 카드를 선택해 모델·수량을 수정하거나, 생산완료 카드에서 발주 정보를 입력할 수 있습니다.'
             : '카드를 클릭하면 단계별 입력 모달이 열립니다.'}</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn--secondary" onClick={() => window.actions.setView('sales')}>
-            <Icon name="plus" size={13}/> 신규 생산요청
-          </button>
-        </div>
+        {role !== 'production' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn--secondary" onClick={() => window.actions.setView('sales')}>
+              <Icon name="plus" size={13}/> 신규 생산요청
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="toolbar">
@@ -292,6 +289,9 @@ function ProductionWaitingScreen() {
       {salesOrder && (
         <SalesCompletionModal order={salesOrder} onClose={() => setSalesOrder(null)}/>
       )}
+      {revertReviewOrder && (
+        <ProductionRevertReviewModal order={revertReviewOrder} onClose={() => setRevertReviewOrder(null)}/>
+      )}
     </div>
   );
 }
@@ -305,6 +305,23 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
     if (col.id === 'done' || col.id === 'ready') return hasAwait;
     return true;
   });
+
+  // stageProgress()에 영향을 주는 필드만으로 의존성 키를 만든다 — orders는 검색어 입력마다
+  // 새 배열 참조로 재생성되므로 [orders]에 걸면 매 키 입력마다 getFuncInspection 재조회가 반복된다.
+  const progressDeps = orders.map(o => {
+    const p = o.production || {};
+    return [
+      o.order_id, o.status, p.prod_date, p.serial_no, p.sw_version, p.fw_version, p.inspection_date,
+      o.cable_length, o.customer_name, o.customer_manager, o.field_manager_phone,
+      o.install_address, o.delivery_date, o.station_id, o.charger_no, o.router_no, o.usim_no,
+    ].join('|');
+  }).join(';');
+
+  const progressByOrder = useMemoPW(() => {
+    const map = new Map();
+    orders.forEach(o => map.set(o.order_id, stageProgress(o)));
+    return map;
+  }, [progressDeps]);
 
   return (
     <div className="view-panel">
@@ -326,9 +343,11 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
             </div>
             {groupSelectable && selectableInCol.length > 0 && (
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-3)', padding: '0 2px 6px' }}>
-                <input type="checkbox" checked={allChecked}
-                  onChange={() => onToggleAll && onToggleAll(items)}
-                  style={{ width: 14, height: 14, accentColor: 'var(--primary)' }}/>
+                <span className="tap-checkbox">
+                  <input type="checkbox" checked={allChecked}
+                    onChange={() => onToggleAll && onToggleAll(items)}
+                    style={{ width: 14, height: 14, accentColor: 'var(--primary)' }}/>
+                </span>
                 전체 선택
               </label>
             )}
@@ -337,7 +356,7 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
             )}
             {items.map((o, idx) => {
               const d = deliveryHint(o.delivery_date);
-              const prog = stageProgress(o);
+              const prog = progressByOrder.get(o.order_id);
               const serial = o.production?.serial_no;
               const checked = selectable && col.id === 'request' && !!selectedIds?.has(o.order_id);
               const selDisabled = col.id === 'request' && selectable && !checked && canSelect && !canSelect(o);
@@ -348,11 +367,10 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
                      role="button" tabIndex={0}
                      onClick={() => onPick(o, col.id)}
                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o, col.id); } }}>
-                  <div className="kanban__card__top">
-                    <span className="kanban__card__id">#{o.order_id}</span>
+                  <div className="kanban__card__top" style={{ justifyContent: 'flex-end' }}>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                       {col.id === 'request' && selectable && (
-                        <span onClick={e => e.stopPropagation()}>
+                        <span className="tap-checkbox" onClick={e => e.stopPropagation()}>
                           <input type="checkbox" aria-label={`오더 #${o.order_id} 선택`}
                             checked={checked} disabled={selDisabled}
                             title={selDisabled ? '같은 모델·용도만 함께 선택 가능' : ''}
@@ -392,13 +410,13 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
   );
 }
 
-function PWSectionHead({ icon, title, extra }) {
+function PWSectionHead({ icon, title, extra, id }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
         <Icon name={icon} size={16} style={{ color: 'var(--primary-600)' }}/>
       </div>
-      <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>{title}</span>
+      <h3 id={id} style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>{title}</h3>
       {extra}
     </div>
   );
@@ -528,11 +546,11 @@ function ProductionEntryModal({ order, onClose }) {
   const showErr = (k) => (showAll || touched[k]) && errors[k];
 
   return (
-    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="pem-title" style={{ width: 780, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
           <h2 id="pem-title" className="modal__title">
-            오더 #{order.order_id} 생산착수 입력
+            생산착수 입력
             <span className="badge badge--info" style={{ marginLeft: 10, fontSize: 12, verticalAlign: 'middle' }}>
               <span className="badge__dot"/>생산진행중
             </span>
@@ -540,9 +558,9 @@ function ProductionEntryModal({ order, onClose }) {
           <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'}</p>
         </div>
         <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <PWSectionHead icon="calendar" title="기본 정보"/>
-            <div className="form-grid form-grid--3">
+          <section aria-labelledby="pem-basic-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead id="pem-basic-title" icon="calendar" title="기본 정보"/>
+            <div className="form-grid">
               <div className="field">
                 <label className="field__label" htmlFor="pem-prod-date"><Icon name="calendar" size={11}/>생산일자 <span className="field__req">*</span></label>
                 <input id="pem-prod-date" type="date"
@@ -550,30 +568,6 @@ function ProductionEntryModal({ order, onClose }) {
                        value={form.prod_date}
                        onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); }}/>
                 {showErr('prod_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.prod_date}</div>}
-              </div>
-
-              <div className="field">
-                <label className="field__label" htmlFor="pem-serial-no">
-                  <Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span>
-                  <window.HelpDot text="생산착수 시 자동 채번됩니다. 필요 시 직접 수정 후 중복 확인하세요."/>
-                </label>
-                <div className="input-group">
-                  <input id="pem-serial-no"
-                         className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
-                         style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
-                         value={form.serial_no}
-                         onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
-                  <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no}>중복 확인</button>
-                </div>
-                <div className="field__hint" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {dupState === 'ok' && <span style={{ color: 'var(--success-700)' }}><Icon name="check" size={11}/> 사용 가능</span>}
-                  {dupState === 'dup' && <span style={{ color: 'var(--danger-700)' }}><Icon name="alert" size={11}/> 중복 — 다른 번호 필요</span>}
-                  <button type="button" onClick={useSuggestion}
-                          style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 500, textDecoration: 'underline' }}>
-                    재생성: {suggestSerial}
-                  </button>
-                </div>
-                {showErr('serial_no') && dupState !== 'dup' && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
               </div>
 
               {isPublic && (
@@ -586,11 +580,35 @@ function ProductionEntryModal({ order, onClose }) {
                   {showErr('inspection_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
                 </div>
               )}
+
+              <div className="field col-span-2">
+                <label className="field__label" htmlFor="pem-serial-no">
+                  <Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span>
+                  <window.HelpDot text="생산착수 시 자동 채번됩니다. 필요 시 직접 수정 후 중복 확인하세요."/>
+                </label>
+                <div className="input-group">
+                  <input id="pem-serial-no"
+                         className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
+                         style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
+                         value={form.serial_no}
+                         onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
+                  <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no}>중복 확인</button>
+                </div>
+                <div className="field__hint" role="status" aria-live="polite" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {dupState === 'ok' && <span style={{ color: 'var(--success-700)' }}><Icon name="check" size={11}/> 사용 가능</span>}
+                  {dupState === 'dup' && <span style={{ color: 'var(--danger-700)' }}><Icon name="alert" size={11}/> 중복 — 다른 번호 필요</span>}
+                  <button type="button" className="tap-link" onClick={useSuggestion}
+                          style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', fontSize: 13, fontWeight: 500, textDecoration: 'underline' }}>
+                    재생성: {suggestSerial}
+                  </button>
+                </div>
+                {showErr('serial_no') && dupState !== 'dup' && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
+              </div>
             </div>
           </section>
 
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <PWSectionHead icon="bolt" title="버전 정보"/>
+          <section aria-labelledby="pem-version-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead id="pem-version-title" icon="bolt" title="버전 정보"/>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <div className="field__label" id="pem-sw-label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
@@ -598,6 +616,7 @@ function ProductionEntryModal({ order, onClose }) {
                   {swVersions.map(v => (
                     <button key={v.tag} type="button"
                             className={`tagpicker__item ${form.sw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.sw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
+                            aria-pressed={form.sw_version === v.tag}
                             onClick={() => { update('sw_version', v.tag); setTouched(t => ({ ...t, sw_version: 1 })); }}>
                       <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
                     </button>
@@ -610,7 +629,7 @@ function ProductionEntryModal({ order, onClose }) {
                 {addingSwVer && (
                   <div className="ver-add-row">
                     <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
-                      placeholder="예: v1.8.0-core" value={newSwVerTag}
+                      aria-label="새 S/W 버전 태그" placeholder="예: v1.8.0-core" value={newSwVerTag}
                       onChange={e => setNewSwVerTag(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addVersionSW(); if (e.key === 'Escape') setAddingSwVer(false); }} autoFocus/>
                     <label className="ver-add-row__toggle">
@@ -629,6 +648,7 @@ function ProductionEntryModal({ order, onClose }) {
                   {fwVersions.map(v => (
                     <button key={v.tag} type="button"
                             className={`tagpicker__item ${form.fw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.fw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
+                            aria-pressed={form.fw_version === v.tag}
                             onClick={() => { update('fw_version', v.tag); setTouched(t => ({ ...t, fw_version: 1 })); }}>
                       <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
                     </button>
@@ -641,7 +661,7 @@ function ProductionEntryModal({ order, onClose }) {
                 {addingFwVer && (
                   <div className="ver-add-row">
                     <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
-                      placeholder="예: v1.8.0-core" value={newFwVerTag}
+                      aria-label="새 F/W 버전 태그" placeholder="예: v1.8.0-core" value={newFwVerTag}
                       onChange={e => setNewFwVerTag(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addVersionFW(); if (e.key === 'Escape') setAddingFwVer(false); }} autoFocus/>
                     <label className="ver-add-row__toggle">
@@ -656,21 +676,21 @@ function ProductionEntryModal({ order, onClose }) {
             </div>
           </section>
 
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <PWSectionHead icon="doc" title="기능검사 성적서"/>
+          <section aria-labelledby="pem-func-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead id="pem-func-title" icon="doc" title="기능검사 성적서"/>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-              background: funcAllDone ? 'var(--success-50)' : funcInspectionData ? 'var(--warning-50,#fffbeb)' : 'var(--surface)',
-              border: `1px solid ${funcAllDone ? 'var(--success)' : funcInspectionData ? 'var(--warning,#f59e0b)' : 'var(--border-1)'}`,
+              background: funcAllDone ? 'var(--success-50)' : funcInspectionData ? 'var(--warning-50)' : 'var(--surface)',
+              border: `1px solid ${funcAllDone ? 'var(--success)' : funcInspectionData ? 'var(--warning)' : 'var(--border-1)'}`,
               borderRadius: 'var(--r-md)',
             }}>
               <Icon name={funcAllDone ? 'check' : funcInspectionData ? 'clock' : 'doc'} size={16}
-                style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700,#b45309)' : 'var(--ink-4)', flexShrink: 0 }}/>
+                style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
               <div style={{ flex: 1 }}>
                 {funcAllDone
                   ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                   : funcInspectionData
-                    ? <span style={{ fontSize: 13.5, color: 'var(--warning-700,#b45309)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                    ? <span style={{ fontSize: 13.5, color: 'var(--warning-700)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                     : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>}
               </div>
               <button type="button" className={`btn btn--sm ${funcInspectionData ? 'btn--secondary' : 'btn--primary'}`} onClick={() => setOpenFuncInspect(true)}>
@@ -700,6 +720,81 @@ function ProductionEntryModal({ order, onClose }) {
           onClose={() => setOpenFuncInspect(false)}
         />
       )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   생산완료→생산착수 되돌리기 리뷰 모달 — 생산부서가 생산착수 단계에서
+   직전 입력한 생산 실적을 확인한 뒤 되돌릴 수 있도록 한다
+   ════════════════════════════════════════════════════════════ */
+function PWField({ k, v, mono }) {
+  return (
+    <div className="dgrid__cell">
+      <span className="dgrid__k">{k}</span>
+      <span className={`dgrid__v ${mono ? 'dgrid__v--mono' : ''}`}>{v || '—'}</span>
+    </div>
+  );
+}
+
+function ProductionRevertReviewModal({ order, onClose }) {
+  window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
+  const isPublic = (order.usage_type || '공용') === '공용';
+  const p = order.production || {};
+  const funcInspectionData = useMemoPW(
+    () => window.getFuncInspection?.(order.order_id) ?? null,
+    [order.order_id]
+  );
+  const funcAllDone = funcInspectionData != null &&
+    Object.keys(funcInspectionData.checks || {}).length > 0 &&
+    Object.values(funcInspectionData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+
+  const revert = () => {
+    window.actions.showConfirm(
+      `오더 #${order.order_id}을(를) 생산착수로 되돌릴까요?\n입력된 생산 실적(시리얼·검사 등)은 유지됩니다.`,
+      () => { window.actions.awaitToInProgress(order.order_id); onClose(); },
+      { confirmLabel: '되돌리기', danger: true }
+    );
+  };
+
+  return (
+    <div className="modal-backdrop" ref={dialogRef}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="prr-title" style={{ width: 560, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal__head">
+          <h2 id="prr-title" className="modal__title">생산완료 내역</h2>
+          <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'} · 생산착수 단계에서 입력한 내용입니다</p>
+        </div>
+        <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="dgrid">
+            <PWField k="생산일자" v={p.prod_date}/>
+            <PWField k="시리얼" v={p.serial_no} mono/>
+            {isPublic && <PWField k="검정일자" v={p.inspection_date}/>}
+            <PWField k="S/W 버전" v={p.sw_version} mono/>
+            <PWField k="F/W 버전" v={p.fw_version} mono/>
+          </div>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+            background: funcAllDone ? 'var(--success-50)' : funcInspectionData ? 'var(--warning-50)' : 'var(--surface-2)',
+            border: `1px solid ${funcAllDone ? 'var(--success)' : funcInspectionData ? 'var(--warning)' : 'var(--border-1)'}`,
+            borderRadius: 'var(--r-md)',
+          }}>
+            <Icon name={funcAllDone ? 'check' : funcInspectionData ? 'clock' : 'doc'} size={16}
+              style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
+            <div style={{ flex: 1, fontSize: 13.5 }}>
+              {funcAllDone
+                ? <span style={{ color: 'var(--success-700)', fontWeight: 600 }}>기능검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                : funcInspectionData
+                  ? <span style={{ color: 'var(--warning-700)', fontWeight: 600 }}>기능검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                  : <span style={{ color: 'var(--ink-4)' }}>기능 검사 성적서 미작성</span>}
+            </div>
+          </div>
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+          <button className="btn btn--danger" onClick={revert}><Icon name="refresh" size={13}/> 생산착수로 되돌리기</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -776,15 +871,15 @@ function SalesCompletionModal({ order, onClose }) {
   };
 
   return (
-    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" ref={dialogRef}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="scm-title" style={{ width: 680, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
-          <h2 id="scm-title" className="modal__title">오더 #{order.order_id} 생산완료 · 영업정보 입력</h2>
+          <h2 id="scm-title" className="modal__title">생산완료 · 영업정보 입력</h2>
           <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'}</p>
         </div>
         <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <PWSectionHead icon="building" title="발주처 정보"/>
+          <section aria-labelledby="scm-customer-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead id="scm-customer-title" icon="building" title="발주처 정보"/>
             <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
               <div className="field" style={{ gridColumn: '1 / -1' }}>
                 <div className="field__label"><label>발주처 <span className="field__req">*</span></label></div>
@@ -798,7 +893,7 @@ function SalesCompletionModal({ order, onClose }) {
                     error={showErr('customer_name')}
                     metaKey="last"/>
                   <button type="button" className="btn btn--secondary mgr-field__manage"
-                          onClick={() => setModal('add-customer')} title="신규 고객사 등록">
+                          onClick={() => setModal('add-customer')} title="신규 고객사 등록" aria-label="신규 고객사 등록">
                     <Icon name="plus" size={13}/>
                   </button>
                 </div>
@@ -820,7 +915,7 @@ function SalesCompletionModal({ order, onClose }) {
                           onClick={() => {
                             if (!form.customer_name) { window.actions.flashToast('발주처를 먼저 선택해 주세요', 'error'); return; }
                             setModal('mgr');
-                          }} title="담당자 관리">
+                          }} title="담당자 관리" aria-label="담당자 관리">
                     <Icon name="user" size={13}/>
                   </button>
                 </div>
@@ -842,8 +937,8 @@ function SalesCompletionModal({ order, onClose }) {
             </div>
           </section>
 
-          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-            <PWSectionHead icon="truck" title="납품 정보"/>
+          <section aria-labelledby="scm-delivery-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead id="scm-delivery-title" icon="truck" title="납품 정보"/>
             <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
               <div className="field">
                 <label className="field__label" htmlFor="scm-cable">케이블 길이(m) <span className="field__req">*</span></label>
@@ -876,7 +971,7 @@ function SalesCompletionModal({ order, onClose }) {
                 <label className="field__label" htmlFor="scm-address">납품장소 (설치주소) <span className="field__req">*</span></label>
                 <AddressField id="scm-address" value={form.install_address}
                   onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
-                <input className="input" style={{ marginTop: 6 }} placeholder="상세주소 (동·호수, 층수 등)"
+                <input className="input" style={{ marginTop: 6 }} aria-label="상세주소" placeholder="상세주소 (동·호수, 층수 등)"
                   value={form.install_address_detail} onChange={(e) => update('install_address_detail', e.target.value)}/>
                 {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.install_address}</div>}
               </div>
@@ -884,8 +979,8 @@ function SalesCompletionModal({ order, onClose }) {
           </section>
 
           {isPublic && (
-            <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
-              <PWSectionHead icon="wifi" title="통신 정보"
+            <section aria-labelledby="scm-comm-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <PWSectionHead id="scm-comm-title" icon="wifi" title="통신 정보"
                 extra={<span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500 }}>(공용 전용)</span>}/>
               <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 <div className="field">

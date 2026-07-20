@@ -113,7 +113,7 @@ npm test
 | `tb_users` | 사용자 계정 (role: admin/sales/production/quality) |
 | `tb_sales_order` | 발주(오더) 정보 — 모델·용도·수량·상태, 발주처는 생산완료 단계에서 입력 |
 | `tb_usagetype_public` | 공용 충전기 전용 필드 (충전소ID·충전기ID·라우터번호·USIM번호), `tb_sales_order`와 1:1 |
-| `tb_production_info` | 생산 정보 (생산일자·로트·시리얼·검정일자·SW/FW버전) |
+| `tb_production_info` | 생산 정보 (생산일자·시리얼·검정일자·SW/FW버전) |
 | `tb_customer_manager` | 고객사별 담당자 목록 |
 | `tb_order_history` | 오더 상태·필드 변경 이력 |
 | `tb_chargepoint_infor` | 충전기 설치 정보 (시리얼·모델명·설치주소) — A/S 접수 시 조회 |

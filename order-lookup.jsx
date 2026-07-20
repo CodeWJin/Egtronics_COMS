@@ -709,7 +709,6 @@ function OrderDrawer({ order, onClose }) {
               <div className="dgrid">
                 <Field k="생산일자" v={p.prod_date}/>
                 <Field k="검정일자" v={p.inspection_date}/>
-                <Field k="로트번호" v={p.lot_no} mono/>
                 <Field k="시리얼" v={p.serial_no} mono/>
                 <Field k="S/W 버전" v={p.sw_version} mono/>
                 <Field k="F/W 버전" v={p.fw_version} mono/>

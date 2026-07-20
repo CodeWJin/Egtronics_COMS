@@ -259,7 +259,7 @@ The palette is almost entirely neutral; color is spent on exactly two things —
 ## 3. Typography
 
 **Body Font:** Pretendard Variable (with `system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif` fallback)
-**Mono Font:** JetBrains Mono (with `Cascadia Code, Consolas, ui-monospace` fallback) — serials, lot numbers, AS ticket IDs
+**Mono Font:** JetBrains Mono (with `Cascadia Code, Consolas, ui-monospace` fallback) — serials numbers, AS ticket IDs
 
 **Character:** One variable sans family carries the entire interface at weight 400/500/600 — no display face, no serif contrast pairing. Negative letter-spacing (`-0.12px` to `-0.5px`) at every size above 12px keeps the Korean/Latin mixed strings (model codes, serial numbers) from feeling loose.
 
@@ -271,12 +271,12 @@ The palette is almost entirely neutral; color is spent on exactly two things —
 - **Label** (`{typography.label}` — 600, 14px, 1.3, -0.224px): Field labels, button text, card subtitles.
 - **Caption** (`{typography.caption}` — 500, 12px, 1.3, -0.12px): Table headers, badges, metadata, timestamps — the densest text in the system.
 - **Caption Large** (`{typography.caption-lg}` — 500, 13px, 1.3, -0.12px): One step up from Caption for secondary table cells and card metadata that need slightly more presence than the 12px floor (e.g. `.cell-mono`, `.as-card__no`, kanban card IDs) without escalating to Label's 14px/600 weight.
-- **Mono** (`{typography.mono}` — 400, 12px monospace): Serial numbers, lot codes, AS ticket numbers (`AS-250101-0001`), order IDs — anywhere a value must be copy-pasted or scanned character-by-character.
+- **Mono** (`{typography.mono}` — 400, 12px monospace): Serial numbers, AS ticket numbers (`AS-250101-0001`), order IDs — anywhere a value must be copy-pasted or scanned character-by-character.
 - **Nav Readout** (`{typography.nav-readout}` — 500, 10–10.5px monospace, tabular-nums): The top nav's own micro-scale, one step below Mono — tab item counts and the version tag. Extends the Mono-For-Machine-Values Rule to the nav: a tab's count is a live measurement (how many orders are queued), not prose.
 
 ### Named Rules
 **The Reading-Pace Rule.** Body copy runs at 17px, not 16px, everywhere a user reads rather than scans — the same deliberate 1px-over-convention choice Apple made, applied here to reduce misreads of Korean customer/model names during fast tablet input.
-**The Mono-For-Machine-Values Rule.** Any value a human didn't compose in prose — serial numbers, lot codes, ticket IDs — renders in `{typography.mono}`, never body font. It signals "this is exact, copy it precisely."
+**The Mono-For-Machine-Values Rule.** Any value a human didn't compose in prose — serial numbers, ticket IDs — renders in `{typography.mono}`, never body font. It signals "this is exact, copy it precisely."
 
 ## 4. Elevation
 
@@ -324,7 +324,7 @@ The system is **flat by default with hairline borders**, not shadow-driven. Rest
 A deliberately atmospheric split panel — the one screen in the app allowed a dark, textured surface. Left panel: `{colors.login-void}` (#07111f) with a faint 38px blueprint grid pattern, white brand mark, feature bullets in low-opacity white, a subtle blue watermark icon. Right panel: plain white form on `{component.input}` shells, full-pill submit button. Collapses to a stacked single column (dark header strip + form below) under 768px.
 
 ### Inspection Report Document (signature component)
-The printable 성적서 (`{component.report}`) is the one place the flat workbench allows a document metaphor: a 720px white sheet, 22px-radius, the system's deepest shadow (`0 24px 64px rgba(0,0,0,0.16)`), with a double-ruled `{colors.ink-1}` header rule instead of a hairline. Pass marks render as a pill-outlined `{colors.success-deep}` badge (`.report__pass`), never a bare checkmark. A rotated circular `{colors.danger}` stamp (`.report__stamp`, -9° tilt, 82% opacity) marks the document as an official inspection artifact — the one decorative flourish permitted in the entire system, and it's load-bearing (denotes formal sign-off), not ornamental. Serial numbers and lot codes inside the table render in `{typography.mono}`. On `@media print`, all chrome (`.report__bar`) is hidden and only the document prints full-bleed.
+The printable 성적서 (`{component.report}`) is the one place the flat workbench allows a document metaphor: a 720px white sheet, 22px-radius, the system's deepest shadow (`0 24px 64px rgba(0,0,0,0.16)`), with a double-ruled `{colors.ink-1}` header rule instead of a hairline. Pass marks render as a pill-outlined `{colors.success-deep}` badge (`.report__pass`), never a bare checkmark. A rotated circular `{colors.danger}` stamp (`.report__stamp`, -9° tilt, 82% opacity) marks the document as an official inspection artifact — the one decorative flourish permitted in the entire system, and it's load-bearing (denotes formal sign-off), not ornamental. Serial numbers inside the table render in `{typography.mono}`. On `@media print`, all chrome (`.report__bar`) is hidden and only the document prints full-bleed.
 
 ## 6. Do's and Don'ts
 
@@ -334,7 +334,7 @@ The printable 성적서 (`{component.report}`) is the one place the flat workben
 - **Do** keep resting surfaces flat with a 1px hairline border; reserve shadow for drawers, modals, dropdowns, and toasts only.
 - **Do** run body copy at 17px/1.47/-0.374px — the deliberate "reading pace" pixel over the 16px SaaS default.
 - **Do** honor 44×44px minimum touch targets on any `pointer: coarse` device, and provide a `prefers-reduced-motion: reduce` fallback for every animation — both are already wired at the CSS layer; extend the pattern, don't bypass it.
-- **Do** render machine values (serial numbers, lot codes, AS ticket IDs) in `{typography.mono}`, never body font.
+- **Do** render machine values (serial numbers, AS ticket IDs) in `{typography.mono}`, never body font.
 
 ### Don't:
 - **Don't** introduce a second accent color — Action Blue is the only "this is interactive" signal in the system.

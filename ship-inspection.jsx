@@ -636,10 +636,6 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
                   <span className="dgrid__v dgrid__v--mono">{p.serial_no}</span>
                 </div>
                 <div className="dgrid__cell">
-                  <span className="dgrid__k">로트번호</span>
-                  <span className="dgrid__v dgrid__v--mono">{p.lot_no}</span>
-                </div>
-                <div className="dgrid__cell">
                   <span className="dgrid__k">S/W 버전</span>
                   <span className="dgrid__v dgrid__v--mono">{p.sw_version || '—'}</span>
                 </div>
@@ -787,9 +783,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                 </tr>
                 <tr>
                   <th>시리얼 번호</th>
-                  <td className="report__mono">{p.serial_no}</td>
-                  <th>로트 번호</th>
-                  <td className="report__mono">{p.lot_no}</td>
+                  <td className="report__mono" colSpan={3}>{p.serial_no}</td>
                 </tr>
                 <tr>
                   <th>생산일자</th>
@@ -955,9 +949,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                 {p && (
                   <tr>
                     <th>시리얼 번호</th>
-                    <td className="report__mono">{p.serial_no}</td>
-                    <th>로트 번호</th>
-                    <td className="report__mono">{p.lot_no}</td>
+                    <td className="report__mono" colSpan={3}>{p.serial_no}</td>
                   </tr>
                 )}
                 <tr>
@@ -1161,9 +1153,7 @@ function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
                   <>
                     <tr>
                       <th>시리얼 번호</th>
-                      <td className="report__mono">{p.serial_no}</td>
-                      <th>로트 번호</th>
-                      <td className="report__mono">{p.lot_no}</td>
+                      <td className="report__mono" colSpan={3}>{p.serial_no}</td>
                     </tr>
                     <tr>
                       <th>S/W 버전</th>

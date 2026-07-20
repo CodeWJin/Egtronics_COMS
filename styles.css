@@ -501,6 +501,8 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 6px;
 }
+/* 의도적으로 액션 블루가 아닌 ink-1(무채색) 사용 — 버전 선택은 필터/상태 칩과 달리
+   "클릭 가능"이 아닌 "이미 정해진 값"을 나타내므로 액션 블루와 시각적으로 구분한다 */
 .tagpicker__item--active {
   background: var(--ink-1);
   color: white;
@@ -518,6 +520,12 @@ input, select, textarea { font-family: inherit; }
   font-family: var(--font);
 }
 .tagpicker__item--add:hover { background: var(--primary-50, #eff6ff); }
+/* 추가 폼이 열려 active까지 겹치면 검정 배경에 파란 글자로 대비가 깨짐 — 다른 active 태그와 동일하게 흰 글자로 통일 */
+.tagpicker__item--add.tagpicker__item--active {
+  color: var(--ink-inv, #fff);
+  border-style: solid;
+  border-color: var(--ink-1);
+}
 .ver-add-row {
   display: flex;
   align-items: center;
@@ -2628,7 +2636,11 @@ input, select, textarea { font-family: inherit; }
   .btn--tag         { min-height: 44px; }
   .btn--icon        { min-height: 44px; width: 44px; }
   .chip             { min-height: 44px; padding: 10px 16px; }
+  .tagpicker__item  { min-height: 44px; }
   .topnav__tab      { min-height: 44px; }
+  .input-group__btn { min-height: 44px; }
+  .tap-checkbox     { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+  .tap-link         { display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; }
   /* 레이블 숨김 상태(600px)에서는 정사각형 터치 영역 */
   .toolbar__view__btn { min-height: 44px; padding: 0 14px; }
   @media (max-width: 600px) {

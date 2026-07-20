@@ -124,7 +124,7 @@ const { useState: useStateAREC, useEffect: useEffectAREC, useMemo: useMemoAREC }
 | `tb_users` | 사용자 계정 (role 허용값: `admin`, `sales`, `production`, `quality`) |
 | `tb_sales_order` | 영업 오더 (`cable_length`: smallint) |
 | `tb_usagetype_public` | 공용 충전기 전용 필드 (`station_id`, `charger_no`, `router_no`, `usim_no`) — `tb_sales_order`와 `order_id`로 1:1 연결 |
-| `tb_production_info` | 생산 정보 (`prod_date`, `lot_no`, `serial_no`, `inspection_date`, `sw_version`, `fw_version`) |
+| `tb_production_info` | 생산 정보 (`prod_date`, `serial_no`, `inspection_date`, `sw_version`, `fw_version`) |
 | `tb_customer_manager` | 고객사 담당자 |
 | `tb_order_history` | 오더 변경 이력 |
 | `tb_as_reception` | AS 접수 |

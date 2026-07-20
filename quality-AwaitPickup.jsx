@@ -138,7 +138,7 @@ function ProductionCompleteScreen() {
       if (filterUsage !== 'all' && (o.usage_type || '공용') !== filterUsage) return false;
       if (search) {
         const q = search.toLowerCase();
-        const hay = [o.customer_name, o.model_name, o.station_id, o.production.serial_no, o.production.lot_no, o.production.doc_no, String(o.order_id)].join(' ').toLowerCase();
+        const hay = [o.customer_name, o.model_name, o.station_id, o.production.serial_no, o.production.doc_no, String(o.order_id)].join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -182,10 +182,10 @@ function ProductionCompleteScreen() {
     : 0;
 
   const exportCSV = () => {
-    const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '로트', '시리얼', '검정일자', 'S/W버전', 'F/W버전', '케이블', '납품일자'];
+    const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '시리얼', '검정일자', 'S/W버전', 'F/W버전', '케이블', '납품일자'];
     const rows = [header, ...filtered.map(o => ([
       o.order_id, o.customer_name, o.model_name, o.station_id,
-      o.production.prod_date, o.production.lot_no, o.production.serial_no,
+      o.production.prod_date, o.production.serial_no,
       o.production.inspection_date, o.production.sw_version, o.production.fw_version,
       o.cable_length, o.delivery_date,
     ]))];
@@ -246,8 +246,8 @@ function ProductionCompleteScreen() {
       <div className="toolbar">
         <div className="toolbar__search">
           <span className="toolbar__search__icon"><Icon name="search" size={14}/></span>
-          <input className="input" aria-label="고객사, 시리얼, 로트 검색"
-                 placeholder="고객사 · 시리얼 · 로트 검색"
+          <input className="input" aria-label="고객사, 시리얼 검색"
+                 placeholder="고객사 · 시리얼 검색"
                  value={search} onChange={(e) => setSearch(e.target.value)}/>
         </div>
         <select className="select" aria-label="모델 필터" style={{ width: 160 }}
@@ -307,7 +307,7 @@ function ProductionCompleteScreen() {
                     style={{ width: 17, height: 17, accentColor: 'var(--primary)' }}/>
                 </th>
                 <th scope="col">고객사 / 모델</th>
-                <th scope="col">시리얼 / 로트</th>
+                <th scope="col">시리얼</th>
                 <th scope="col" className="qap-table__col--proddate">생산일</th>
                 <th scope="col">기능검사성적서</th>
                 <th scope="col">출하 전 검사</th>
@@ -343,7 +343,6 @@ function ProductionCompleteScreen() {
                     </td>
                     <td>
                       <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 12.5 }}>{o.production.serial_no}</div>
-                      <div className="cell-mono" style={{ color: 'var(--ink-4)' }}>{o.production.lot_no}</div>
                     </td>
                     <td className="qap-table__col--proddate" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
                     <td>
