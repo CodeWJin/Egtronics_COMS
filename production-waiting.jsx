@@ -782,129 +782,143 @@ function SalesCompletionModal({ order, onClose }) {
           <h2 id="scm-title" className="modal__title">오더 #{order.order_id} 생산완료 · 영업정보 입력</h2>
           <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'}</p>
         </div>
-        <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-            <div className="field">
-              <label className="field__label" htmlFor="scm-cable">케이블 길이(m) <span className="field__req">*</span></label>
-              <input id="scm-cable" className={`input ${showErr('cable_length') ? 'input--error' : ''}`}
-                     list="scm-cable-options" inputMode="numeric"
-                     value={form.cable_length}
-                     onChange={(e) => update('cable_length', e.target.value.replace(/[^\d.]/g, ''))}/>
-              <datalist id="scm-cable-options">
-                {CABLE_LENGTH_OPTIONS.map(v => <option key={v} value={v}/>)}
-              </datalist>
-              {showErr('cable_length') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.cable_length}</div>}
-            </div>
-
-            <div className="field">
-              <label className="field__label" htmlFor="scm-delivery">납품일자 <span className="field__req">*</span></label>
-              <input id="scm-delivery" type="date" className={`input ${showErr('delivery_date') ? 'input--error' : ''}`}
-                     value={form.delivery_date} onChange={(e) => update('delivery_date', e.target.value)}/>
-              {showErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.delivery_date}</div>}
-            </div>
-
-            <div className="field">
-              <div className="field__label"><label>발주처 <span className="field__req">*</span></label></div>
-              <div className="mgr-field">
-                <ComboField
-                  value={form.customer_name}
-                  onChange={(v) => { update('customer_name', v); update('customer_manager', ''); refreshManagers(v); }}
-                  options={masterCustomers}
-                  placeholder="고객사명 입력 또는 선택"
-                  ariaLabel="발주처"
-                  error={showErr('customer_name')}
-                  metaKey="last"/>
-                <button type="button" className="btn btn--secondary mgr-field__manage"
-                        onClick={() => setModal('add-customer')} title="신규 고객사 등록">
-                  <Icon name="plus" size={13}/>
-                </button>
+        <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead icon="building" title="발주처 정보"/>
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <div className="field__label"><label>발주처 <span className="field__req">*</span></label></div>
+                <div className="mgr-field">
+                  <ComboField
+                    value={form.customer_name}
+                    onChange={(v) => { update('customer_name', v); update('customer_manager', ''); refreshManagers(v); }}
+                    options={masterCustomers}
+                    placeholder="고객사명 입력 또는 선택"
+                    ariaLabel="발주처"
+                    error={showErr('customer_name')}
+                    metaKey="last"/>
+                  <button type="button" className="btn btn--secondary mgr-field__manage"
+                          onClick={() => setModal('add-customer')} title="신규 고객사 등록">
+                    <Icon name="plus" size={13}/>
+                  </button>
+                </div>
+                {showErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.customer_name}</div>}
               </div>
-              {showErr('customer_name') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.customer_name}</div>}
-            </div>
 
-            <div className="field">
-              <div className="field__label"><label>발주처 담당자 <span className="field__req">*</span></label></div>
-              <div className="mgr-field">
-                <ComboField
-                  value={form.customer_manager}
-                  onChange={(v) => update('customer_manager', v)}
-                  options={managers}
-                  placeholder={form.customer_name ? '담당자 선택 또는 입력' : '발주처를 먼저 선택하세요'}
-                  ariaLabel="발주처 담당자"
-                  error={showErr('customer_manager')}
-                  displayKey="display"/>
-                <button type="button" className="btn btn--secondary mgr-field__manage"
-                        onClick={() => {
-                          if (!form.customer_name) { window.actions.flashToast('발주처를 먼저 선택해 주세요', 'error'); return; }
-                          setModal('mgr');
-                        }} title="담당자 관리">
-                  <Icon name="user" size={13}/>
-                </button>
-              </div>
-              {showErr('customer_manager') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.customer_manager}</div>}
-            </div>
-
-            <div className="field">
-              <label className="field__label" htmlFor="scm-mgr-phone">발주처 담당자 전화번호 <span className="field__req">*</span></label>
-              <input id="scm-mgr-phone" type="tel" className={`input ${showErr('field_manager_phone') ? 'input--error' : ''}`}
-                     style={{ fontFamily: 'var(--font-mono)' }} placeholder="010-0000-0000" autoComplete="tel"
-                     value={form.field_manager_phone}
-                     onChange={(e) => {
-                       const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
-                       const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
-                       update('field_manager_phone', fmt);
-                     }}/>
-              {showErr('field_manager_phone') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.field_manager_phone}</div>}
-            </div>
-
-            {isPublic && (
               <div className="field">
-                <label className="field__label" htmlFor="scm-cpo">CPO 운영사</label>
-                <BulkInlineCombo value={form.cpo_name} onChange={(v) => update('cpo_name', v)}
-                  options={masterCpos.map(c => c.name)} placeholder="CPO 운영사"/>
+                <div className="field__label"><label>발주처 담당자 <span className="field__req">*</span></label></div>
+                <div className="mgr-field">
+                  <ComboField
+                    value={form.customer_manager}
+                    onChange={(v) => update('customer_manager', v)}
+                    options={managers}
+                    placeholder={form.customer_name ? '담당자 선택 또는 입력' : '발주처를 먼저 선택하세요'}
+                    ariaLabel="발주처 담당자"
+                    error={showErr('customer_manager')}
+                    displayKey="display"/>
+                  <button type="button" className="btn btn--secondary mgr-field__manage"
+                          onClick={() => {
+                            if (!form.customer_name) { window.actions.flashToast('발주처를 먼저 선택해 주세요', 'error'); return; }
+                            setModal('mgr');
+                          }} title="담당자 관리">
+                    <Icon name="user" size={13}/>
+                  </button>
+                </div>
+                {showErr('customer_manager') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.customer_manager}</div>}
               </div>
-            )}
 
-            <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <label className="field__label" htmlFor="scm-address">납품장소 (설치주소) <span className="field__req">*</span></label>
-              <AddressField id="scm-address" value={form.install_address}
-                onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
-              <input className="input" style={{ marginTop: 6 }} placeholder="상세주소 (동·호수, 층수 등)"
-                value={form.install_address_detail} onChange={(e) => update('install_address_detail', e.target.value)}/>
-              {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.install_address}</div>}
+              <div className="field">
+                <label className="field__label" htmlFor="scm-mgr-phone">발주처 담당자 전화번호 <span className="field__req">*</span></label>
+                <input id="scm-mgr-phone" type="tel" className={`input ${showErr('field_manager_phone') ? 'input--error' : ''}`}
+                       style={{ fontFamily: 'var(--font-mono)' }} placeholder="010-0000-0000" autoComplete="tel"
+                       value={form.field_manager_phone}
+                       onChange={(e) => {
+                         const d = String(e.target.value).replace(/\D/g, '').slice(0, 11);
+                         const fmt = d.length < 4 ? d : d.length < 8 ? d.slice(0,3)+'-'+d.slice(3) : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+                         update('field_manager_phone', fmt);
+                       }}/>
+                {showErr('field_manager_phone') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.field_manager_phone}</div>}
+              </div>
             </div>
+          </section>
 
-            {isPublic && (<>
+          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead icon="truck" title="납품 정보"/>
+            <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
               <div className="field">
-                <label className="field__label" htmlFor="scm-station">충전소 ID <span className="field__req">*</span></label>
-                <input id="scm-station" className={`input ${showErr('station_id') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)' }} placeholder="예: CT3006"
-                       value={form.station_id} onChange={(e) => update('station_id', e.target.value)}/>
-                {showErr('station_id') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.station_id}</div>}
+                <label className="field__label" htmlFor="scm-cable">케이블 길이(m) <span className="field__req">*</span></label>
+                <input id="scm-cable" className={`input ${showErr('cable_length') ? 'input--error' : ''}`}
+                       list="scm-cable-options" inputMode="numeric"
+                       value={form.cable_length}
+                       onChange={(e) => update('cable_length', e.target.value.replace(/[^\d.]/g, ''))}/>
+                <datalist id="scm-cable-options">
+                  {CABLE_LENGTH_OPTIONS.map(v => <option key={v} value={v}/>)}
+                </datalist>
+                {showErr('cable_length') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.cable_length}</div>}
               </div>
+
               <div className="field">
-                <label className="field__label" htmlFor="scm-charger">충전기 ID <span className="field__req">*</span></label>
-                <input id="scm-charger" className={`input ${showErr('charger_no') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)' }} placeholder="예: 01"
-                       value={form.charger_no} onChange={(e) => update('charger_no', e.target.value)}/>
-                {showErr('charger_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.charger_no}</div>}
+                <label className="field__label" htmlFor="scm-delivery">납품일자 <span className="field__req">*</span></label>
+                <input id="scm-delivery" type="date" className={`input ${showErr('delivery_date') ? 'input--error' : ''}`}
+                       value={form.delivery_date} onChange={(e) => update('delivery_date', e.target.value)}/>
+                {showErr('delivery_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.delivery_date}</div>}
               </div>
-              <div className="field">
-                <label className="field__label" htmlFor="scm-router">라우터 번호 <span className="field__req">*</span></label>
-                <input id="scm-router" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)' }} placeholder="RTR-2024-00001"
-                       value={form.router_no} onChange={(e) => update('router_no', e.target.value)}/>
-                {showErr('router_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.router_no}</div>}
+
+              {isPublic && (
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <label className="field__label" htmlFor="scm-cpo">CPO 운영사</label>
+                  <BulkInlineCombo value={form.cpo_name} onChange={(v) => update('cpo_name', v)}
+                    options={masterCpos.map(c => c.name)} placeholder="CPO 운영사"/>
+                </div>
+              )}
+
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label className="field__label" htmlFor="scm-address">납품장소 (설치주소) <span className="field__req">*</span></label>
+                <AddressField id="scm-address" value={form.install_address}
+                  onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
+                <input className="input" style={{ marginTop: 6 }} placeholder="상세주소 (동·호수, 층수 등)"
+                  value={form.install_address_detail} onChange={(e) => update('install_address_detail', e.target.value)}/>
+                {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.install_address}</div>}
               </div>
-              <div className="field">
-                <label className="field__label" htmlFor="scm-usim">USIM 번호 <span className="field__req">*</span></label>
-                <input id="scm-usim" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)' }} placeholder="ICCID 19~20자리" maxLength={20} inputMode="numeric"
-                       value={form.usim_no} onChange={(e) => update('usim_no', e.target.value.replace(/\D/g, ''))}/>
-                {showErr('usim_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.usim_no}</div>}
+            </div>
+          </section>
+
+          {isPublic && (
+            <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+              <PWSectionHead icon="wifi" title="통신 정보"
+                extra={<span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500 }}>(공용 전용)</span>}/>
+              <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                <div className="field">
+                  <label className="field__label" htmlFor="scm-station">충전소 ID <span className="field__req">*</span></label>
+                  <input id="scm-station" className={`input ${showErr('station_id') ? 'input--error' : ''}`}
+                         style={{ fontFamily: 'var(--font-mono)' }} placeholder="예: CT3006"
+                         value={form.station_id} onChange={(e) => update('station_id', e.target.value)}/>
+                  {showErr('station_id') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.station_id}</div>}
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="scm-charger">충전기 ID <span className="field__req">*</span></label>
+                  <input id="scm-charger" className={`input ${showErr('charger_no') ? 'input--error' : ''}`}
+                         style={{ fontFamily: 'var(--font-mono)' }} placeholder="예: 01"
+                         value={form.charger_no} onChange={(e) => update('charger_no', e.target.value)}/>
+                  {showErr('charger_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.charger_no}</div>}
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="scm-router">라우터 번호 <span className="field__req">*</span></label>
+                  <input id="scm-router" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
+                         style={{ fontFamily: 'var(--font-mono)' }} placeholder="RTR-2024-00001"
+                         value={form.router_no} onChange={(e) => update('router_no', e.target.value)}/>
+                  {showErr('router_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.router_no}</div>}
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="scm-usim">USIM 번호 <span className="field__req">*</span></label>
+                  <input id="scm-usim" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
+                         style={{ fontFamily: 'var(--font-mono)' }} placeholder="ICCID 19~20자리" maxLength={20} inputMode="numeric"
+                         value={form.usim_no} onChange={(e) => update('usim_no', e.target.value.replace(/\D/g, ''))}/>
+                  {showErr('usim_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.usim_no}</div>}
+                </div>
               </div>
-            </>)}
-          </div>
+            </section>
+          )}
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
