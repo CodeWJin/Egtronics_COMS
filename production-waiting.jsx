@@ -36,6 +36,43 @@ const KANBAN_COLS = [
   { id: 'ready',    title: '출하대기', dot: 'var(--success)', filter: (o) => o.status === 'AWAIT_PICKUP' && window.isSalesInfoComplete(o) },
 ];
 
+// 칸반 카드 진행율 — 생산착수(progress)/생산완료(done) 컬럼에서만 값을 반환한다.
+// 분모 필드 목록은 ProductionEntryModal·SalesCompletionModal의 errors 객체와 동일하게 유지할 것.
+function stageProgress(order) {
+  const isPublic = (order.usage_type || '공용') === '공용';
+
+  if (order.status === 'IN_PROGRESS') {
+    const p = order.production || {};
+    const funcData = window.getFuncInspection?.(order.order_id) ?? null;
+    const funcDone = funcData != null && Object.keys(funcData.checks || {}).length > 0 &&
+      Object.values(funcData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+    const items = [
+      !!p.prod_date, !!p.serial_no, !!p.sw_version, !!p.fw_version,
+      ...(isPublic ? [!!p.inspection_date] : []),
+      funcDone,
+    ];
+    return { done: items.filter(Boolean).length, total: items.length };
+  }
+
+  if (order.status === 'AWAIT_PICKUP' && !window.isSalesInfoComplete(order)) {
+    const items = [
+      order.cable_length, order.customer_name, order.customer_manager,
+      order.field_manager_phone, order.install_address, order.delivery_date,
+      ...(isPublic ? [order.station_id, order.charger_no, order.router_no, order.usim_no] : []),
+    ];
+    return { done: items.filter(Boolean).length, total: items.length };
+  }
+
+  return null;
+}
+
+function progressColor(prog) {
+  const ratio = prog.done / prog.total;
+  if (ratio >= 0.8) return 'var(--success)';
+  if (ratio >= 0.4) return 'var(--primary)';
+  return 'var(--warning, #f59e0b)';
+}
+
 function ProductionWaitingScreen() {
   const s = window.useStore();
   const [search, setSearch] = useStatePW('');
@@ -300,6 +337,8 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
             )}
             {items.map((o, idx) => {
               const d = deliveryHint(o.delivery_date);
+              const prog = stageProgress(o);
+              const serial = o.production?.serial_no;
               const checked = selectable && col.id === 'request' && !!selectedIds?.has(o.order_id);
               const selDisabled = col.id === 'request' && selectable && !checked && canSelect && !canSelect(o);
               return (
@@ -325,6 +364,7 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
                     </div>
                   </div>
                   <div className="kanban__card__title">{o.model_name}</div>
+                  {serial && <div className="kanban__card__serial">{serial}</div>}
                   <div className="kanban__card__sub">{o.customer_name || (o.requested_by ? `요청자: ${o.requested_by}` : '발주정보 미입력')}</div>
                   <div className="kanban__card__meta">
                     <span className="badge badge--neutral" style={{ fontSize: 10.5 }}>{o.usage_type || '공용'}</span>
@@ -332,6 +372,14 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
                       <span className="dday-badge" style={{ '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
                     )}
                   </div>
+                  {prog && (
+                    <div className="kanban__card__progress">
+                      <div className="kanban__card__progress-track">
+                        <div className="kanban__card__progress-fill" style={{ width: `${(prog.done / prog.total) * 100}%`, background: progressColor(prog) }}/>
+                      </div>
+                      <span className="kanban__card__progress-text">{prog.done}/{prog.total}</span>
+                    </div>
+                  )}
                 </div>
               );
             })}
