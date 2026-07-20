@@ -392,6 +392,18 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
   );
 }
 
+function PWSectionHead({ icon, title, extra }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, background: 'var(--surface)', borderRadius: 'var(--r-sm)', flexShrink: 0 }}>
+        <Icon name={icon} size={16} style={{ color: 'var(--primary-600)' }}/>
+      </div>
+      <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>{title}</span>
+      {extra}
+    </div>
+  );
+}
+
 /* ════════════════════════════════════════════════════════════
    생산착수 모달 — 생산일자·시리얼·검정일자·SW/FW버전·기능검사 성적서
    (기존 production-mapping.jsx의 MappingForm을 모달로 이식)
@@ -527,137 +539,145 @@ function ProductionEntryModal({ order, onClose }) {
           </h2>
           <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'}</p>
         </div>
-        <div className="modal__body" style={{ overflow: 'auto', flex: 1 }}>
-          <div className="form-grid form-grid--3">
-            <div className="field">
-              <label className="field__label" htmlFor="pem-prod-date"><Icon name="calendar" size={11}/>생산일자 <span className="field__req">*</span></label>
-              <input id="pem-prod-date" type="date"
-                     className={`input ${showErr('prod_date') ? 'input--error' : ''}`}
-                     value={form.prod_date}
-                     onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); }}/>
-              {showErr('prod_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.prod_date}</div>}
-            </div>
-
-            <div className="field">
-              <label className="field__label" htmlFor="pem-serial-no">
-                <Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span>
-                <window.HelpDot text="생산착수 시 자동 채번됩니다. 필요 시 직접 수정 후 중복 확인하세요."/>
-              </label>
-              <div className="input-group">
-                <input id="pem-serial-no"
-                       className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
-                       style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
-                       value={form.serial_no}
-                       onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
-                <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no}>중복 확인</button>
-              </div>
-              <div className="field__hint" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                {dupState === 'ok' && <span style={{ color: 'var(--success-700)' }}><Icon name="check" size={11}/> 사용 가능</span>}
-                {dupState === 'dup' && <span style={{ color: 'var(--danger-700)' }}><Icon name="alert" size={11}/> 중복 — 다른 번호 필요</span>}
-                <button type="button" onClick={useSuggestion}
-                        style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 500, textDecoration: 'underline' }}>
-                  재생성: {suggestSerial}
-                </button>
-              </div>
-              {showErr('serial_no') && dupState !== 'dup' && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
-            </div>
-
-            {isPublic && (
+        <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead icon="calendar" title="기본 정보"/>
+            <div className="form-grid form-grid--3">
               <div className="field">
-                <label className="field__label" htmlFor="pem-inspection-date"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
-                <input id="pem-inspection-date" type="date"
-                       className={`input ${showErr('inspection_date') ? 'input--error' : ''}`}
-                       value={form.inspection_date}
-                       onChange={(e) => { update('inspection_date', e.target.value); setTouched(t => ({ ...t, inspection_date: 1 })); }}/>
-                {showErr('inspection_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
+                <label className="field__label" htmlFor="pem-prod-date"><Icon name="calendar" size={11}/>생산일자 <span className="field__req">*</span></label>
+                <input id="pem-prod-date" type="date"
+                       className={`input ${showErr('prod_date') ? 'input--error' : ''}`}
+                       value={form.prod_date}
+                       onChange={(e) => { update('prod_date', e.target.value); setTouched(t => ({ ...t, prod_date: 1 })); }}/>
+                {showErr('prod_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.prod_date}</div>}
               </div>
-            )}
 
-            <div className="field col-span-2">
-              <div className="field__label" id="pem-sw-label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
-              <div className="tagpicker" role="group" aria-labelledby="pem-sw-label">
-                {swVersions.map(v => (
-                  <button key={v.tag} type="button"
-                          className={`tagpicker__item ${form.sw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.sw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
-                          onClick={() => { update('sw_version', v.tag); setTouched(t => ({ ...t, sw_version: 1 })); }}>
-                    <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+              <div className="field">
+                <label className="field__label" htmlFor="pem-serial-no">
+                  <Icon name="cpu" size={11}/>시리얼 <span className="field__req">*</span>
+                  <window.HelpDot text="생산착수 시 자동 채번됩니다. 필요 시 직접 수정 후 중복 확인하세요."/>
+                </label>
+                <div className="input-group">
+                  <input id="pem-serial-no"
+                         className={`input ${showErr('serial_no') ? 'input--error' : ''}`}
+                         style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
+                         value={form.serial_no}
+                         onChange={(e) => { update('serial_no', e.target.value.toUpperCase()); setTouched(t => ({ ...t, serial_no: 1 })); setDupState(null); }}/>
+                  <button type="button" className="input-group__btn" onClick={checkDup} disabled={!form.serial_no}>중복 확인</button>
+                </div>
+                <div className="field__hint" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  {dupState === 'ok' && <span style={{ color: 'var(--success-700)' }}><Icon name="check" size={11}/> 사용 가능</span>}
+                  {dupState === 'dup' && <span style={{ color: 'var(--danger-700)' }}><Icon name="alert" size={11}/> 중복 — 다른 번호 필요</span>}
+                  <button type="button" onClick={useSuggestion}
+                          style={{ background: 'transparent', border: 0, color: 'var(--primary-600)', cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 500, textDecoration: 'underline' }}>
+                    재생성: {suggestSerial}
                   </button>
-                ))}
-                <button type="button" className={`tagpicker__item tagpicker__item--add ${addingSwVer ? 'tagpicker__item--active' : ''}`}
-                        onClick={() => { setAddingSwVer(v => !v); setNewSwVerTag(''); }}>
-                  <Icon name="plus" size={10}/> 버전 추가
-                </button>
+                </div>
+                {showErr('serial_no') && dupState !== 'dup' && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.serial_no}</div>}
               </div>
-              {addingSwVer && (
-                <div className="ver-add-row">
-                  <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
-                    placeholder="예: v1.8.0-core" value={newSwVerTag}
-                    onChange={e => setNewSwVerTag(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') addVersionSW(); if (e.key === 'Escape') setAddingSwVer(false); }} autoFocus/>
-                  <label className="ver-add-row__toggle">
-                    <input type="checkbox" checked={newSwVerStable} onChange={e => setNewSwVerStable(e.target.checked)}/>정식(stable)
-                  </label>
-                  <button type="button" className="btn btn--primary btn--sm" onClick={addVersionSW} disabled={!newSwVerTag.trim()}><Icon name="plus" size={12}/> 추가</button>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingSwVer(false); setNewSwVerTag(''); }}>취소</button>
+
+              {isPublic && (
+                <div className="field">
+                  <label className="field__label" htmlFor="pem-inspection-date"><Icon name="shield" size={11}/>검정일자 <span className="field__req">*</span></label>
+                  <input id="pem-inspection-date" type="date"
+                         className={`input ${showErr('inspection_date') ? 'input--error' : ''}`}
+                         value={form.inspection_date}
+                         onChange={(e) => { update('inspection_date', e.target.value); setTouched(t => ({ ...t, inspection_date: 1 })); }}/>
+                  {showErr('inspection_date') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.inspection_date}</div>}
                 </div>
               )}
-              {showErr('sw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.sw_version}</div>}
             </div>
+          </section>
 
-            <div className="field col-span-2">
-              <div className="field__label" id="pem-fw-label"><Icon name="bolt" size={11}/>F/W 버전 <span className="field__req">*</span></div>
-              <div className="tagpicker" role="group" aria-labelledby="pem-fw-label">
-                {fwVersions.map(v => (
-                  <button key={v.tag} type="button"
-                          className={`tagpicker__item ${form.fw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.fw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
-                          onClick={() => { update('fw_version', v.tag); setTouched(t => ({ ...t, fw_version: 1 })); }}>
-                    <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead icon="bolt" title="버전 정보"/>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <div className="field__label" id="pem-sw-label"><Icon name="bolt" size={11}/>S/W 버전 <span className="field__req">*</span></div>
+                <div className="tagpicker" role="group" aria-labelledby="pem-sw-label">
+                  {swVersions.map(v => (
+                    <button key={v.tag} type="button"
+                            className={`tagpicker__item ${form.sw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.sw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
+                            onClick={() => { update('sw_version', v.tag); setTouched(t => ({ ...t, sw_version: 1 })); }}>
+                      <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+                    </button>
+                  ))}
+                  <button type="button" className={`tagpicker__item tagpicker__item--add ${addingSwVer ? 'tagpicker__item--active' : ''}`}
+                          onClick={() => { setAddingSwVer(v => !v); setNewSwVerTag(''); }}>
+                    <Icon name="plus" size={10}/> 버전 추가
                   </button>
-                ))}
-                <button type="button" className={`tagpicker__item tagpicker__item--add ${addingFwVer ? 'tagpicker__item--active' : ''}`}
-                        onClick={() => { setAddingFwVer(v => !v); setNewFwVerTag(''); }}>
-                  <Icon name="plus" size={10}/> 버전 추가
-                </button>
-              </div>
-              {addingFwVer && (
-                <div className="ver-add-row">
-                  <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
-                    placeholder="예: v1.8.0-core" value={newFwVerTag}
-                    onChange={e => setNewFwVerTag(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') addVersionFW(); if (e.key === 'Escape') setAddingFwVer(false); }} autoFocus/>
-                  <label className="ver-add-row__toggle">
-                    <input type="checkbox" checked={newFwVerStable} onChange={e => setNewFwVerStable(e.target.checked)}/>정식(stable)
-                  </label>
-                  <button type="button" className="btn btn--primary btn--sm" onClick={addVersionFW} disabled={!newFwVerTag.trim()}><Icon name="plus" size={12}/> 추가</button>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingFwVer(false); setNewFwVerTag(''); }}>취소</button>
                 </div>
-              )}
-              {showErr('fw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.fw_version}</div>}
-            </div>
+                {addingSwVer && (
+                  <div className="ver-add-row">
+                    <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
+                      placeholder="예: v1.8.0-core" value={newSwVerTag}
+                      onChange={e => setNewSwVerTag(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addVersionSW(); if (e.key === 'Escape') setAddingSwVer(false); }} autoFocus/>
+                    <label className="ver-add-row__toggle">
+                      <input type="checkbox" checked={newSwVerStable} onChange={e => setNewSwVerStable(e.target.checked)}/>정식(stable)
+                    </label>
+                    <button type="button" className="btn btn--primary btn--sm" onClick={addVersionSW} disabled={!newSwVerTag.trim()}><Icon name="plus" size={12}/> 추가</button>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingSwVer(false); setNewSwVerTag(''); }}>취소</button>
+                  </div>
+                )}
+                {showErr('sw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.sw_version}</div>}
+              </div>
 
-            <div className="field col-span-2">
-              <div className="field__label"><Icon name="doc" size={11}/>기능 검사 성적서 <span className="field__req">*</span></div>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
-                background: funcAllDone ? 'var(--success-50)' : funcInspectionData ? 'var(--warning-50,#fffbeb)' : 'var(--surface-2)',
-                border: `1px solid ${funcAllDone ? 'var(--success)' : funcInspectionData ? 'var(--warning,#f59e0b)' : 'var(--border-1)'}`,
-                borderRadius: 'var(--r-md)',
-              }}>
-                <Icon name={funcAllDone ? 'check' : funcInspectionData ? 'clock' : 'doc'} size={16}
-                  style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700,#b45309)' : 'var(--ink-4)', flexShrink: 0 }}/>
-                <div style={{ flex: 1 }}>
-                  {funcAllDone
-                    ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
-                    : funcInspectionData
-                      ? <span style={{ fontSize: 13.5, color: 'var(--warning-700,#b45309)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
-                      : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>}
+              <div>
+                <div className="field__label" id="pem-fw-label"><Icon name="bolt" size={11}/>F/W 버전 <span className="field__req">*</span></div>
+                <div className="tagpicker" role="group" aria-labelledby="pem-fw-label">
+                  {fwVersions.map(v => (
+                    <button key={v.tag} type="button"
+                            className={`tagpicker__item ${form.fw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.fw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
+                            onClick={() => { update('fw_version', v.tag); setTouched(t => ({ ...t, fw_version: 1 })); }}>
+                      <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+                    </button>
+                  ))}
+                  <button type="button" className={`tagpicker__item tagpicker__item--add ${addingFwVer ? 'tagpicker__item--active' : ''}`}
+                          onClick={() => { setAddingFwVer(v => !v); setNewFwVerTag(''); }}>
+                    <Icon name="plus" size={10}/> 버전 추가
+                  </button>
                 </div>
-                <button type="button" className={`btn btn--sm ${funcInspectionData ? 'btn--secondary' : 'btn--primary'}`} onClick={() => setOpenFuncInspect(true)}>
-                  <Icon name="doc" size={12}/> {funcInspectionData ? '수정' : '작성하기'}
-                </button>
+                {addingFwVer && (
+                  <div className="ver-add-row">
+                    <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
+                      placeholder="예: v1.8.0-core" value={newFwVerTag}
+                      onChange={e => setNewFwVerTag(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addVersionFW(); if (e.key === 'Escape') setAddingFwVer(false); }} autoFocus/>
+                    <label className="ver-add-row__toggle">
+                      <input type="checkbox" checked={newFwVerStable} onChange={e => setNewFwVerStable(e.target.checked)}/>정식(stable)
+                    </label>
+                    <button type="button" className="btn btn--primary btn--sm" onClick={addVersionFW} disabled={!newFwVerTag.trim()}><Icon name="plus" size={12}/> 추가</button>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setAddingFwVer(false); setNewFwVerTag(''); }}>취소</button>
+                  </div>
+                )}
+                {showErr('fw_version') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.fw_version}</div>}
               </div>
             </div>
-          </div>
+          </section>
+
+          <section style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead icon="doc" title="기능검사 성적서"/>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+              background: funcAllDone ? 'var(--success-50)' : funcInspectionData ? 'var(--warning-50,#fffbeb)' : 'var(--surface)',
+              border: `1px solid ${funcAllDone ? 'var(--success)' : funcInspectionData ? 'var(--warning,#f59e0b)' : 'var(--border-1)'}`,
+              borderRadius: 'var(--r-md)',
+            }}>
+              <Icon name={funcAllDone ? 'check' : funcInspectionData ? 'clock' : 'doc'} size={16}
+                style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700,#b45309)' : 'var(--ink-4)', flexShrink: 0 }}/>
+              <div style={{ flex: 1 }}>
+                {funcAllDone
+                  ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                  : funcInspectionData
+                    ? <span style={{ fontSize: 13.5, color: 'var(--warning-700,#b45309)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                    : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>}
+              </div>
+              <button type="button" className={`btn btn--sm ${funcInspectionData ? 'btn--secondary' : 'btn--primary'}`} onClick={() => setOpenFuncInspect(true)}>
+                <Icon name="doc" size={12}/> {funcInspectionData ? '수정' : '작성하기'}
+              </button>
+            </div>
+          </section>
         </div>
         <div className="modal__foot" style={{ flexWrap: 'wrap' }}>
           <button className="btn btn--ghost" onClick={revertToPending}><Icon name="refresh" size={12}/> 대기로 되돌리기</button>
