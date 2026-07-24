@@ -489,7 +489,7 @@ function ProductionRequestModal({ order, onClose }) {
               <Icon name="refresh" size={13}/> 초기화
             </button>
           )}
-          <button className="btn btn--primary btn--lg" onClick={submit}>
+          <button className="btn btn--primary" onClick={submit}>
             <Icon name={isEdit ? 'check' : 'save'} size={14}/>
             {' '}{isEdit ? '수정 저장' : totalValidQty > 0 ? `${totalValidQty}건 생산요청 등록` : '생산요청 등록'}
           </button>
