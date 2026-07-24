@@ -174,8 +174,9 @@
   function makeSupabaseBackend(client) {
     // cache.orders: tb_charge_infor(충전기 유닛) 원본 행. cache.batches: tb_sales_order(배치) 원본 행.
     // loadOrders()가 매 호출마다 두 캐시 + 위성 테이블을 조인해 뷰용 평탄화 객체를 만든다.
-    const cache = { orders: [], batches: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [] };
+    const cache = { orders: [], batches: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [], customer_addresses: [] };
     let mgrSeq = 0;
+    let addrSeq = 0;
     let histSeq = 0;
     let asRecSeq = 0;
     let asLogSeq = 0;
@@ -275,6 +276,19 @@
             if (!error) { cache.usage_type_public = data || []; pubSeq = cache.usage_type_public.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
             else dbLog('WARN', 'loadAll', 'tb_usagetype_public 조회 실패 — ' + error.message);
           }).catch(e => dbLog('WARN', 'loadAll', 'tb_usagetype_public 로드 오류 — ' + e.message)),
+
+          client.from('tb_customer_address').select('*').then(({ data, error }) => {
+            if (!error) {
+              addrSeq = 0;
+              cache.customer_addresses = (data || []).map(row => ({
+                address_id:    ++addrSeq,
+                customer_name: row.customer_name,
+                label:         row.label,
+                address:       row.address || '',
+                is_primary:    row.is_primary || 0,
+              }));
+            } else dbLog('WARN', 'loadAll', 'tb_customer_address 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_customer_address 로드 오류 — ' + e.message)),
         ]);
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
