@@ -2,8 +2,8 @@
 
 // 역할별 접근 가능한 탭
 window.ROLE_TABS = {
-  admin:      ['dashboard', 'sales', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
-  sales:      ['dashboard', 'sales', 'waiting', 'lookup','as-receipt','as-processing'],
+  admin:      ['dashboard', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
+  sales:      ['dashboard', 'waiting', 'lookup','as-receipt','as-processing'],
   production: ['dashboard', 'waiting', 'AwaitPickup', 'lookup'],
   quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
@@ -15,11 +15,13 @@ function LoginScreen() {
   const s = window.useStore();
   const [userId, setUserId] = useStateAU('');
   const [pw, setPw] = useStateAU('');
+  const [showPw, setShowPw] = useStateAU(false);
   const [err, setErr] = useStateAU('');
   const [busy, setBusy] = useStateAU(false);
 
   const submit = async (e) => {
     if (e) e.preventDefault();
+    if (busy) return;
     setErr('');
     if (!userId || !pw) { setErr('아이디와 비밀번호를 입력하세요'); return; }
     setBusy(true);
@@ -75,7 +77,8 @@ function LoginScreen() {
                 <Icon name="user" size={11}/>아이디
               </label>
               <input id="login-userid" className={`input ${err ? 'input--error' : ''}`} autoFocus
-                     placeholder="예: admin"
+                     placeholder="예: admin" autoComplete="username"
+                     aria-invalid={!!err} aria-describedby={err ? 'login-err' : undefined}
                      value={userId}
                      onChange={(e) => { setUserId(e.target.value); setErr(''); }}/>
             </div>
@@ -83,13 +86,22 @@ function LoginScreen() {
               <label className="field__label" htmlFor="login-pw">
                 <Icon name="lock" size={11}/>비밀번호
               </label>
-              <input id="login-pw" type="password"
-                     className={`input ${err ? 'input--error' : ''}`}
-                     placeholder="••••"
-                     value={pw}
-                     onChange={(e) => { setPw(e.target.value); setErr(''); }}/>
+              <div className="input-group">
+                <input id="login-pw" type={showPw ? 'text' : 'password'}
+                       className={`input ${err ? 'input--error' : ''}`}
+                       placeholder="••••" autoComplete="current-password"
+                       aria-invalid={!!err} aria-describedby={err ? 'login-err' : undefined}
+                       value={pw}
+                       onChange={(e) => { setPw(e.target.value); setErr(''); }}/>
+                <button type="button" className="input-group__btn"
+                        aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'}
+                        aria-pressed={showPw}
+                        onClick={() => setShowPw(v => !v)}>
+                  <Icon name={showPw ? 'eye-off' : 'eye'} size={14}/>
+                </button>
+              </div>
             </div>
-            {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
+            {err && <div id="login-err" role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
             <button type="submit" className="btn btn--primary btn--lg login__submit" disabled={busy}>
               {busy ? '확인 중…' : <><Icon name="arrow-right" size={15}/> 로그인</>}
             </button>

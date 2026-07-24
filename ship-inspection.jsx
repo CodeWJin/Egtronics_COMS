@@ -27,10 +27,19 @@ const FUNC_CHECKLIST_DEFAULT = [
 ];
 
 /* ────────── 체크리스트 JSON 로더 ────────── */
-// docs/ship/{model}.json 또는 docs/func/{model}.json 에서 모델별 체크리스트 로드
-// 파일이 없으면 null 반환 → 호출 측에서 DEFAULT로 폴백
+// docs/ship/{model}_{version}.json 또는 docs/func/{model}_{version}.json 에서 모델별 체크리스트 로드
+// 체크리스트 개정 시 이 버전 값만 올리면 됨(수동 관리)
+// 버전 파일이 없으면 docs/{type}/{model}.json(버전 없는 파일)로 폴백, 그것도 없으면 null 반환 → 호출 측에서 DEFAULT로 폴백
+const CHECKLIST_VERSION = { ship: 'v1', func: 'v1' };
 
 const _clCache = new Map();
+async function fetchChecklistJson(type, name) {
+  try {
+    const res = await fetch(`docs/${type}/${name}.json`);
+    if (res.ok) return await res.json();
+  } catch (_) {}
+  return null;
+}
 async function loadChecklist(type, modelKey) {
   const slug = (modelKey || '').toLowerCase()
     .replace(/\s+/g, '-')
@@ -38,18 +47,13 @@ async function loadChecklist(type, modelKey) {
     .replace(/_+/g, '_')
     .replace(/^[-_]|[-_]$/g, '');
   if (!slug) return null;
-  const cacheKey = `${type}:${slug}`;
+  const version = CHECKLIST_VERSION[type];
+  const cacheKey = `${type}:${slug}:${version || ''}`;
   if (_clCache.has(cacheKey)) return _clCache.get(cacheKey);
-  try {
-    const res = await fetch(`docs/${type}/${slug}.json`);
-    if (res.ok) {
-      const data = await res.json();
-      _clCache.set(cacheKey, data);
-      return data;
-    }
-  } catch (_) {}
-  _clCache.set(cacheKey, null); // 404/오류도 캐시 — 재진입마다 중복 요청 방지
-  return null;
+  const data = (version && await fetchChecklistJson(type, `${slug}_${version}`))
+    || await fetchChecklistJson(type, slug);
+  _clCache.set(cacheKey, data); // 404/오류도 캐시(null) — 재진입마다 중복 요청 방지
+  return data;
 }
 
 /* ────────── 체크리스트 헬퍼 ────────── */

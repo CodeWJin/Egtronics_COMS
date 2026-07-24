@@ -47,6 +47,7 @@
   --indigo-700: #4338CA;
   --violet-50: rgba(124, 58, 237, 0.10);
   --violet-700: #5B21B6;
+  --role-admin-on-dark: #c4b5fd;
 
   /* Photo lightbox scrim — the one near-opaque overlay in the system, reserved for full-bleed photo viewers */
   --scrim: rgba(0, 0, 0, 0.92);
@@ -68,6 +69,15 @@
   --shadow-1: 0 1px 2px rgba(16, 24, 40, 0.04);
   --shadow-2: 0 3px 10px rgba(16, 24, 40, 0.07), 0 1px 3px rgba(16, 24, 40, 0.05);
   --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.05);
+  /* Button/control depth — slate-tinted like shadow-1/2 but deliberately more visible for press affordance */
+  --shadow-btn: 0 1px 2px rgba(16, 24, 40, 0.14);
+  --shadow-btn-hover: 0 2px 6px rgba(16, 24, 40, 0.18);
+  --shadow-mobilenav: 0 -4px 16px rgba(16, 24, 40, 0.06);
+  /* Floating-layer tiers — see DESIGN.md § 4 Elevation (Drawer / Modal / Report / Hover-lift) */
+  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.18);
+  --shadow-report: 0 24px 64px rgba(0, 0, 0, 0.16);
+  --shadow-hover-lift: 0 4px 14px rgba(0, 0, 0, 0.09);
 
   /* Z-index scale */
   --z-dropdown: 30;
@@ -516,7 +526,7 @@ input, select, textarea { font-family: inherit; }
 .tagpicker__item--add {
   border-style: dashed;
   border-color: var(--primary-100, #93c5fd);
-  color: var(--primary-600, #005ab5);
+  color: var(--primary-600, #114fd7);
   font-family: var(--font);
 }
 .tagpicker__item--add:hover { background: var(--primary-50, #eff6ff); }
@@ -573,9 +583,9 @@ input, select, textarea { font-family: inherit; }
   background: var(--primary);
   color: white;
   border-color: var(--primary);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.14);
+  box-shadow: var(--shadow-btn);
 }
-.btn--primary:hover { background: var(--primary-focus); border-color: var(--primary-focus); box-shadow: 0 2px 6px rgba(16, 24, 40, 0.18); }
+.btn--primary:hover { background: var(--primary-focus); border-color: var(--primary-focus); box-shadow: var(--shadow-btn-hover); }
 /* Apple button-secondary-pill: ghost pill with Action Blue text */
 .btn--secondary {
   background: var(--surface);
@@ -609,7 +619,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--warning-700);
   border-color: var(--warning);
 }
-.btn--warning:hover { background: #FEF3C7; }
+.btn--warning:hover { filter: brightness(0.96); }
 .btn--lg {
   height: 44px;
   padding: 0 22px;
@@ -876,7 +886,7 @@ input, select, textarea { font-family: inherit; }
   position: fixed;
   inset: 0;
   z-index: var(--z-lightbox);
-  background: rgba(0,0,0,0.88);
+  background: var(--scrim);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1122,7 +1132,7 @@ input, select, textarea { font-family: inherit; }
 .as-receipt-count {
   margin-left: 5px;
   padding: 1px 7px;
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   background: var(--surface-2);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
@@ -1226,7 +1236,7 @@ input, select, textarea { font-family: inherit; }
 }
 .kanban__card:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+  box-shadow: var(--shadow-hover-lift);
   transform: translateY(-1px);
 }
 .kanban__card:active { transform: scale(0.98); }
@@ -1278,9 +1288,14 @@ input, select, textarea { font-family: inherit; }
   overflow: hidden;
 }
 .kanban__card__progress-fill {
+  width: 100%;
   height: 100%;
   border-radius: 999px;
-  transition: width 200ms ease;
+  transform-origin: left center;
+  transition: transform 200ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kanban__card__progress-fill { transition: none; }
 }
 .kanban__card__progress-text {
   font-size: 11px;
@@ -1311,7 +1326,7 @@ input, select, textarea { font-family: inherit; }
 }
 .ordercard:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.09);
+  box-shadow: var(--shadow-hover-lift);
   transform: translateY(-1px);
 }
 .ordercard:active { transform: scale(0.98); }
@@ -1529,7 +1544,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface);
   border-radius: var(--r-2xl);
   border: 1px solid var(--border-1);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-modal);
   width: 480px;
   max-width: 92%;
   overflow: hidden;
@@ -2030,7 +2045,7 @@ input, select, textarea { font-family: inherit; }
   max-width: 94vw;
   background: var(--surface);
   z-index: calc(var(--z-drawer) + 1);
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-drawer);
   display: flex;
   flex-direction: column;
   animation: drawerin 280ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -2121,7 +2136,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface);
   border-radius: var(--r-2xl);
   border: 1px solid var(--border-1);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--shadow-report);
   width: 720px;
   max-width: 94vw;
   max-height: 90vh;
@@ -2318,7 +2333,7 @@ input, select, textarea { font-family: inherit; }
   height: 30px;
   background: rgba(147, 197, 253, 0.10);
   border: 1px solid rgba(147, 197, 253, 0.18);
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2328,7 +2343,7 @@ input, select, textarea { font-family: inherit; }
 
 .login__side__foot {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
   letter-spacing: 0.02em;
 }
 
@@ -2442,12 +2457,15 @@ input, select, textarea { font-family: inherit; }
 .usermenu__role[data-role="production"] { background: var(--success-50); color: var(--success-700); }
 .login__demo__role[data-role="quality"],
 .usermenu__role[data-role="quality"] { background: var(--indigo-50); color: var(--indigo-700); }
-/* usermenu__role admin/sales render on the dark top nav (nav-void) — the shared
-   rgba(...,0.08-0.10) tint tokens above composite to a near-black chip there and
-   fail contrast, unlike the opaque success-50/indigo-50 tints. Bumped opacity +
-   lighter on-dark text keeps the same brand hue while clearing 4.5:1. */
-.usermenu__role[data-role="admin"] { background: rgba(124, 58, 237, 0.22); color: #c4b5fd; }
-.usermenu__role[data-role="sales"] { background: rgba(37, 99, 235, 0.22); color: var(--primary-on-dark); }
+/* 관리자/영업 배지 — 다른 역할(생산·품질)과 동일하게 밝은 표면 위 진한 텍스트로 렌더링.
+   사용자 관리 화면의 카드·테이블처럼 흰 배경 위에서 쓰이는 기본값. */
+.usermenu__role[data-role="admin"] { background: var(--violet-50); color: var(--violet-700); }
+.usermenu__role[data-role="sales"] { background: var(--primary-50); color: var(--primary); }
+/* 상단 다크 네비(.topnav)의 사용자 메뉴에서만 위 값을 오버라이드 — nav-void 위에서는
+   rgba(...,0.08-0.10) 틴트가 근흑색으로 합성돼 대비가 깨지므로, 불투명도를 올리고
+   on-dark 텍스트로 4.5:1을 확보한 전용 변형을 쓴다. */
+.topnav .usermenu__role[data-role="admin"] { background: rgba(124, 58, 237, 0.22); color: var(--role-admin-on-dark); }
+.topnav .usermenu__role[data-role="sales"] { background: rgba(37, 99, 235, 0.22); color: var(--primary-on-dark); }
 
 .login__foot {
   display: flex; align-items: center; gap: 6px;
@@ -2937,7 +2955,7 @@ input, select, textarea { font-family: inherit; }
     align-items: stretch;
     background: var(--surface);
     border-top: 1px solid var(--border-1);
-    box-shadow: 0 -4px 16px rgba(16, 24, 40, 0.06);
+    box-shadow: var(--shadow-mobilenav);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;

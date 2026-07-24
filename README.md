@@ -83,7 +83,7 @@ npm test
 │  # 화면
 ├── tweaks-panel.jsx         # 실시간 테마 변경 패널
 ├── icons.jsx                # 아이콘 컴포넌트
-├── sales-input.jsx          # 생산요청(영업) 대량 등록
+├── production-request-modal.jsx  # 생산요청 등록/수정/취소 모달
 ├── production-waiting.jsx   # 생산 대기 칸반 (생산착수·생산완료 모달 포함)
 ├── ship-inspection.jsx      # 기능·출하 검사 성적서 Drawer (공용)
 ├── quality-AwaitPickup.jsx  # 출하 대기 (검수 체크·사진·CSV 내보내기)

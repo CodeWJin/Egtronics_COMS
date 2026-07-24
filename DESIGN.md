@@ -7,6 +7,7 @@ colors:
   primary-on-dark: "#93c5fd"
   primary-tint-50: "#eff6ff"
   primary-tint-100: "rgba(37, 99, 235, 0.18)"
+  primary-600: "#114fd7"
   ink-1: "#1d1d1f"
   ink-2: "#333333"
   ink-3: "#6b6b6b"
@@ -34,6 +35,7 @@ colors:
   progress-indigo-tint: "#EEF2FF"
   role-admin: "#5B21B6"
   role-admin-tint: "rgba(124, 58, 237, 0.10)"
+  role-admin-on-dark: "#c4b5fd"
   login-void: "#07111f"
   nav-void: "#0a0d13"
 typography:
@@ -91,6 +93,24 @@ typography:
     fontWeight: 500
     lineHeight: 1
     letterSpacing: "normal"
+  meta:
+    fontFamily: "Pretendard Variable, system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif"
+    fontSize: "11px"
+    fontWeight: 500
+    lineHeight: 1.3
+    letterSpacing: "-0.12px"
+  display:
+    fontFamily: "Pretendard Variable, system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif"
+    fontSize: "30px"
+    fontWeight: 700
+    lineHeight: 1.14
+    letterSpacing: "-0.6px"
+  display-sm:
+    fontFamily: "Pretendard Variable, system-ui, -apple-system, 'Apple SD Gothic Neo', sans-serif"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: 1.14
+    letterSpacing: "-0.5px"
 rounded:
   sm: "8px"
   md: "11px"
@@ -228,6 +248,7 @@ The palette is almost entirely neutral; color is spent on exactly two things —
 ### Primary
 - **Action Blue** (`{colors.primary}` — #2563EB): Every button, link, focus ring, selected table row, and chip-active state on light surfaces. Nothing else in the interface uses blue.
 - **Action Blue Deep** (`{colors.primary-focus}` — #1d4ed8): Hover/press state for primary buttons only.
+- **Action Blue 600** (`{colors.primary-600}` — #114fd7, static default computed from the accent via `darken()`): The `:root` fallback for the dynamically-computed hover/press shade used ahead of the tweaks-panel accent color effect running (prevents a flash of the wrong shade); also the tagpicker "add" control's hover color.
 - **Sky Link Blue** (`{colors.primary-on-dark}` — #93c5fd): The accent reserved for dark "console" surfaces, where full-strength Action Blue would sit too dark to read cleanly — the login panel's feature-icon glyphs and watermark, and the top nav's contact-pin active indicator, focus ring, and active-count readout (see Navigation).
 
 ### Surface
@@ -252,6 +273,7 @@ The palette is almost entirely neutral; color is spent on exactly two things —
 - **Danger** (`{colors.danger}` — #EF4444): Errors, delete confirmations, required-field markers, AS fault stamps.
 - **Progress Indigo** (`{colors.progress-indigo}` — #4338CA): IN_PROGRESS status and the quality role badge — kept visually distinct from Action Blue so "this order is moving" never gets confused with "this is clickable."
 - **Role Violet** (`{colors.role-admin}` — #5B21B6, tint `{colors.role-admin-tint}`): The admin role badge only (login demo-account list, user-menu header) — sales/production/quality role badges reuse Action Blue/Success/Progress Indigo respectively, so violet exists solely to give admin its own identity in that one 4-way set.
+- **Role Violet (on dark)** (`{colors.role-admin-on-dark}` — #c4b5fd): The admin role badge's text color specifically — a lighter tint of Role Violet that keeps the same brand hue while clearing 4.5:1 against the badge's own tinted `rgba(124, 58, 237, 0.22)` background. Same "on-dark" pairing logic as `{colors.primary-on-dark}`.
 
 ### Named Rules
 **The One Accent Rule.** Action Blue is the only color a user is ever invited to click on a **badge** — `.badge--*` colors report state, never invite interaction; if it's green/amber/red/indigo on a badge, it's a fact, not a control. This rule scopes to badges specifically. **Buttons are a separate affordance category**: `.btn--success` / `.btn--warning` / `.btn--danger` are semantic action-button variants (documented under Buttons above) — every button is clickable by definition, so recoloring a button to reflect the state of the action it performs (e.g. `.btn--warning` on an in-progress 출하검사 button, `quality-AwaitPickup.jsx`) is not a violation of this rule. Don't extend a badge's state color onto a *new* clickable element without going through the button component first.
@@ -264,29 +286,36 @@ The palette is almost entirely neutral; color is spent on exactly two things —
 **Character:** One variable sans family carries the entire interface at weight 400/500/600 — no display face, no serif contrast pairing. Negative letter-spacing (`-0.12px` to `-0.5px`) at every size above 12px keeps the Korean/Latin mixed strings (model codes, serial numbers) from feeling loose.
 
 ### Hierarchy
-- **Screen Title** (`{typography.screen-title}` — 600, 28px, 1.14, -0.5px): Top of every screen (`.screen__title`). The largest text in the app — there is no larger "hero" size, this is a tool, not a landing page.
+- **Display** (`{typography.display}` — 700, 30px, 1.14, -0.6px): KPI stat-tile numerals (`.stat__value`) and the login card's own title (`.login__title`) — the one step reserved for a single emphasized number or a screen's one-time greeting, never for prose headings.
+- **Display Small** (`{typography.display-sm}` — 700, 24px, 1.14, -0.5px): The printable inspection report's document title (`.report__hd__title`) and the timeline's date numeral (`.timeline__date strong`) — a display weight scaled down for a fixed-width document header and an inline numeral, not a screen title.
+- **Screen Title** (`{typography.screen-title}` — 600, 28px, 1.14, -0.5px): Top of every screen (`.screen__title`). The largest *heading* in the app — there is no larger prose heading, this is a tool, not a landing page. Display (30px) and Display Small (24px) sit outside this heading scale because they mark a numeral or a one-time title, not a section heading.
 - **Drawer/Modal Title** (`{typography.drawer-title}` — 600, 21px, 1.19, -0.5px): Drawer and modal headers.
 - **Card Title** (`{typography.card-title}` — 600, 17px, 1.24, -0.374px): Card headers, kanban card titles, order-card model name.
 - **Body** (`{typography.body}` — 400, 17px, 1.47, -0.374px): Default paragraph and login form inputs — the same 17px "reading pace" size used everywhere text needs to be read rather than scanned.
 - **Label** (`{typography.label}` — 600, 14px, 1.3, -0.224px): Field labels, button text, card subtitles.
 - **Caption** (`{typography.caption}` — 500, 12px, 1.3, -0.12px): Table headers, badges, metadata, timestamps — the densest text in the system.
 - **Caption Large** (`{typography.caption-lg}` — 500, 13px, 1.3, -0.12px): One step up from Caption for secondary table cells and card metadata that need slightly more presence than the 12px floor (e.g. `.cell-mono`, `.as-card__no`, kanban card IDs) without escalating to Label's 14px/600 weight.
+- **Meta** (`{typography.meta}` — 500, 11px, 1.3, -0.12px): One step below Caption for the densest recurring metadata in the system — kanban/order-card IDs, D-day badges, count pills, stepper dots, footer copy. Weight flexes 400–700 by context (plain footer text stays 400–500, count/ID emphasis goes 600–700); the 11px size itself is the constant.
 - **Mono** (`{typography.mono}` — 400, 12px monospace): Serial numbers, AS ticket numbers (`AS-250101-0001`), order IDs — anywhere a value must be copy-pasted or scanned character-by-character.
-- **Nav Readout** (`{typography.nav-readout}` — 500, 10–10.5px monospace, tabular-nums): The top nav's own micro-scale, one step below Mono — tab item counts and the version tag. Extends the Mono-For-Machine-Values Rule to the nav: a tab's count is a live measurement (how many orders are queued), not prose.
+- **Nav Readout** (`{typography.nav-readout}` — 500, 10–10.5px monospace, tabular-nums): The nav's own micro-scale, one step below Mono — the top nav's tab counts and version tag, and the mobile bottom nav's tab label (`.mobilenav__label`). Extends the Mono-For-Machine-Values Rule to the nav: a tab's count is a live measurement (how many orders are queued), not prose.
 
 ### Named Rules
 **The Reading-Pace Rule.** Body copy runs at 17px, not 16px, everywhere a user reads rather than scans — the same deliberate 1px-over-convention choice Apple made, applied here to reduce misreads of Korean customer/model names during fast tablet input.
 **The Mono-For-Machine-Values Rule.** Any value a human didn't compose in prose — serial numbers, ticket IDs — renders in `{typography.mono}`, never body font. It signals "this is exact, copy it precisely."
+**The Nav Breaks Both Grammars Rule.** The top nav tab label (`.topnav__tab`, 16px/400) and the login screen's submit button (`.login__submit`, 16px/600) are the only two places body-adjacent text runs at 16px instead of Label(14px) or Body(17px) — both are single, high-visibility controls on the system's two dark "console" surfaces (nav rail, login), not a body-copy substitute. Don't reach for 16px anywhere else; it is not a documented step, it is these two exceptions.
 
 ## 4. Elevation
 
 The system is **flat by default with hairline borders**, not shadow-driven. Resting surfaces — cards, kanban columns, table wrappers, order cards, the stat tiles — carry a 1px `{colors.border-hairline}` border and zero shadow. Shadow is reserved exclusively for surfaces that visually float above the content plane: drawers, modals, dropdown/combo menus, the user-menu popover, and toasts. This mirrors the "the wall disappears, elevation only appears with intent" logic the codebase inherited from its Apple-inspired foundation, but here the intent is functional, not photographic — a shadow means "this is temporarily on top of everything else," not "this deserves visual weight."
 
 ### Shadow Vocabulary
-- **Ambient** (`box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.05)` — `{shadow.3}` in CSS): Dropdowns, combo menus, popovers, toasts.
-- **Drawer** (`box-shadow: -12px 0 40px rgba(0,0,0,0.12)`): The right-side slide-in drawer — directional, implying it entered from off-screen right.
-- **Modal / Report** (`box-shadow: 0 24px 64px rgba(0,0,0,0.16–0.18)`): Center-screen modals and printable inspection reports — the deepest shadow in the system, reserved for the one thing that's fully blocking interaction underneath.
-- **Hover-lift** (`box-shadow: 0 4px 14px rgba(0,0,0,0.09)` + `translateY(-1px)`): Kanban cards and order cards on hover only — the single case where a resting card gains elevation, signaling "this is about to open."
+- **Ambient** (`box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.05)` — `--shadow-3` in CSS): Dropdowns, combo menus, popovers, toasts.
+- **Drawer** (`box-shadow: -12px 0 40px rgba(0,0,0,0.12)` — `--shadow-drawer`): The right-side slide-in drawer — directional, implying it entered from off-screen right.
+- **Modal** (`box-shadow: 0 24px 64px rgba(0,0,0,0.18)` — `--shadow-modal`): Center-screen modals — the deepest shadow in the system, reserved for the one thing that's fully blocking interaction underneath.
+- **Report** (`box-shadow: 0 24px 64px rgba(0,0,0,0.16)` — `--shadow-report`): The printable inspection report document — same tier as Modal, a touch lighter since the report sits over the flat workbench rather than a dimmed backdrop.
+- **Hover-lift** (`box-shadow: 0 4px 14px rgba(0,0,0,0.09)` + `translateY(-1px)` — `--shadow-hover-lift`): Kanban cards and order cards on hover only — the single case where a resting card gains elevation, signaling "this is about to open."
+- **Chrome / Control** (`--shadow-btn` / `--shadow-btn-hover` / `--shadow-mobilenav`, all `rgba(16, 24, 40, 0.06–0.18)`): A second, cooler-tinted shadow family — reused already at `--shadow-1`/`--shadow-2` for subtle card depth — extended to the primary button's press affordance and the fixed mobile tab bar's upward shadow. Distinct from the pure-black Ambient/Drawer/Modal/Report/Hover-lift family because these are control-level depth cues, not page-level floating layers.
+- **Scrim** (`--scrim`, `rgba(0, 0, 0, 0.92)`): The one near-opaque overlay in the system, reserved for the full-bleed photo lightbox.
 
 ### Named Rules
 **The Flat-By-Default Rule.** If a surface is part of the page layout, it gets a border, not a shadow. Shadow always means "layered above the page," never "this card is important."
@@ -316,12 +345,13 @@ The system is **flat by default with hairline borders**, not shadow-driven. Rest
 - **Readonly:** Fills with `{colors.surface-3}` and `{colors.ink-2}` text — same shape, visually "settled" rather than editable.
 
 ### Navigation (signature component)
-- **Top nav — "Contact Rail":** `{colors.nav-void}` (#0a0d13), 64px tall (56px on tablet, 54px on phone), white text at low opacity for inactive tabs, full white + weight 600 for the active tab. The active-tab indicator is not a flat underline — it's a small cluster of 3 lit connector pins (rounded 3×3px squares, `{colors.primary-on-dark}`, soft glow), a direct reference to an EV charging connector's contacts, and it ignites with a 180ms fade+scale on tab switch. Tab item counts and the version tag render as `{typography.nav-readout}` chips (mono, 4px-radius rect, translucent white border) rather than pills — a "metered readout" texture that's deliberately distinct from the pill-shaped status badges used everywhere else in the app, so a nav count is never mistaken for an order-status badge. Focus-visible on tabs uses `{colors.primary-on-dark}` (not `{colors.primary}`) with a −2px inset outline, matching the login panel's rule for dark surfaces. This is the one place the pill-radius rule (`{rounded.pill}` for every button/chip/badge) is deliberately broken, and it's broken consistently across everything inside the nav.
+- **Top nav — "Contact Rail":** `{colors.nav-void}` (#0a0d13), 64px tall (56px on tablet, 54px on phone), white text at low opacity for inactive tabs, full white + weight 600 for the active tab, tab label itself at 16px (see Typography's Nav-Breaks-Both-Grammars rule — the nav is exempt from the pill-radius rule *and* the 14/17px label/body sizes). The active-tab indicator is not a flat underline — it's a small cluster of 3 lit connector pins (rounded 3×3px squares, `{colors.primary-on-dark}`, soft glow), a direct reference to an EV charging connector's contacts, and it ignites with a 180ms fade+scale on tab switch. Tab item counts and the version tag render as `{typography.nav-readout}` chips (mono, 4px-radius rect, translucent white border) rather than pills — a "metered readout" texture that's deliberately distinct from the pill-shaped status badges used everywhere else in the app, so a nav count is never mistaken for an order-status badge. Focus-visible on tabs uses `{colors.primary-on-dark}` (not `{colors.primary}`) with a −2px inset outline, matching the login panel's rule for dark surfaces. This is the one place the pill-radius rule (`{rounded.pill}` for every button/chip/badge) is deliberately broken, and it's broken consistently across everything inside the nav.
+- **Mobile bottom tab bar:** The nav's small-viewport form — fixed to the bottom, `{colors.surface}` (not nav-void; light chrome on mobile), `--shadow-mobilenav` cast upward. Tab labels render at `{typography.nav-readout}` (10.5px) same as the desktop rail's counts, extending the nav's own micro-scale down to mobile.
 - **Drawer** (`{component.drawer}`): 560px right-side slide-in, white, sectioned body that staggers each `<section>` in on open (50ms cascade). Full-width bottom sheet on mobile (≤600px) instead of a side panel.
 - **Modal** (`{component.modal}`): 480px centered, white, 22px radius, deepest shadow in the system.
 
 ### Login (signature component)
-A deliberately atmospheric split panel — the one screen in the app allowed a dark, textured surface. Left panel: `{colors.login-void}` (#07111f) with a faint 38px blueprint grid pattern, white brand mark, feature bullets in low-opacity white, a subtle blue watermark icon. Right panel: plain white form on `{component.input}` shells, full-pill submit button. Collapses to a stacked single column (dark header strip + form below) under 768px.
+A deliberately atmospheric split panel — the one screen in the app allowed a dark, textured surface. Left panel: `{colors.login-void}` (#07111f) with a faint 38px blueprint grid pattern, white brand mark, a 36px tagline (the single largest text in the app, and the one intentional exception to Screen Title being the largest heading — a one-time greeting on the one atmospheric screen, not a heading in the app's regular flow), feature bullets in low-opacity white with `{rounded.sm}` icon chips, a subtle blue watermark icon. Right panel: plain white form on `{component.input}` shells, `{typography.display}` card title, full-pill submit button set in bold 16px (see Typography's Nav-Breaks-Both-Grammars rule — paired with the bold weight as this screen's one emphasized CTA, not a `{component.button-lg}` substitute). Collapses to a stacked single column (dark header strip + form below) under 768px.
 
 ### Inspection Report Document (signature component)
 The printable 성적서 (`{component.report}`) is the one place the flat workbench allows a document metaphor: a 720px white sheet, 22px-radius, the system's deepest shadow (`0 24px 64px rgba(0,0,0,0.16)`), with a double-ruled `{colors.ink-1}` header rule instead of a hairline. Pass marks render as a pill-outlined `{colors.success-deep}` badge (`.report__pass`), never a bare checkmark. A rotated circular `{colors.danger}` stamp (`.report__stamp`, -9° tilt, 82% opacity) marks the document as an official inspection artifact — the one decorative flourish permitted in the entire system, and it's load-bearing (denotes formal sign-off), not ornamental. Serial numbers inside the table render in `{typography.mono}`. On `@media print`, all chrome (`.report__bar`) is hidden and only the document prints full-bleed.

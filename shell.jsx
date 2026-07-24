@@ -11,7 +11,7 @@ window[STORE_KEY] = window[STORE_KEY] || {
   editingOrderId: null,
   currentUser: null,
   dbReady: false,
-  view: 'sales', // 'sales' | 'waiting' | 'AwaitPickup' | 'lookup' | 'as-receipt' | 'as-processing'
+  view: 'dashboard', // 'dashboard' | 'waiting' | 'AwaitPickup' | 'lookup' | 'as-receipt' | 'as-processing'
   toast: null,
   completingOrderId: null,
   asReceptions: [],
@@ -140,11 +140,31 @@ window.actions = {
       return;
     }
     s.editingOrderId = id;
-    window.actions.setView('sales');
+    window.actions.setView('waiting');
   },
   cancelEdit() {
     window[STORE_KEY].editingOrderId = null;
     notify();
+  },
+  // 생산요청 취소 — PENDING 오더 완전 삭제. 삭제 전에 취소 이력을 먼저 남긴다.
+  cancelOrder(order_id) {
+    const s = window[STORE_KEY];
+    const current = s.orders.find(x => x.order_id === order_id);
+    if (!current || current.status !== 'PENDING') {
+      window.actions.flashToast('생산대기 상태의 오더만 취소할 수 있습니다', 'error');
+      return false;
+    }
+    const fields = Object.entries(ORDER_FIELD_LABELS)
+      .filter(([k]) => current[k])
+      .map(([k, label]) => ({ field: k, label, before: current[k] || '', after: '' }));
+    window.PMDB.addHistory(order_id, s.currentUser ? s.currentUser.name : '알 수 없음', localTimestamp(), fields, 'cancel');
+    window.PMDB.deleteOrder(order_id);
+    if (s.editingOrderId === order_id) s.editingOrderId = null;
+    s.orders = window.PMDB.loadOrders();
+    s.toast = { kind: 'success', text: `오더 #${order_id} 생산요청이 취소되었습니다` };
+    notify();
+    setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+    return true;
   },
   updateOrder(id, form) {
     const s = window[STORE_KEY];
@@ -329,7 +349,6 @@ function TopNav() {
 
   const TAB_META = {
     dashboard:       { label: '대시보드' },
-    sales:           { label: '생산 요청' },
     waiting:         { label: '생산 대기', count: pendingCount },
     AwaitPickup:     { label: '출하대기', count: awaitPickupCount },
     lookup:          { label: '조회' },
@@ -467,6 +486,8 @@ function ChangePasswordModal({ user, onClose }) {
             <div className="field">
               <label className="field__label" htmlFor="chpw-cur"><Icon name="lock" size={11}/> 현재 비밀번호</label>
               <input id="chpw-cur" type="password" className="input" autoFocus placeholder="현재 비밀번호 입력"
+                     autoComplete="current-password"
+                     aria-invalid={!!err} aria-describedby={err ? 'chpw-err' : undefined}
                      value={curPw}
                      onChange={(e) => { setCurPw(e.target.value); setErr(''); }}
                      onKeyDown={(e) => e.key === 'Enter' && verifyCurrentPw()}/>
@@ -478,12 +499,16 @@ function ChangePasswordModal({ user, onClose }) {
               <div className="field">
                 <label className="field__label" htmlFor="chpw-new"><Icon name="lock" size={11}/> 새 비밀번호</label>
                 <input id="chpw-new" type="password" className="input" autoFocus placeholder="4자 이상"
+                       autoComplete="new-password"
+                       aria-invalid={!!err} aria-describedby={err ? 'chpw-err' : undefined}
                        value={newPw}
                        onChange={(e) => { setNewPw(e.target.value); setErr(''); }}/>
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="chpw-confirm"><Icon name="lock" size={11}/> 새 비밀번호 확인</label>
                 <input id="chpw-confirm" type="password" className="input" placeholder="다시 입력"
+                       autoComplete="new-password"
+                       aria-invalid={!!err} aria-describedby={err ? 'chpw-err' : undefined}
                        value={confirmPw}
                        onChange={(e) => { setConfirmPw(e.target.value); setErr(''); }}
                        onKeyDown={(e) => e.key === 'Enter' && saveNewPw()}/>
@@ -499,7 +524,7 @@ function ChangePasswordModal({ user, onClose }) {
             </div>
           )}
 
-          {err && <div role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
+          {err && <div id="chpw-err" role="alert" className="login__err"><Icon name="alert" size={13}/> {err}</div>}
         </div>
 
         <div className="modal__foot">
@@ -538,9 +563,7 @@ function MobileTabBar() {
 
   const META = {
     dashboard:       { label: '대시보드', icon: 'grid' },
-    sales:           { label: '영업', icon: 'cart' },
     waiting:         { label: '생산대기', icon: 'clock', count: pendingCount },
-    mapping:         { label: '생산입력', icon: 'factory' },
     AwaitPickup:     { label: '출하대기', icon: 'truck', count: awaitPickupCount },
     lookup:          { label: '조회', icon: 'search' },
     admin:           { label: '사용자', icon: 'users' },

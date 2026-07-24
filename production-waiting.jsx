@@ -77,12 +77,26 @@ function ProductionWaitingScreen() {
   const [entryOrder, setEntryOrder] = useStatePW(null);
   const [salesOrder, setSalesOrder] = useStatePW(null);
   const [revertReviewOrder, setRevertReviewOrder] = useStatePW(null);
+  const [requestModal, setRequestModal] = useStatePW(null); // null | 'new' | order 객체
 
   React.useEffect(() => {
     const sync = () => setModels(window.PMDB.getModels());
     window.addEventListener('masterLoaded', sync);
     return () => window.removeEventListener('masterLoaded', sync);
   }, []);
+
+  // order-lookup.jsx의 "영업 정보 수정" 등 외부에서 editOrder()로 s.editingOrderId를 설정하면
+  // (waiting 뷰로 이동한 뒤) 여기서 감지해 생산요청 수정 모달을 자동으로 연다.
+  React.useEffect(() => {
+    if (!s.editingOrderId) return;
+    const target = s.orders.find(o => o.order_id === s.editingOrderId && o.status === 'PENDING');
+    if (target) setRequestModal(target);
+  }, [s.editingOrderId]);
+
+  const closeRequestModal = () => {
+    setRequestModal(null);
+    if (s.editingOrderId) window.actions.cancelEdit();
+  };
 
   const filtered = useMemoPW(() => {
     return s.orders.filter(o => {
@@ -199,7 +213,7 @@ function ProductionWaitingScreen() {
         </div>
         {role !== 'production' && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn--secondary" onClick={() => window.actions.setView('sales')}>
+            <button className="btn btn--secondary" onClick={() => setRequestModal('new')}>
               <Icon name="plus" size={13}/> 신규 생산요청
             </button>
           </div>
@@ -260,7 +274,7 @@ function ProductionWaitingScreen() {
                   <div className="emptystate__title">생산 대기 중인 오더가 없습니다</div>
                   <div className="emptystate__sub">영업 부서에서 생산요청을 등록하면 이 목록에 표시됩니다</div>
                   {isSales && (
-                    <button className="btn btn--primary" style={{ marginTop: 12 }} onClick={() => window.actions.setView('sales')}>
+                    <button className="btn btn--primary" style={{ marginTop: 12 }} onClick={() => setRequestModal('new')}>
                       <Icon name="plus" size={13}/> 신규 생산요청 등록
                     </button>
                   )}
@@ -291,6 +305,9 @@ function ProductionWaitingScreen() {
       )}
       {revertReviewOrder && (
         <ProductionRevertReviewModal order={revertReviewOrder} onClose={() => setRevertReviewOrder(null)}/>
+      )}
+      {requestModal && (
+        <ProductionRequestModal order={requestModal === 'new' ? null : requestModal} onClose={closeRequestModal}/>
       )}
     </div>
   );
@@ -962,8 +979,10 @@ function SalesCompletionModal({ order, onClose }) {
               {isPublic && (
                 <div className="field" style={{ gridColumn: '1 / -1' }}>
                   <label className="field__label" htmlFor="scm-cpo">CPO 운영사</label>
-                  <BulkInlineCombo value={form.cpo_name} onChange={(v) => update('cpo_name', v)}
-                    options={masterCpos.map(c => c.name)} placeholder="CPO 운영사"/>
+                  <ComboField id="scm-cpo"
+                    value={form.cpo_name} onChange={(v) => update('cpo_name', v)}
+                    options={masterCpos} displayKey="name" metaKey="code"
+                    placeholder="CPO 운영사명 입력 또는 선택" ariaLabel="CPO 운영사"/>
                 </div>
               )}
 

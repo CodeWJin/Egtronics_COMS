@@ -347,6 +347,10 @@
           }
           return { error: null };
         });
+        // 생산요청 등록 시점에 시리얼번호 자동 채번 (모델에 등록된 채번 규칙이 없으면 생략).
+        // 생산착수(startProduction) 시에는 이미 채번된 값이 있으면 재채번하지 않는다.
+        const serial = this.generateSerialSuggestion(form.model_name, form.usage_type, TODAY, id);
+        if (serial) this.saveProduction(id, { serial_no: serial });
         return id;
       },
 
@@ -382,6 +386,25 @@
             }
           }
           return { error: null };
+        });
+        return true;
+      },
+
+      // 생산요청 취소 — PENDING 오더만 완전 삭제(공용이면 tb_usagetype_public 행도 함께 삭제).
+      // 취소 이력(action:'cancel')은 이 함수 호출 전 actions.cancelOrder()에서 먼저 기록한다.
+      deleteOrder(order_id) {
+        const o = cache.orders.find(x => x.order_id === order_id);
+        if (!o || o.status !== 'PENDING') {
+          dbLog('WARN', 'write:tb_sales_order', `주문 취소 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          return false;
+        }
+        cache.orders = cache.orders.filter(x => x.order_id !== order_id);
+        const hadPub = cache.usage_type_public.some(p => p.order_id === order_id);
+        cache.usage_type_public = cache.usage_type_public.filter(p => p.order_id !== order_id);
+        dbLog('INFO', 'write:tb_sales_order', `주문 취소(삭제) — order_id=${order_id}`);
+        dbWrite('tb_sales_order', 'delete', async () => {
+          if (hadPub) await client.from('tb_usagetype_public').delete().eq('order_id', order_id);
+          return client.from('tb_sales_order').delete().eq('order_id', order_id);
         });
         return true;
       },
@@ -511,9 +534,12 @@
         o.status = 'IN_PROGRESS';
         dbLog('INFO', 'write:tb_sales_order', `생산 시작 — order_id=${order_id}`);
         dbWrite('tb_sales_order', 'start', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
-        // "생산 수락" 시점에 충전기 시리얼번호 자동 채번 — 생산착수 모달에서 이미 채워진 값으로 표시됨
-        const serial = this.generateSerialSuggestion(o.model_name, o.usage_type, TODAY, order_id);
-        if (serial) this.saveProduction(order_id, { serial_no: serial });
+        // 생산요청 등록 시점에 이미 채번되어 있으면 재채번하지 않는다(되돌리기 등으로 초기화된 경우에만 여기서 새로 채번).
+        const existing = cache.production.find(p => p.order_id === order_id);
+        if (!existing || !existing.serial_no) {
+          const serial = this.generateSerialSuggestion(o.model_name, o.usage_type, TODAY, order_id);
+          if (serial) this.saveProduction(order_id, { serial_no: serial });
+        }
         return true;
       },
 
@@ -1191,6 +1217,7 @@
     loadOrders()             { return this.backend.loadOrders(); },
     addOrder(f)              { return this.backend.addOrder(f); },
     updateOrder(id, f)       { return this.backend.updateOrder(id, f); },
+    deleteOrder(id)          { return this.backend.deleteOrder(id); },
     saveProduction(id, p)    { return this.backend.saveProduction(id, p); },
     completeOrder(id, p)     { return this.backend.completeOrder(id, p); },
     shipOrder(id)            { return this.backend.shipOrder(id); },

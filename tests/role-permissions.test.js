@@ -25,13 +25,13 @@ if (!match) {
 // eslint-disable-next-line no-new-func
 const ROLE_TABS = new Function(`return ${match[1]}`)();
 
-const ALL_VIEWS = ['dashboard', 'sales', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
+const ALL_VIEWS = ['dashboard', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
 const FALLBACK_VIEWS = ['lookup'];
 
 // 역할별 기대 권한 (CLAUDE.md 및 auth.jsx 기준)
 const EXPECTED = {
   admin:      ALL_VIEWS,
-  sales:      ['dashboard', 'sales', 'waiting', 'lookup', 'as-receipt', 'as-processing'],
+  sales:      ['dashboard', 'waiting', 'lookup', 'as-receipt', 'as-processing'],
   production: ['dashboard', 'waiting', 'AwaitPickup', 'lookup'],
   quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };

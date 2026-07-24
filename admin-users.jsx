@@ -51,22 +51,24 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
               <div className="field">
                 <label className="field__label" htmlFor="uf-user-id">아이디 <span className="field__req">*</span></label>
                 <input id="uf-user-id" className={`input ${errors.user_id ? 'input--error' : ''}`}
-                  aria-invalid={!!errors.user_id} value={form.user_id}
+                  aria-invalid={!!errors.user_id} aria-describedby={errors.user_id ? 'err-uf-user-id' : undefined} value={form.user_id}
                   onChange={e => set('user_id', e.target.value)} placeholder="영문+숫자"/>
-                {errors.user_id && <span className="field__err" role="alert">{errors.user_id}</span>}
+                {errors.user_id && <span id="err-uf-user-id" className="field__err" role="alert">{errors.user_id}</span>}
               </div>
               <div className="field">
                 <label className="field__label" htmlFor="uf-password">초기 비밀번호 <span className="field__req">*</span></label>
                 <div className="input-group">
                   <input id="uf-password" className={`input ${errors.password ? 'input--error' : ''}`}
-                    aria-invalid={!!errors.password}
-                    type={showPw ? 'text' : 'password'} value={form.password}
+                    aria-invalid={!!errors.password} aria-describedby={errors.password ? 'err-uf-password' : undefined}
+                    type={showPw ? 'text' : 'password'} autoComplete="new-password" value={form.password}
                     onChange={e => set('password', e.target.value)} placeholder="초기 비밀번호"/>
-                  <button className="input-group__btn" type="button" aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'} onClick={() => setShowPw(v => !v)}>
-                    {showPw ? '숨김' : '표시'}
+                  <button className="input-group__btn" type="button"
+                    aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'} aria-pressed={showPw}
+                    onClick={() => setShowPw(v => !v)}>
+                    <Icon name={showPw ? 'eye-off' : 'eye'} size={14}/>
                   </button>
                 </div>
-                {errors.password && <span className="field__err" role="alert">{errors.password}</span>}
+                {errors.password && <span id="err-uf-password" className="field__err" role="alert">{errors.password}</span>}
               </div>
             </div>
           )}
@@ -74,10 +76,13 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
             <div className="field">
               <label className="field__label" htmlFor="uf-password-reset">비밀번호 재설정 <span style={{ color: 'var(--ink-4)', fontSize: 11 }}>(비워두면 변경 안함)</span></label>
               <div className="input-group">
-                <input id="uf-password-reset" className="input" type={showPw ? 'text' : 'password'} value={form.password || ''}
+                <input id="uf-password-reset" className="input" type={showPw ? 'text' : 'password'}
+                  autoComplete="new-password" value={form.password || ''}
                   onChange={e => set('password', e.target.value)} placeholder="새 비밀번호"/>
-                <button className="input-group__btn" type="button" aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'} onClick={() => setShowPw(v => !v)}>
-                  {showPw ? '숨김' : '표시'}
+                <button className="input-group__btn" type="button"
+                  aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 표시'} aria-pressed={showPw}
+                  onClick={() => setShowPw(v => !v)}>
+                  <Icon name={showPw ? 'eye-off' : 'eye'} size={14}/>
                 </button>
               </div>
             </div>
@@ -86,18 +91,18 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
             <div className="field">
               <label className="field__label" htmlFor="uf-name">이름 <span className="field__req">*</span></label>
               <input id="uf-name" className={`input ${errors.name ? 'input--error' : ''}`}
-                aria-invalid={!!errors.name} value={form.name}
+                aria-invalid={!!errors.name} aria-describedby={errors.name ? 'err-uf-name' : undefined} value={form.name}
                 onChange={e => set('name', e.target.value)} placeholder="홍길동"/>
-              {errors.name && <span className="field__err" role="alert">{errors.name}</span>}
+              {errors.name && <span id="err-uf-name" className="field__err" role="alert">{errors.name}</span>}
             </div>
             <div className="field">
               <label className="field__label" htmlFor="uf-role">역할 <span className="field__req">*</span></label>
               <select id="uf-role" className={`select ${errors.role ? 'input--error' : ''}`}
-                aria-invalid={!!errors.role} value={form.role}
+                aria-invalid={!!errors.role} aria-describedby={errors.role ? 'err-uf-role' : undefined} value={form.role}
                 onChange={e => set('role', e.target.value)}>
                 {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-              {errors.role && <span className="field__err" role="alert">{errors.role}</span>}
+              {errors.role && <span id="err-uf-role" className="field__err" role="alert">{errors.role}</span>}
             </div>
           </div>
           <div className="field">
@@ -112,8 +117,8 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
             <div className="field">
               <label className="field__label" htmlFor="uf-email">이메일</label>
               <input id="uf-email" className={`input ${errors.email ? 'input--error' : ''}`}
-                aria-invalid={!!errors.email} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="user@example.com"/>
-              {errors.email && <span className="field__err" role="alert">{errors.email}</span>}
+                aria-invalid={!!errors.email} aria-describedby={errors.email ? 'err-uf-email' : undefined} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="user@example.com"/>
+              {errors.email && <span id="err-uf-email" className="field__err" role="alert">{errors.email}</span>}
             </div>
           </div>
         </div>
@@ -220,7 +225,7 @@ function AdminUsersScreen() {
             </div>
             <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.6 }}>
               {r.value === 'admin' && '모든 탭 + 사용자 관리'}
-              {r.value === 'sales' && '생산 요청 · 생산 대기 · 조회 · A/S 접수'}
+              {r.value === 'sales' && '생산 대기(생산요청 등록 포함) · 조회 · A/S 접수'}
               {r.value === 'production' && '생산 대기 · 출하 대기 · 조회'}
               {r.value === 'quality' && '출하 대기 · 조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
             </div>
@@ -263,7 +268,7 @@ function AdminUsersScreen() {
               )}
               {filtered.map(u => (
                 <tr key={u.user_id} className="row--clickable"
-                  tabIndex={0}
+                  role="button" tabIndex={0}
                   aria-label={`${u.name} (${u.user_id}) 편집`}
                   onClick={() => setModal({ mode: 'edit', user: u })}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setModal({ mode: 'edit', user: u }); } }}>
@@ -303,8 +308,6 @@ function AdminUsersScreen() {
           </table>
         </div>
       </div>
-
-      
 
       {modal?.mode === 'add' && (
         <UserFormModal mode="add" initial={EMPTY_FORM} onSave={handleAdd} onClose={() => setModal(null)}/>

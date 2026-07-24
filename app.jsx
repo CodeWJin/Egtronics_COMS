@@ -7,7 +7,7 @@ function App() {
   React.useEffect(() => {
     const store = window['__pm_store__'];
     if (!history.state || !history.state.view) {
-      const validViews = ['dashboard', 'sales', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
+      const validViews = ['dashboard', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
       const hashView = window.location.hash.slice(1);
       if (hashView && validViews.includes(hashView)) {
         store.view = hashView;
@@ -92,7 +92,6 @@ function App() {
       <main style={{ flex: 1, overflow: 'auto' }}>
         <div key={s.view} className="screen-enter" style={{ height: '100%' }}>
           {s.view === 'dashboard'      && <DashboardScreen/>}
-          {s.view === 'sales'          && <SalesInputScreen/>}
           {s.view === 'waiting'        && <ProductionWaitingScreen/>}
           {s.view === 'AwaitPickup'    && <ProductionCompleteScreen/>}
           {s.view === 'lookup'         && <OrderLookupScreen/>}
@@ -122,7 +121,6 @@ function App() {
                     options={['compact', 'regular', 'comfy']}
                     onChange={(v) => setTweak('density', v)}/>
         <TweakSection label="데모 액션" />
-        <TweakButton label="신규 생산요청 화면으로" onClick={() => window.actions.setView('sales')}/>
         <TweakButton label="생산 대기 화면으로" onClick={() => window.actions.setView('waiting')}/>
         <TweakButton label="생산 완료 화면으로" onClick={() => window.actions.setView('AwaitPickup')}/>
         <TweakButton label="통합 조회 화면으로" onClick={() => window.actions.setView('lookup')}/>
@@ -189,12 +187,20 @@ function boot() {
       const msg = err.message || '알 수 없는 오류';
       const bootEl = document.querySelector('.boot');
       if (bootEl) {
-        bootEl.innerHTML =
-          '<div style="max-width:480px;padding:24px;background:var(--surface,#fff);border-radius:var(--r-md,11px);box-shadow:0 4px 24px rgba(0,0,0,0.12);font-family:Pretendard Variable,system-ui,sans-serif">' +
-          '<div style="color:var(--danger,#EF4444);font-weight:700;font-size:14px;margin-bottom:12px">⚠ Supabase 연결 실패</div>' +
-          '<pre style="white-space:pre-wrap;font-size:12px;color:var(--ink-2,#333);background:var(--surface-3,#fafafc);padding:12px;border-radius:var(--r-sm,8px);margin-bottom:16px">' + msg + '</pre>' +
-          '<div style="font-size:13px;color:var(--ink-3,#6b6b6b)">브라우저 콘솔(F12)에서 자세한 오류를 확인할 수 있습니다.</div>' +
-          '</div>';
+        bootEl.textContent = '';
+        const box = document.createElement('div');
+        box.style.cssText = 'max-width:480px;padding:24px;background:var(--surface,#fff);border-radius:var(--r-md,11px);box-shadow:0 4px 24px rgba(0,0,0,0.12);font-family:Pretendard Variable,system-ui,sans-serif';
+        const title = document.createElement('div');
+        title.style.cssText = 'color:var(--danger,#EF4444);font-weight:700;font-size:14px;margin-bottom:12px';
+        title.textContent = '⚠ Supabase 연결 실패';
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'white-space:pre-wrap;font-size:12px;color:var(--ink-2,#333);background:var(--surface-3,#fafafc);padding:12px;border-radius:var(--r-sm,8px);margin-bottom:16px';
+        pre.textContent = msg;
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:13px;color:var(--ink-3,#6b6b6b)';
+        hint.textContent = '브라우저 콘솔(F12)에서 자세한 오류를 확인할 수 있습니다.';
+        box.append(title, pre, hint);
+        bootEl.appendChild(box);
       }
     });
   });

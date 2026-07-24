@@ -42,6 +42,7 @@ const Icon = ({ name, size = 16, stroke = 1.6, ...rest }) => {
     case 'info':        return <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/></svg>;
     case 'lock':        return <svg {...common}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>;
     case 'eye':         return <svg {...common}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
+    case 'eye-off':     return <svg {...common}><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0112 5c6 0 10 7 10 7a17.6 17.6 0 01-3.2 4.1M6.5 6.7C4 8.4 2 12 2 12s4 7 10 7a10.4 10.4 0 004.3-.9"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg>;
     case 'list':        return <svg {...common}><path d="M8 6h13M8 12h13M8 18h13M4 6h.01M4 12h.01M4 18h.01"/></svg>;
     case 'doc':         return <svg {...common}><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>;
     case 'save':        return <svg {...common}><path d="M5 5v14h14V8l-3-3H5z"/><path d="M8 5v5h8V5M8 19v-6h8v6"/></svg>;
