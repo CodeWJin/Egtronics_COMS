@@ -844,6 +844,7 @@ function SalesCompletionModal({ order, onClose }) {
   const [masterCustomers, setMasterCustomers] = useStatePW(() => window.PMDB.getCustomers());
   const [masterCpos, setMasterCpos] = useStatePW(() => window.PMDB.getCpos());
   const [managers, setManagers] = useStatePW(() => window.PMDB.getManagers ? window.PMDB.getManagers(order.customer_name) : []);
+  const [addresses, setAddresses] = useStatePW(() => window.PMDB.getAddresses ? window.PMDB.getAddresses(order.customer_name) : []);
   const [modal, setModal] = useStatePW(null);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -856,11 +857,12 @@ function SalesCompletionModal({ order, onClose }) {
     return list;
   };
 
-  // 발주처가 tb_customer 마스터에 등록된 주소를 갖고 있으면 납품장소 선택지로 제안한다.
-  const addressSuggestions = useMemoPW(
-    () => form.customer_name ? masterCustomers.filter(c => c.name === form.customer_name && c.address) : [],
-    [masterCustomers, form.customer_name]
-  );
+  const refreshAddresses = (customerName) => {
+    if (!customerName || !window.PMDB.getAddresses) { setAddresses([]); return []; }
+    const list = window.PMDB.getAddresses(customerName);
+    setAddresses(list);
+    return list;
+  };
 
   const errors = {
     cable_length: !form.cable_length && '케이블 길이를 입력해 주세요',
@@ -911,7 +913,7 @@ function SalesCompletionModal({ order, onClose }) {
                 <div className="mgr-field">
                   <ComboField
                     value={form.customer_name}
-                    onChange={(v) => { update('customer_name', v); update('customer_manager', ''); update('field_manager_phone', ''); refreshManagers(v); }}
+                    onChange={(v) => { update('customer_name', v); update('customer_manager', ''); update('field_manager_phone', ''); refreshManagers(v); refreshAddresses(v); }}
                     options={masterCustomers}
                     placeholder="고객사명 입력 또는 선택"
                     ariaLabel="발주처"
@@ -1002,16 +1004,25 @@ function SalesCompletionModal({ order, onClose }) {
 
               <div className="field" style={{ gridColumn: '1 / -1' }}>
                 <label className="field__label" htmlFor="scm-address">납품장소<span className="field__req">*</span></label>
-                <AddressField id="scm-address" value={form.install_address}
-                  onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
-                {addressSuggestions.length > 0 && (
-                  <div style={{ marginTop: 6, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', overflow: 'hidden' }} role="listbox" aria-label="발주처 등록 주소">
-                    {addressSuggestions.map((c, i) => (
-                      <div key={i} className="combo__item" role="option" tabIndex={0}
-                           onClick={() => update('install_address', c.address)}
-                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update('install_address', c.address); } }}>
-                        <span>{c.address}</span>
-                        <span className="combo__item__meta">{c.name} 등록 주소</span>
+                <div className="mgr-field">
+                  <AddressField id="scm-address" value={form.install_address}
+                    onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
+                  <button type="button" className="btn btn--secondary mgr-field__manage"
+                          onClick={() => {
+                            if (!form.customer_name) { window.actions.flashToast('발주처를 먼저 선택해 주세요', 'error'); return; }
+                            setModal('address');
+                          }} title="납품장소 관리" aria-label="납품장소 관리">
+                    <Icon name="map-pin" size={13}/>
+                  </button>
+                </div>
+                {addresses.length > 0 && (
+                  <div style={{ marginTop: 6, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', overflow: 'hidden' }} role="listbox" aria-label="발주처 등록 납품장소">
+                    {addresses.map((a) => (
+                      <div key={a.address_id} className="combo__item" role="option" tabIndex={0}
+                           onClick={() => update('install_address', a.address)}
+                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update('install_address', a.address); } }}>
+                        <span>{a.label}{!!a.is_primary && <span className="badge badge--info" style={{ marginLeft: 6 }}>대표</span>}</span>
+                        <span className="combo__item__meta">{a.address}</span>
                       </div>
                     ))}
                   </div>
@@ -1085,6 +1096,18 @@ function SalesCompletionModal({ order, onClose }) {
               const mgr = list.find(m => m.name === picked);
               update('customer_manager', mgr ? mgr.name : picked);
               update('field_manager_phone', mgr ? (mgr.phone || '') : '');
+            }
+          }}/>
+      )}
+      {modal === 'address' && (
+        <AddressManageModal
+          customerName={form.customer_name}
+          onClose={() => setModal(null)}
+          onChanged={(picked) => {
+            const list = refreshAddresses(form.customer_name);
+            if (picked) {
+              const addr = list.find(a => a.label === picked);
+              if (addr) update('install_address', addr.address);
             }
           }}/>
       )}
