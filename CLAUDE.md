@@ -121,34 +121,33 @@ const { useState: useStateAREC, useEffect: useEffectAREC, useMemo: useMemoAREC }
 
 뷰 컴포넌트는 Supabase를 직접 호출하지 않고 반드시 `window.actions.*` 또는 `window.PMDB.*`를 통해 데이터 조작.
 
-**시리얼 채번 유틸도 `db.js`에 있다** (`SERIAL_MODEL_CODES`, `makeSerialDateCode`, `window.isValidSerialNo`, `window.findModelCodeFromSerial`, `PMDB.generateSerialSuggestion(model, usage, prodDate, excludeOrderId)`). `PMDB.addOrder(form)`가 `PENDING` 오더 생성 직후(모델에 등록된 채번 규칙이 있으면) 이 유틸로 시리얼을 자동 채번해 `saveProduction`으로 즉시 저장한다 — **생산요청 등록 버튼을 누르는 순간 시리얼이 이미 부여**되며 생산요청 칸반 카드에도 바로 표시된다. `PMDB.startProduction(order_id)`(`PENDING → IN_PROGRESS`)는 이미 채번된 시리얼이 있으면 재채번하지 않고, 없을 때만(예: `revertOrder`로 시리얼이 초기화된 경우) 새로 채번한다.
+**시리얼 채번 유틸도 `db.js`에 있다** (`SERIAL_MODEL_CODES`, `makeSerialDateCode`, `window.isValidSerialNo`, `window.findModelCodeFromSerial`, `PMDB.generateSerialSuggestion(model, usage, prodDate, excludeChargeId)`). `PMDB.addOrderBatch(form)`가 배치(`tb_sales_order`) 생성 직후 `qty`개의 충전기 유닛(`tb_charge_infor`)을 만들면서(모델에 등록된 채번 규칙이 있으면) 유닛마다 이 유틸로 시리얼을 자동 채번해 즉시 저장한다 — **생산요청 등록 버튼을 누르는 순간 유닛별 시리얼이 이미 부여**되며 생산요청 칸반 카드에도 바로 표시된다. `PMDB.startProduction(charge_id)`(`PENDING → IN_PROGRESS`)는 이미 채번된 시리얼이 있으면 재채번하지 않고, 없을 때만(예: `revertOrder`로 시리얼이 초기화된 경우) 새로 채번한다.
 
-**충전기 설치 정보 (`tb_chargepoint_infor`)**: `cache.chargepoints`에 캐시. `PMDB.getChargepointBySerial(serial_no)` — 시리얼 대소문자·공백 무시 조회, `PMDB.addChargepoint(data)` — 중복 시리얼 거부 후 삽입. AS 접수(`as-receipt.jsx`)에서 시리얼번호로 조회했을 때 없으면 등록 모달을 띄우는 데 사용.
+**충전기 정보 조회 (`tb_charge_infor` 중 "실물 확정" 행만)**: `PMDB.getChargepointBySerial(serial_no)` / `PMDB.loadChargepoints()`는 `tb_charge_infor` 중 `status === 'COMPLETED'`이거나 `order_id`가 `null`(AS접수 수동등록)인 행만 대상으로 한다 — 아직 생산 중(PENDING/IN_PROGRESS/AWAIT_PICKUP)인 유닛은 제외된다. `PMDB.addChargepoint(data)` — 중복 시리얼 거부 후 `order_id: null, status: 'COMPLETED'`로 삽입. AS 접수(`as-receipt.jsx`)에서 시리얼번호로 조회했을 때 없으면 등록 모달을 띄우는 데 사용.
 
 **Supabase 테이블 목록:**
 
 | 테이블 | 설명 |
 |---|---|
 | `tb_users` | 사용자 계정 (role 허용값: `admin`, `sales`, `production`, `quality`) |
-| `tb_sales_order` | 영업 오더. `customer_name`은 NULL 허용(생산요청 단계엔 아직 비어 있음) |
-| `tb_usagetype_public` | 공용 충전기 전용 필드 (`station_id`, `charger_no`, `router_no`, `usim_no`) — `tb_sales_order`와 `order_id`로 1:1 연결 |
-| `tb_production_info` | 생산 정보 (`prod_date`, `serial_no`, `inspection_date`, `sw_version`, `fw_version`) |
-| `tb_customer_manager` | 고객사 담당자 |
-| `tb_order_history` | 오더 변경 이력 |
+| `tb_sales_order` | 영업 오더 **배치** — `model_name`, `usage_type`, `qty`, `requested_by`만 보관. 상태 없음(상태는 `tb_charge_infor`가 유닛 단위로 보유) |
+| `tb_charge_infor` | 충전기 **유닛** (1행 = 실물 충전기 1대). `status`(PENDING~COMPLETED), 구 `tb_production_info`(`prod_date`/`serial_no`/`sw_version`/`fw_version`) + 구 `tb_chargepoint_infor`(설치정보)를 흡수. `customer_name`/`customer_manager`/`field_manager_phone`은 오더 시점 텍스트 스냅샷(FK 아님). `order_id`는 배치 FK(NULL 허용 — AS접수 수동등록 충전기용) |
+| `tb_usagetype_public` | 공용 충전기 전용 필드 (`station_id`, `charger_no`, `router_no`, `usim_no`, `cpo_name`, `inspection_date`) — 위성 테이블, `tb_charge_infor.usage_public_id`가 단방향 참조 |
+| `tb_customer_manager` | 고객사 담당자 (자동완성용 마스터, FK 아님) |
+| `tb_order_history` | 충전기 유닛 변경 이력 (`charge_id` 컬럼, FK 의도적 미설정) |
 | `tb_as_reception` | AS 접수 |
 | `tb_as_log` | AS 처리 상태 변경 이력 |
 | `tb_as_photo` | AS 첨부 사진 메타데이터 |
-| `tb_func_inspection` | 기능 검사 성적서 (order_id UNIQUE, checks: JSON 문자열) |
-| `tb_ship_inspection` | 출하 검사 성적서 (order_id UNIQUE, checks: JSON 문자열, photos: JSON 배열) |
-| `tb_master_customer` | 고객사 마스터 |
+| `tb_inspection_func` | 기능 검사 성적서 — 위성 테이블, `tb_charge_infor.func_inspection_id`가 단방향 참조 (checks: JSON 문자열) |
+| `tb_inspection_ship` | 출하 검사 성적서 — 위성 테이블, `tb_charge_infor.ship_inspection_id`가 단방향 참조 (checks: JSON 문자열, photos: JSON 배열) |
+| `tb_customer` | 고객사 마스터 (`name`, `address`) |
 | `tb_master_cpo` | CPO 운영사 마스터 |
 | `tb_master_model` | 충전기 모델 마스터 (`model_code`, `description`, `power` 필드. `name` 컬럼 없음) |
 | `tb_program_version` | SW/FW 버전 마스터 (`type`, `tag`, `released`, `stable`) — SW·FW 통합 테이블 |
-| `tb_chargepoint_infor` | 충전기 설치 정보 (`serial_no`, `model_name`, `order_id`, `install_address`) |
 
-**`tb_sales_order` 주요 필드:** `customer_name`(발주처, NULL 허용), `customer_manager`(발주처 담당자), `model_name`, `delivery_date`, `install_address`, `cable_length`, `field_manager_phone`(발주처 담당자 전화번호), `cpo_name`, `usage_type`(공용/비공용), `status`, `requested_by`(생산요청자 이름 — `tb_users.name` 스냅샷)
+**`tb_charge_infor` 주요 필드:** `id`(PK, `{batch_id}-{순번2자리}`), `order_id`(배치 FK), `model_name`, `usage_type`, `serial_no`, `status`, `customer_name`/`customer_manager`/`field_manager_phone`(발주처 정보, 텍스트 스냅샷), `delivery_date`, `install_address`, `ship_from_address`(출하장소, 설치장소와 별도), `cable_length`, `prod_date`, `sw_version`, `fw_version`, `usage_public_id`/`func_inspection_id`/`ship_inspection_id`(위성 테이블 FK)
 
-**`tb_usagetype_public` 주요 필드:** `order_id`, `station_id`, `charger_no`, `router_no`, `usim_no` — `usage_type='공용'` 오더에 한해 생성
+**`tb_usagetype_public` 주요 필드:** `id`, `station_id`, `charger_no`, `router_no`, `usim_no`, `cpo_name`, `inspection_date` — `usage_type='공용'` 유닛에 한해 생성, `tb_charge_infor.usage_public_id`로 연결
 
 `window.MASTER` 같은 마스터 데이터 전역 캐시는 존재하지 않는다 — 케이블 길이 등 마스터 목록이 필요하면 개별 컴포넌트가 자체 상수(예: `production-waiting.jsx`의 `CABLE_LENGTH_OPTIONS`)를 쓰거나 `PMDB.getModels()`류 함수를 직접 호출한다.
 
@@ -173,7 +172,7 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 
 - `useStore()` — 리스너 등록 + 강제 리렌더 훅 (모든 뷰에서 사용)
 - `window.notify()` — 모든 리스너 호출
-- `window.actions` — 상태 변경 액션 집합 (`addOrder`, `updateOrder`, `startProduction`, `completeOrder`, `shipOrder`, `revertOrder`, `revertToAwaitPickup`, `revertToInProgress`, `awaitToInProgress`, `setView`, `addAsReception`, `updateAsReception` 등)
+- `window.actions` — 상태 변경 액션 집합 (`addOrderBatch`, `updateOrder`, `startProduction`, `completeOrder`, `shipOrder`, `revertOrder`, `revertToAwaitPickup`, `revertToInProgress`, `awaitToInProgress`, `setView`, `addAsReception`, `updateAsReception` 등)
 
 ```
 상태 변경: actions.X() → PMDB 캐시 수정 → store 업데이트 → notify() → 전체 리렌더
@@ -197,7 +196,7 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 |-----------------|---------------------------|-------------------------------|
 | `dashboard`     | `DashboardScreen`         | admin, sales, production, quality (전체) |
 | `waiting`       | `ProductionWaitingScreen` | admin, sales, production      |
-| `AwaitPickup`   | `ProductionCompleteScreen`| admin, production, quality     |
+| `AwaitPickup`   | `ProductionCompleteScreen`| admin, quality (품질 부서 전용, admin 제외 접근 불가) |
 | `lookup`        | `OrderLookupScreen`       | 전체                           |
 | `admin`         | `AdminUsersScreen`        | admin 전용                    |
 | `as-receipt`    | `AsReceiptScreen`         | admin, quality, sales              |
@@ -218,22 +217,26 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 
 오더 파이프라인 KPI 타일의 `AWAIT_PICKUP` 카운트는 `window.isSalesInfoComplete(o)`가 `true`인 것만 센다(생산완료 단계에서 영업정보 입력 대기 중인 건은 제외) — `TopNav`의 "출하대기" 뱃지 카운트도 동일 규칙.
 
+### 오더(배치)와 충전기(유닛) — DB 스키마 vs 뷰 코드의 `order_id`
+
+DB 레벨에서는 `tb_sales_order`(배치: 모델·용도·수량·요청자, 상태 없음)와 `tb_charge_infor`(충전기 유닛: 실물 1대 = 1행, 상태·시리얼·검사성적서 보유)가 분리되어 있다. 하지만 `db.js`의 `loadOrders()`가 이 둘을 조인해 반환하는 JS 객체에서는 **`order_id` 프로퍼티가 여전히 충전기 유닛 자신의 id를 가리키도록 별칭 처리**한다(`batch_id`가 실제 배치 PK). 즉 뷰 코드(`o.order_id`, `PMDB.updateOrder(order_id, …)`, `window.actions.startProduction(order_id)` 등)는 예전처럼 "오더 1건 = 충전기 1건" 그레인으로 다루면 되고, 배치 개념은 등록(`addOrderBatch`) 시점에만 신경 쓰면 된다. `o.serial_no`/`o.prod_date`/`o.sw_version`/`o.fw_version`/`o.inspection_date`도 예전의 `o.production.xxx` 중첩 구조 없이 `o` 위에 바로 평탄화되어 있다.
+
 ### 생산 워크플로우 (생산요청 → 생산착수 → 생산완료 → 출하대기)
 
-오더 상태는 `PENDING → IN_PROGRESS → AWAIT_PICKUP → COMPLETED` 4개뿐이지만, 업무 단계는 4개다: **생산완료와 출하대기는 둘 다 `AWAIT_PICKUP` 상태**이며 `window.isSalesInfoComplete(order)`(영업정보 입력 완료 여부 — `shell.jsx` 정의)로만 구분한다.
+충전기 유닛 상태는 `PENDING → IN_PROGRESS → AWAIT_PICKUP → COMPLETED` 4개뿐이지만, 업무 단계는 4개다: **생산완료와 출하대기는 둘 다 `AWAIT_PICKUP` 상태**이며 `window.isSalesInfoComplete(order)`(영업정보 입력 완료 여부 — `shell.jsx` 정의)로만 구분한다.
 
-1. **생산요청** (`production-waiting.jsx`의 "+ 신규 생산요청" 버튼 → `production-request-modal.jsx`의 `ProductionRequestModal`) — 영업이 모델·용도(공용/비공용)·수량만 입력해 `PENDING` 오더를 생성하는 모달(라우팅 없음). 등록 시 `requested_by`에 `currentUser.name`을 저장. 고객사·납품정보 등은 이 단계에서 입력하지 않는다(발주처 등록 필드 자체가 없음).
-2. **생산착수** (`production-waiting.jsx`의 칸반, `ProductionEntryModal`) — 시리얼은 생산요청 등록 시점에 이미 채번되어 있으므로(위 참고) 이 단계에서는 그 값을 그대로 보여준다(수정/재생성 가능). 칸반의 "생산착수" 컬럼 카드를 클릭하면 뜨는 모달에서 생산일자·시리얼·검정일자(공용만)·SW/FW버전·기능검사 성적서(`FuncInspectionDrawer`)를 입력하고 제출하면 `completeOrder`로 `AWAIT_PICKUP` 전환.
-3. **생산완료** (`production-waiting.jsx`의 칸반, `SalesCompletionModal`) — `AWAIT_PICKUP`이면서 `isSalesInfoComplete`가 `false`인 오더. "생산완료" 컬럼 카드를 클릭하면 뜨는 모달에서 케이블길이·발주처·발주처 담당자·발주처 담당자 전화번호(`field_manager_phone`)·납품장소·납품일자(+공용이면 충전소ID·충전기ID·라우터번호·USIM번호·CPO운영사)를 입력, `updateOrder`로 저장.
-4. **출하대기** (`quality-AwaitPickup.jsx`, `ProductionCompleteScreen`) — `AWAIT_PICKUP`이면서 `isSalesInfoComplete`가 `true`인 오더만 목록에 표시. 출하 전 검사 성적서 작성 + 출하완료(`shipOrder`) 처리. 행 클릭은 역할 구분 없이 `ShipInspectionDrawer`를 바로 연다.
+1. **생산요청** (`production-waiting.jsx`의 "+ 신규 생산요청" 버튼 → `production-request-modal.jsx`의 `ProductionRequestModal`) — 영업이 모델·용도(공용/비공용)·수량만 입력해 `window.actions.addOrderBatch(form)`를 호출한다. 내부적으로 `tb_sales_order`(배치) 1행 + `tb_charge_infor`(유닛) `qty`개를 생성하며, 유닛마다 `PENDING` 상태로 시작한다. 등록 시 배치의 `requested_by`에 `currentUser.name`을 저장. 고객사·납품정보 등은 이 단계에서 입력하지 않는다.
+2. **생산착수** (`production-waiting.jsx`의 칸반, `ProductionEntryModal`) — 시리얼은 생산요청 등록 시점에 유닛마다 이미 채번되어 있으므로(위 참고) 이 단계에서는 그 값을 그대로 보여준다(수정/재생성 가능). 칸반의 "생산착수" 컬럼 카드를 클릭하면 뜨는 모달에서 생산일자·시리얼·검정일자(공용만)·SW/FW버전·기능검사 성적서(`FuncInspectionDrawer`)를 입력하고 제출하면 `completeOrder`로 `AWAIT_PICKUP` 전환.
+3. **생산완료** (`production-waiting.jsx`의 칸반, `SalesCompletionModal`) — `AWAIT_PICKUP`이면서 `isSalesInfoComplete`가 `false`인 유닛. "생산완료" 컬럼 카드를 클릭하면 뜨는 모달에서 케이블길이·발주처·발주처 담당자·발주처 담당자 전화번호(`field_manager_phone`)·납품장소·납품일자(+공용이면 충전소ID·충전기ID·라우터번호·USIM번호·CPO운영사)를 입력, `updateOrder`로 저장(발주처 필드는 텍스트 스냅샷 — FK 아님).
+4. **출하대기** (`quality-AwaitPickup.jsx`, `ProductionCompleteScreen`) — `AWAIT_PICKUP`이면서 `isSalesInfoComplete`가 `true`인 유닛만 목록에 표시. 출하 전 검사 성적서 작성 + 출하완료(`shipOrder`) 처리. `shipOrder()`는 상태를 `COMPLETED`로 바꾸기만 하면 끝난다(별도 파생 테이블 insert 없음 — `tb_charge_infor` 자체가 이미 충전기 레코드). 행 클릭은 역할 구분 없이 `ShipInspectionDrawer`를 바로 연다.
 
 생산착수·생산완료 컬럼의 칸반 카드에는 필드 채움 여부 기준 진행율 바(`stageProgress()`)가 표시된다 — 분모 필드 목록은 각각 `ProductionEntryModal`/`SalesCompletionModal`의 `errors` 검증 필드와 동일하게 유지해야 한다(한쪽만 필드를 추가하면 진행율이 실제 필수 입력과 어긋난다).
 
 칸반 카드 클릭 동작(`production-waiting.jsx`의 `onPick`)은 컬럼·역할별로 분기한다: 생산요청 카드는 `sales`만 `editOrder`(모델/용도 수정 — `ProductionRequestModal`을 편집 모드로 염), 생산착수 카드는 `production`/`admin`만 `ProductionEntryModal`, 생산완료 카드는 `sales`/`admin`만 `SalesCompletionModal`, 출하대기 카드는 `AwaitPickup` 뷰 접근 권한이 있는 역할만 `setView('AwaitPickup')`로 이동.
 
-`editOrder(id)`(`shell.jsx`)는 `s.editingOrderId`를 설정하고 `setView('waiting')`으로 이동시킬 뿐 자체적으로 모달을 열지 않는다 — `production-waiting.jsx`가 `s.editingOrderId`를 감시하는 `useEffect`로 감지해 해당 PENDING 오더를 편집 모드 `ProductionRequestModal`로 연다. `order-lookup.jsx` 드로어의 "영업 정보 수정" 버튼(`canEditSales` — `sales`/`admin`, `PENDING` 상태)도 동일하게 `editOrder()`를 호출해 이 경로를 탄다.
+`editOrder(id)`(`shell.jsx`)는 `s.editingOrderId`를 설정하고 `setView('waiting')`으로 이동시킬 뿐 자체적으로 모달을 열지 않는다 — `production-waiting.jsx`가 `s.editingOrderId`를 감시하는 `useEffect`로 감지해 해당 PENDING 유닛을 편집 모드 `ProductionRequestModal`로 연다. `order-lookup.jsx` 드로어의 "영업 정보 수정" 버튼(`canEditSales` — `sales`/`admin`, `PENDING` 상태)도 동일하게 `editOrder()`를 호출해 이 경로를 탄다.
 
-`db.js`의 `updateOrder(order_id, form)`는 `PENDING` 또는 `AWAIT_PICKUP` 상태에서만 허용하며, `form`에 실제로 담긴 키만 병합한다(부분 업데이트) — 생산요청 단계 수정과 생산완료 단계 입력이 서로 다른 필드 부분집합을 보내기 때문에 전체 덮어쓰기를 하면 안 된다.
+`db.js`의 `updateOrder(charge_id, form)`는 `PENDING` 또는 `AWAIT_PICKUP` 상태에서만 허용하며, `form`에 실제로 담긴 키만 병합한다(부분 업데이트) — 생산요청 단계 수정과 생산완료 단계 입력이 서로 다른 필드 부분집합을 보내기 때문에 전체 덮어쓰기를 하면 안 된다. `model_name`/`usage_type`은 배치가 아니라 유닛(`tb_charge_infor`)에 직접 저장되므로, PENDING 유닛 하나만 개별 수정해도 같은 배치의 다른 유닛에는 영향이 없다.
 
 **일괄 처리(배치 생산입력) 기능은 현재 없다** — 생산요청(`PENDING`) 카드를 다중 선택해 한 번에 "생산착수"로 전환하는 것만 가능(`production-waiting.jsx`의 체크박스 선택 + `quickStart`).
 
@@ -266,7 +269,7 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 PENDING →[startProduction]→ IN_PROGRESS →[completeOrder]→ AWAIT_PICKUP →[shipOrder]→ COMPLETED
 ```
 
-**되돌리기 액션은 `order-lookup.jsx`의 오더 상세 드로어**(role: production/admin)에서 상태별로 노출된다:
+**되돌리기 액션은 `order-lookup.jsx`의 오더 상세 드로어**(role: production/admin)에서 상태별로 노출된다(아래 `id`는 충전기 유닛 id):
 
 | 액션 | 전환 | 데이터 처리 |
 |---|---|---|
@@ -298,21 +301,21 @@ AS 처리 (as-processing)
 
 접수번호는 `AS-{연도,월,일}-{4자리 순번}` 형식으로 자동 생성 (예: `AS-250101-0001`).
 
-**시리얼번호 조회 → 신규 등록**: AS 접수 폼에서 시리얼번호로 `PMDB.getChargepointBySerial()` 조회 → 못 찾으면 `AddChargepointModal`(모델 선택 · 설치주소 필수 · 오더 ID 선택)을 띄워 `PMDB.addChargepoint()`로 `tb_chargepoint_infor`에 등록한 뒤 접수 폼에 이어서 사용한다.
+**시리얼번호 조회 → 신규 등록**: AS 접수 폼에서 시리얼번호로 `PMDB.getChargepointBySerial()` 조회 → 못 찾으면 `AddChargepointModal`(모델 선택 · 설치주소 필수)을 띄워 `PMDB.addChargepoint()`로 `tb_charge_infor`에 `order_id: null, status: 'COMPLETED'` 행으로 등록한 뒤 접수 폼에 이어서 사용한다.
 
 ### 생산요청 등록·수정·취소 (`production-request-modal.jsx`의 `ProductionRequestModal`)
 
 라우팅 없는 모달 하나로 신규 등록(다중 행)과 기존 오더 수정(단일 행)을 모두 처리한다 — `order` prop이 없으면 신규 등록 모드, 있으면 해당 PENDING 오더 편집 모드.
 
-**신규 등록**: 행마다 모델·용도(공용/비공용)·수량(`row.qty`)만 입력한다. `clampQty(v, max=500)`가 1~500 범위로 정규화하며, 제출 시(`submit()`) 각 행을 `qty`만큼 반복해 `addOrder`를 호출한다(공용/비공용 구분 없이 모두 수량 배수 등록 가능 — 발주처·통신정보 같은 개별 식별자는 이제 생산완료 단계에서 오더별로 입력하므로 생성 시점에는 제약이 없다). 제출 후에도 모달은 닫히지 않고 행을 초기화해 연속 등록을 지원한다. `PMDB.addOrder`가 오더 생성 직후 시리얼을 자동 채번(`generateSerialSuggestion` + `saveProduction`)하므로 등록 버튼을 누르는 즉시 시리얼이 부여되고 생산요청 칸반 카드에도 바로 표시된다(모델에 채번 규칙이 없으면 생략). 수량 배수 등록 시에도 각 유닛이 순번을 증가시키며 중복 없이 채번된다.
+**신규 등록**: 행마다 모델·용도(공용/비공용)·수량(`row.qty`)만 입력한다. `clampQty(v, max=500)`가 1~500 범위로 정규화하며, 제출 시(`submit()`) 각 행당 1회 `window.actions.addOrderBatch({ model_name, usage_type, qty, requested_by })`를 호출한다 — `db.js`의 `addOrderBatch()`가 내부에서 `tb_sales_order` 배치 1행 + `tb_charge_infor` 유닛 `qty`행을 만든다(공용/비공용 구분 없이 모두 수량 배수 등록 가능 — 발주처·통신정보 같은 개별 식별자는 이제 생산완료 단계에서 유닛별로 입력하므로 생성 시점에는 제약이 없다). 제출 후에도 모달은 닫히지 않고 행을 초기화해 연속 등록을 지원한다. `addOrderBatch`가 유닛 생성 직후 시리얼을 자동 채번(`generateSerialSuggestion` + `saveProduction`)하므로 등록 버튼을 누르는 즉시 유닛별 시리얼이 부여되고 생산요청 칸반 카드에도 바로 표시된다(모델에 채번 규칙이 없으면 생략). 수량 배수 등록 시에도 각 유닛이 순번을 증가시키며 중복 없이 채번된다.
 
 - **행 복제**: 행 목록의 복제 아이콘(`duplicateRow(i)`)이 현재 행(모델·용도·수량)을 그대로 복사해 바로 아래에 추가.
 - **용도 상속**: `addRow()`로 새 행을 추가하면 직전 행이 비공용이었을 경우 새 행도 비공용으로 시작한다(기본값은 공용).
 - **수량 입력 타이핑**: 입력 중에는 숫자만 허용하고 clamp를 적용하지 않다가, `onBlur` 시점에만 `clampQty()`로 1~500 범위 정리.
 
-**수정**: `PENDING` 상태에서만 가능하며 모델·용도만 고칠 수 있다(`updateOrder(order.order_id, { model_name, usage_type })`). 저장·취소 모두 `onClose()`로 모달을 닫는다(별도 뷰 이동 없음).
+**수정**: `PENDING` 상태에서만 가능하며 모델·용도만 고칠 수 있다(`updateOrder(order.order_id, { model_name, usage_type })` — `model_name`/`usage_type`은 배치가 아니라 해당 충전기 유닛에 직접 저장되므로, 같은 배치의 다른 유닛에는 영향을 주지 않는다). 저장·취소 모두 `onClose()`로 모달을 닫는다(별도 뷰 이동 없음).
 
-**생산요청 취소** (수정 모드 전용, `sales`/`admin`만 노출): 모달 하단 "생산요청 취소" 버튼 → 확인 다이얼로그 → `window.actions.cancelOrder(order_id)`(`shell.jsx`). 이 액션은 `tb_order_history`에 `action:'cancel'` 이력을 먼저 기록한 뒤 `PMDB.deleteOrder(order_id)`로 `tb_sales_order`(및 공용이면 `tb_usagetype_public`) 행을 **완전히 삭제**한다 — `PENDING` 상태가 아니면 거부된다. 오더 자체가 삭제되므로 취소된 오더는 조회 화면에서 다시 열어볼 수 없고, 취소 이력은 DB 원시 기록으로만 남는다(전용 조회 UI 없음).
+**생산요청 취소** (수정 모드 전용, `sales`/`admin`만 노출): 모달 하단 "생산요청 취소" 버튼 → 확인 다이얼로그 → `window.actions.cancelOrder(order_id)`(`shell.jsx`). 이 액션은 `tb_order_history`에 `action:'cancel'` 이력을 먼저 기록한 뒤 `PMDB.deleteOrder(order_id)`로 `tb_charge_infor`(및 공용이면 연결된 `tb_usagetype_public`) 행을 **완전히 삭제**한다 — `PENDING` 상태가 아니면 거부된다. 삭제 후 같은 배치(`tb_sales_order`)에 남은 유닛이 0개가 되면 배치 행도 함께 삭제된다(빈 배치를 남기지 않음). 유닛 자체가 삭제되므로 취소된 생산요청은 조회 화면에서 다시 열어볼 수 없고, 취소 이력은 DB 원시 기록으로만 남는다(전용 조회 UI 없음).
 
 ### Tweaks 패널 (`tweaks-panel.jsx`)
 

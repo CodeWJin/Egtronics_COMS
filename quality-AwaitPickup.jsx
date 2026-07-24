@@ -40,14 +40,15 @@ function ProductionCompleteScreen() {
   const [filterUsage, setFilterUsage] = useStatePC('all');
   const [report, setReport] = useStatePC(null);
   const [shipInspections, setShipInspections] = useStatePC(() => {
-    // tb_ship_inspection DB 캐시만 사용 — localStorage(pm_ship_inspections) 무시
+    // tb_inspection_ship 행에는 order_id 컬럼이 없다(단방향 참조:
+    // tb_charge_infor.ship_inspection_id → tb_inspection_ship.id) — cache.ship_inspections를
+    // r.order_id로 바로 매핑하면 항상 undefined 키만 쌓여 새로고침/재마운트 시 저장 내역이 사라진다.
+    // getShipInspectionDB()가 이 조인을 이미 올바르게 수행하므로 그걸 통해 매핑을 구성한다.
     const m = new Map();
     try {
-      (window.PMDB?.backend?.cache?.ship_inspections || []).forEach(r => {
-        m.set(r.order_id, {
-          insp_date: r.insp_date, inspector: r.inspector,
-          checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at,
-        });
+      s.orders.forEach(o => {
+        const data = window.PMDB?.getShipInspectionDB?.(o.order_id);
+        if (data) m.set(o.order_id, data);
       });
     } catch(_) {}
     return m;
@@ -72,17 +73,7 @@ function ProductionCompleteScreen() {
     window.actions.showConfirm(
       `오더 #${orderId}을(를) 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`,
       () => {
-        const ord = (window.__pm_store__?.orders || []).find(o => o.order_id === orderId);
         window.actions.shipOrder(orderId);
-        if (ord?.production?.serial_no) {
-          window.PMDB.addChargepoint({
-            serial_no:       ord.production.serial_no,
-            model_name:      ord.model_name      || '',
-            order_id:        String(orderId),
-            install_address: ord.install_address || '',
-            created:         new Date().toISOString().slice(0, 10),
-          });
-        }
       },
       { confirmLabel: '출하 완료' }
     );
@@ -93,19 +84,8 @@ function ProductionCompleteScreen() {
     window.actions.showConfirm(
       `선택한 ${orderIds.length}건을 일괄 출하 완료 처리할까요?\n생산완료 상태로 전환되어 출하대기 목록에서 제외됩니다.`,
       () => {
-        const all = window.__pm_store__?.orders || [];
         orderIds.forEach(orderId => {
-          const ord = all.find(o => o.order_id === orderId);
           window.actions.shipOrder(orderId);
-          if (ord?.production?.serial_no) {
-            window.PMDB.addChargepoint({
-              serial_no:       ord.production.serial_no,
-              model_name:      ord.model_name      || '',
-              order_id:        String(orderId),
-              install_address: ord.install_address || '',
-              created:         new Date().toISOString().slice(0, 10),
-            });
-          }
         });
         window.actions.flashToast(`${orderIds.length}건 일괄 출하 완료 처리되었습니다`, 'success');
         setSelectedIds(new Set());
@@ -115,7 +95,7 @@ function ProductionCompleteScreen() {
   }, []);
 
   const completed = useMemoPC(
-    () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.production?.serial_no && window.isSalesInfoComplete(o)),
+    () => s.orders.filter(o => o.status === 'AWAIT_PICKUP' && o.serial_no && window.isSalesInfoComplete(o)),
     [s.orders]
   );
 
@@ -138,7 +118,7 @@ function ProductionCompleteScreen() {
       if (filterUsage !== 'all' && (o.usage_type || '공용') !== filterUsage) return false;
       if (search) {
         const q = search.toLowerCase();
-        const hay = [o.customer_name, o.model_name, o.station_id, o.production.serial_no, o.production.doc_no, String(o.order_id)].join(' ').toLowerCase();
+        const hay = [o.customer_name, o.model_name, o.station_id, o.serial_no, o.doc_no, String(o.order_id)].join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -171,22 +151,22 @@ function ProductionCompleteScreen() {
 
   // KPIs
   const weekStart = startOfWeek(TODAY_PC);
-  const thisWeek = completed.filter(o => new Date(o.production.prod_date) >= weekStart).length;
+  const thisWeek = completed.filter(o => new Date(o.prod_date) >= weekStart).length;
   const weekStartLabel = `${weekStart.getMonth() + 1}월 ${weekStart.getDate()}일(월)`;
   const avgLead = completed.length
-    ? Math.round(completed.reduce((a, o) => a + daysBetween(o.created, o.production.prod_date), 0) / completed.length)
+    ? Math.round(completed.reduce((a, o) => a + daysBetween(o.created, o.prod_date), 0) / completed.length)
     : 0;
-  const inspected = completed.filter(o => o.production.inspection_date);
+  const inspected = completed.filter(o => o.inspection_date);
   const avgQc = inspected.length
-    ? (inspected.reduce((a, o) => a + Math.max(0, daysBetween(o.production.prod_date, o.production.inspection_date)), 0) / inspected.length).toFixed(1)
+    ? (inspected.reduce((a, o) => a + Math.max(0, daysBetween(o.prod_date, o.inspection_date)), 0) / inspected.length).toFixed(1)
     : 0;
 
   const exportCSV = () => {
     const header = ['오더번호', '고객사', '모델', '충전소ID', '생산일자', '시리얼', '검정일자', 'S/W버전', 'F/W버전', '케이블', '납품일자'];
     const rows = [header, ...filtered.map(o => ([
       o.order_id, o.customer_name, o.model_name, o.station_id,
-      o.production.prod_date, o.production.serial_no,
-      o.production.inspection_date, o.production.sw_version, o.production.fw_version,
+      o.prod_date, o.serial_no,
+      o.inspection_date, o.sw_version, o.fw_version,
       o.cable_length, o.delivery_date,
     ]))];
     downloadCSV(rows, `출하대기_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -342,9 +322,9 @@ function ProductionCompleteScreen() {
                       <div className="cell-muted">{modelInfo?.model || o.model_name}</div>
                     </td>
                     <td>
-                      <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 12.5 }}>{o.production.serial_no}</div>
+                      <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 12.5 }}>{o.serial_no}</div>
                     </td>
-                    <td className="qap-table__col--proddate" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.production.prod_date}</td>
+                    <td className="qap-table__col--proddate" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.prod_date}</td>
                     <td>
                       <button
                           className="btn btn--sm btn--success"

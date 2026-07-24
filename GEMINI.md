@@ -187,7 +187,7 @@ React Context 없이 `window.__pm_store__`에 단일 상태 객체를 두고, `S
 | `dashboard`     | `DashboardScreen`         | 전체                          |
 | `waiting`       | `ProductionWaitingScreen` | admin, sales, production      |
 | `mapping`       | `ProductionMappingScreen` | admin, production             |
-| `AwaitPickup`   | `ProductionCompleteScreen`| admin, production, quality     |
+| `AwaitPickup`   | `ProductionCompleteScreen`| admin, quality (품질 부서 전용, admin 제외 접근 불가) |
 | `lookup`        | `OrderLookupScreen`       | 전체 (A/S 이력은 as 역할만)   |
 | `admin`         | `AdminUsersScreen`        | admin 전용                    |
 | `as-receipt`    | `AsReceiptScreen`         | admin, quality, sales              |

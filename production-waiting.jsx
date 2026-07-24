@@ -36,13 +36,12 @@ function stageProgress(order) {
   const isPublic = (order.usage_type || '공용') === '공용';
 
   if (order.status === 'IN_PROGRESS') {
-    const p = order.production || {};
     const funcData = window.getFuncInspection?.(order.order_id) ?? null;
     const funcDone = funcData != null && Object.keys(funcData.checks || {}).length > 0 &&
       Object.values(funcData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
     const items = [
-      !!p.prod_date, !!p.serial_no, !!p.sw_version, !!p.fw_version,
-      ...(isPublic ? [!!p.inspection_date] : []),
+      !!order.prod_date, !!order.serial_no, !!order.sw_version, !!order.fw_version,
+      ...(isPublic ? [!!order.inspection_date] : []),
       funcDone,
     ];
     return { done: items.filter(Boolean).length, total: items.length };
@@ -77,6 +76,7 @@ function ProductionWaitingScreen() {
   const [entryOrder, setEntryOrder] = useStatePW(null);
   const [salesOrder, setSalesOrder] = useStatePW(null);
   const [revertReviewOrder, setRevertReviewOrder] = useStatePW(null);
+  const [readyOrder, setReadyOrder] = useStatePW(null);
   const [requestModal, setRequestModal] = useStatePW(null); // null | 'new' | order 객체
 
   React.useEffect(() => {
@@ -144,6 +144,9 @@ function ProductionWaitingScreen() {
       return;
     }
     if (colId === 'ready') {
+      // 생산 부서는 AwaitPickup 화면(품질 전용) 접근 권한이 없으므로, 이 칸반에서
+      // 바로 출하 전 검사 작성 + 출하완료 처리까지 끝낼 수 있게 모달로 처리한다.
+      if (role === 'production') { setReadyOrder(order); return; }
       const allowed = window.ROLE_TABS[role] || [];
       if (allowed.includes('AwaitPickup')) window.actions.setView('AwaitPickup');
     }
@@ -306,6 +309,9 @@ function ProductionWaitingScreen() {
       {revertReviewOrder && (
         <ProductionRevertReviewModal order={revertReviewOrder} onClose={() => setRevertReviewOrder(null)}/>
       )}
+      {readyOrder && (
+        <ShipReadyModal order={readyOrder} onClose={() => setReadyOrder(null)}/>
+      )}
       {requestModal && (
         <ProductionRequestModal order={requestModal === 'new' ? null : requestModal} onClose={closeRequestModal}/>
       )}
@@ -326,9 +332,8 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
   // stageProgress()에 영향을 주는 필드만으로 의존성 키를 만든다 — orders는 검색어 입력마다
   // 새 배열 참조로 재생성되므로 [orders]에 걸면 매 키 입력마다 getFuncInspection 재조회가 반복된다.
   const progressDeps = orders.map(o => {
-    const p = o.production || {};
     return [
-      o.order_id, o.status, p.prod_date, p.serial_no, p.sw_version, p.fw_version, p.inspection_date,
+      o.order_id, o.status, o.prod_date, o.serial_no, o.sw_version, o.fw_version, o.inspection_date,
       o.cable_length, o.customer_name, o.customer_manager, o.field_manager_phone,
       o.install_address, o.delivery_date, o.station_id, o.charger_no, o.router_no, o.usim_no,
     ].join('|');
@@ -374,7 +379,7 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
             {items.map((o, idx) => {
               const d = deliveryHint(o.delivery_date);
               const prog = progressByOrder.get(o.order_id);
-              const serial = o.production?.serial_no;
+              const serial = o.serial_no;
               const checked = selectable && col.id === 'request' && !!selectedIds?.has(o.order_id);
               const selDisabled = col.id === 'request' && selectable && !checked && canSelect && !canSelect(o);
               return (
@@ -449,16 +454,13 @@ function ProductionEntryModal({ order, onClose }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const isPublic = (order.usage_type || '공용') === '공용';
 
-  const [form, setForm] = useStatePW(() => {
-    const ex = order.production || {};
-    return {
-      prod_date: ex.prod_date || todayISO,
-      serial_no: ex.serial_no || '',
-      inspection_date: ex.inspection_date || '',
-      sw_version: ex.sw_version || '',
-      fw_version: ex.fw_version || '',
-    };
-  });
+  const [form, setForm] = useStatePW(() => ({
+    prod_date: order.prod_date || todayISO,
+    serial_no: order.serial_no || '',
+    inspection_date: order.inspection_date || '',
+    sw_version: order.sw_version || '',
+    fw_version: order.fw_version || '',
+  }));
   const [touched, setTouched] = useStatePW({});
   const [showAll, setShowAll] = useStatePW(false);
   const [dupState, setDupState] = useStatePW(null); // null | 'ok' | 'dup'
@@ -758,7 +760,7 @@ function ProductionRevertReviewModal({ order, onClose }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const isPublic = (order.usage_type || '공용') === '공용';
-  const p = order.production || {};
+  const p = order;
   const funcInspectionData = useMemoPW(
     () => window.getFuncInspection?.(order.order_id) ?? null,
     [order.order_id]
@@ -854,6 +856,12 @@ function SalesCompletionModal({ order, onClose }) {
     return list;
   };
 
+  // 발주처가 tb_customer 마스터에 등록된 주소를 갖고 있으면 납품장소 선택지로 제안한다.
+  const addressSuggestions = useMemoPW(
+    () => form.customer_name ? masterCustomers.filter(c => c.name === form.customer_name && c.address) : [],
+    [masterCustomers, form.customer_name]
+  );
+
   const errors = {
     cable_length: !form.cable_length && '케이블 길이를 입력해 주세요',
     customer_name: !form.customer_name && '발주처를 입력해 주세요',
@@ -903,7 +911,7 @@ function SalesCompletionModal({ order, onClose }) {
                 <div className="mgr-field">
                   <ComboField
                     value={form.customer_name}
-                    onChange={(v) => { update('customer_name', v); update('customer_manager', ''); refreshManagers(v); }}
+                    onChange={(v) => { update('customer_name', v); update('customer_manager', ''); update('field_manager_phone', ''); refreshManagers(v); }}
                     options={masterCustomers}
                     placeholder="고객사명 입력 또는 선택"
                     ariaLabel="발주처"
@@ -922,7 +930,13 @@ function SalesCompletionModal({ order, onClose }) {
                 <div className="mgr-field">
                   <ComboField
                     value={form.customer_manager}
-                    onChange={(v) => update('customer_manager', v)}
+                    onChange={(v) => {
+                      // 목록에서 선택하면 ComboField가 displayKey(=display, "이름 (전화번호)")를 넘겨준다 —
+                      // tb_customer_manager 원본 행을 찾아 이름/전화번호를 각 필드에 분리 저장한다.
+                      const picked = managers.find(m => m.display === v);
+                      update('customer_manager', picked ? picked.name : v);
+                      update('field_manager_phone', picked ? (picked.phone || '') : '');
+                    }}
                     options={managers}
                     placeholder={form.customer_name ? '담당자 선택 또는 입력' : '발주처를 먼저 선택하세요'}
                     ariaLabel="발주처 담당자"
@@ -987,9 +1001,21 @@ function SalesCompletionModal({ order, onClose }) {
               )}
 
               <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label className="field__label" htmlFor="scm-address">납품장소 (설치주소) <span className="field__req">*</span></label>
+                <label className="field__label" htmlFor="scm-address">납품장소<span className="field__req">*</span></label>
                 <AddressField id="scm-address" value={form.install_address}
                   onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
+                {addressSuggestions.length > 0 && (
+                  <div style={{ marginTop: 6, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', overflow: 'hidden' }} role="listbox" aria-label="발주처 등록 주소">
+                    {addressSuggestions.map((c, i) => (
+                      <div key={i} className="combo__item" role="option" tabIndex={0}
+                           onClick={() => update('install_address', c.address)}
+                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update('install_address', c.address); } }}>
+                        <span>{c.address}</span>
+                        <span className="combo__item__meta">{c.name} 등록 주소</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <input className="input" style={{ marginTop: 6 }} aria-label="상세주소" placeholder="상세주소 (동·호수, 층수 등)"
                   value={form.install_address_detail} onChange={(e) => update('install_address_detail', e.target.value)}/>
                 {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.install_address}</div>}
@@ -1057,9 +1083,125 @@ function SalesCompletionModal({ order, onClose }) {
             const list = refreshManagers(form.customer_name);
             if (picked) {
               const mgr = list.find(m => m.name === picked);
-              update('customer_manager', mgr ? (mgr.display || mgr.name) : picked);
+              update('customer_manager', mgr ? mgr.name : picked);
+              update('field_manager_phone', mgr ? (mgr.phone || '') : '');
             }
           }}/>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   출하대기 처리 모달 — 생산 부서가 AwaitPickup 화면(품질 전용) 없이
+   이 칸반에서 바로 출하 전 검사 작성 + 출하완료(COMPLETED) 처리를 끝낸다.
+   quality-AwaitPickup.jsx와 동일하게 출하 전 검사 전 항목 완료 전에는
+   출하 완료 버튼을 막는다.
+   ════════════════════════════════════════════════════════════ */
+function ShipReadyModal({ order, onClose }) {
+  window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
+
+  const [shipData, setShipData] = useStatePW(() => window.getShipInspection?.(order.order_id) ?? null);
+  const [openShipInspect, setOpenShipInspect] = useStatePW(false);
+  const [shipReport, setShipReport] = useStatePW(null);
+  const [funcData] = useStatePW(() => window.getFuncInspection?.(order.order_id) ?? null);
+  const [funcReportVisible, setFuncReportVisible] = useStatePW(false);
+
+  const shipAllDone = shipData != null &&
+    Object.keys(shipData.checks || {}).length > 0 &&
+    Object.values(shipData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
+
+  const modelInfo = useMemoPW(() => window.findModelInfo(order.model_name), [order.model_name]);
+
+  const handleShip = () => {
+    window.actions.showConfirm(
+      `오더 #${order.order_id}을(를) 출하 완료 처리할까요?\n출하대기 목록에서 제외됩니다.`,
+      () => { window.actions.shipOrder(order.order_id); onClose(); },
+      { confirmLabel: '출하 완료' }
+    );
+  };
+
+  return (
+    <div className="modal-backdrop" ref={dialogRef}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="srm-title" style={{ width: 560, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal__head">
+          <h2 id="srm-title" className="modal__title">출하대기 처리</h2>
+          <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'} · {order.customer_name}</p>
+        </div>
+        <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="dgrid">
+            <PWField k="시리얼" v={order.serial_no} mono/>
+            <PWField k="발주처" v={order.customer_name}/>
+            <PWField k="납품장소" v={order.install_address}/>
+            <PWField k="납품일자" v={order.delivery_date}/>
+          </div>
+          <section aria-labelledby="srm-ship-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
+            <PWSectionHead id="srm-ship-title" icon="doc" title="출하 전 검사 성적서"/>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+              background: shipAllDone ? 'var(--success-50)' : shipData ? 'var(--warning-50)' : 'var(--surface)',
+              border: `1px solid ${shipAllDone ? 'var(--success)' : shipData ? 'var(--warning)' : 'var(--border-1)'}`,
+              borderRadius: 'var(--r-md)',
+            }}>
+              <Icon name={shipAllDone ? 'check' : shipData ? 'clock' : 'doc'} size={16}
+                style={{ color: shipAllDone ? 'var(--success-700)' : shipData ? 'var(--warning-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
+              <div style={{ flex: 1 }}>
+                {shipAllDone
+                  ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {shipData.inspector} · {shipData.insp_date}</span>
+                  : shipData
+                    ? <span style={{ fontSize: 13.5, color: 'var(--warning-700)', fontWeight: 600 }}>검사 미완료 · 검사자: {shipData.inspector} · {shipData.insp_date}</span>
+                    : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>출하 완료 처리 전 출하 전 검사 성적서를 작성해야 합니다</span>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {shipAllDone && (
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShipReport({ order, inspectionData: shipData })}>
+                    <Icon name="doc" size={12}/> 미리보기
+                  </button>
+                )}
+                <button type="button" className={`btn btn--sm ${shipData ? 'btn--secondary' : 'btn--primary'}`} onClick={() => setOpenShipInspect(true)}>
+                  <Icon name="doc" size={12}/> {shipData ? '수정' : '작성하기'}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}
+            disabled={!funcData}
+            title={!funcData ? '기능 검사 성적서가 아직 작성되지 않았습니다' : ''}>
+            <Icon name="doc" size={13}/> 기능검사성적서
+          </button>
+          <div style={{ flex: 1 }}/>
+          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+          <button className="btn btn--success" onClick={handleShip}
+            disabled={!shipAllDone}
+            title={!shipAllDone ? '출하 전 검사를 먼저 완료해 주세요' : ''}>
+            <Icon name="truck" size={14}/> 출하 완료
+          </button>
+        </div>
+      </div>
+      {openShipInspect && (
+        <ShipInspectionDrawer
+          order={order}
+          existingData={shipData}
+          modelInfo={modelInfo}
+          onSave={(data) => {
+            window.setShipInspection(order.order_id, data);
+            setShipData(data);
+            setOpenShipInspect(false);
+            setTimeout(() => setShipReport({ order, inspectionData: data }), 250);
+          }}
+          onClose={() => setOpenShipInspect(false)}
+        />
+      )}
+      {shipReport && (
+        <ShipInspectionReport order={shipReport.order} inspectionData={shipReport.inspectionData}
+          modelInfo={modelInfo} onClose={() => setShipReport(null)}/>
+      )}
+      {funcReportVisible && funcData && (
+        <FuncInspectionReport order={order} inspectionData={funcData}
+          onClose={() => setFuncReportVisible(false)}/>
       )}
     </div>
   );

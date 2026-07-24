@@ -4,7 +4,7 @@
 window.ROLE_TABS = {
   admin:      ['dashboard', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'],
   sales:      ['dashboard', 'waiting', 'lookup','as-receipt','as-processing'],
-  production: ['dashboard', 'waiting', 'AwaitPickup', 'lookup'],
+  production: ['dashboard', 'waiting', 'lookup'],
   quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
 window.ROLE_LABEL = { admin: '관리자', sales: '영업', production: '생산', quality: '품질' };

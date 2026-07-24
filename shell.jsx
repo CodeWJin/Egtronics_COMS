@@ -43,12 +43,13 @@ window.findModelInfo = function (modelName) {
 };
 
 // 생산완료(AWAIT_PICKUP) 단계 영업정보 입력이 끝났는지 — "생산완료"와 "출하대기"를
-// 같은 status(AWAIT_PICKUP)에서 구분하는 파생 플래그
+// 같은 status(AWAIT_PICKUP)에서 구분하는 파생 플래그. o는 tb_charge_infor(충전기 유닛) 기준.
 window.isSalesInfoComplete = function (o) {
   if (!o) return false;
   const commonOk = !!(o.customer_name && o.delivery_date && o.install_address && o.cable_length && o.customer_manager && o.field_manager_phone);
   if (!commonOk) return false;
-  if ((o.usage_type || '공용') === '공용') return !!(o.station_id && o.charger_no && o.router_no && o.usim_no);
+  // router_no/usim_no는 필수 입력이 아니므로 전환 조건에서 제외한다 (station_id/charger_no만 필수)
+  if ((o.usage_type || '공용') === '공용') return !!(o.station_id && o.charger_no);
   return true;
 };
 
@@ -119,15 +120,19 @@ window.actions = {
     s.orders = window.PMDB.loadOrders();
     notify();
   },
-  addOrder(order) {
+  // 모델·용도·수량으로 배치(tb_sales_order) 1건 + 충전기 유닛(tb_charge_infor) qty개를 생성.
+  // 이력은 배치가 아니라 생성된 각 유닛(charge_id)마다 기록한다(이력은 충전기 단위 grain).
+  addOrderBatch(order) {
     const s = window[STORE_KEY];
-    const nextId = window.PMDB.addOrder(order);
+    const { batch_id, charge_ids } = window.PMDB.addOrderBatch(order);
     const fields = Object.entries(ORDER_FIELD_LABELS)
       .filter(([k]) => order[k])
       .map(([k, label]) => ({ field: k, label, before: '', after: order[k] || '' }));
-    window.PMDB.addHistory(nextId, s.currentUser ? s.currentUser.name : '알 수 없음', localTimestamp(), fields, 'create');
+    charge_ids.forEach(chargeId => {
+      window.PMDB.addHistory(chargeId, s.currentUser ? s.currentUser.name : '알 수 없음', localTimestamp(), fields, 'create');
+    });
     s.orders = window.PMDB.loadOrders();
-    s.toast = { kind: 'success', text: `오더 #${nextId} 등록 완료` };
+    s.toast = { kind: 'success', text: `오더 #${batch_id} 등록 완료 (${charge_ids.length}대)` };
     notify();
     setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
   },
@@ -276,8 +281,7 @@ window.actions = {
   // ── AS 접수 ────────────────────────────────────────────────────
   addAsReception(form) {
     const s = window[STORE_KEY];
-    const result = window.PMDB.addAsReception({ ...form, received_by: s.currentUser ? s.currentUser.user_id : '' });
-    window.PMDB.addAsLog(result.id, '', '접수대기', '접수 등록', s.currentUser ? s.currentUser.name : '');
+    const result = window.PMDB.addAsReception({ ...form, received_by: s.currentUser ? s.currentUser.user_id : '' }, s.currentUser ? s.currentUser.name : '');
     s.asReceptions = window.PMDB.loadAsReceptions();
     s.toast = { kind: 'success', text: `${result.reception_no} 접수 완료` };
     notify();

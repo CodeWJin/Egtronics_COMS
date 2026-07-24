@@ -150,10 +150,10 @@
   window.SEED_USERS = SEED_USERS;
 
   const SEED_MASTER_CUSTOMERS = [
-    { name: '카스',     is_address: '', last: '' },
-    { name: '마이크로', is_address: '', last: '' },
-    { name: 'LG',       is_address: '', last: '' },
-    { name: '삼성',     is_address: '', last: '' },
+    { name: '카스',     address: '' },
+    { name: '마이크로', address: '' },
+    { name: 'LG',       address: '' },
+    { name: '삼성',     address: '' },
   ];
 
   const SEED_MASTER_CPOS = [
@@ -172,12 +172,17 @@
   // Supabase 백엔드 (로컬 캐시 + 비동기 쓰기)
   // ============================================================
   function makeSupabaseBackend(client) {
-    const cache = { orders: [], production: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [], chargepoints: [] };
+    // cache.orders: tb_charge_infor(충전기 유닛) 원본 행. cache.batches: tb_sales_order(배치) 원본 행.
+    // loadOrders()가 매 호출마다 두 캐시 + 위성 테이블을 조인해 뷰용 평탄화 객체를 만든다.
+    const cache = { orders: [], batches: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [] };
     let mgrSeq = 0;
     let histSeq = 0;
     let asRecSeq = 0;
     let asLogSeq = 0;
     let asPhotoSeq = 0;
+    let pubSeq = 0;
+    let funcInspSeq = 0;
+    let shipInspSeq = 0;
 
     // 비동기 쓰기 — 로컬 캐시 업데이트 후 백그라운드에서 Supabase에 동기화
     function dbWrite(table, op, fn) {
@@ -204,17 +209,17 @@
         const deadline = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('연결 시간 초과 (15초)\n→ Supabase URL과 API 키를 supabase-config.js에서 확인하세요')), 15000)
         );
-        const [o, p, m, u, h] = await Promise.race([
+        const [b, o, m, u, h] = await Promise.race([
           Promise.all([
             client.from('tb_sales_order').select('*'),
-            client.from('tb_production_info').select('*'),
+            client.from('tb_charge_infor').select('*'),
             client.from('tb_customer_manager').select('*'),
             client.from('tb_users').select('*'),
             client.from('tb_order_history').select('*'),
           ]),
           deadline,
         ]);
-        const firstErr = o.error || p.error || m.error || u.error || h.error;
+        const firstErr = b.error || o.error || m.error || u.error || h.error;
         if (firstErr) {
           const hint = firstErr.message?.toLowerCase().includes('apikey') || firstErr.message?.toLowerCase().includes('invalid')
             ? '\n→ API 키가 잘못되었습니다. supabase-config.js의 SUPABASE_ANON_KEY를 확인하세요'
@@ -224,8 +229,8 @@
           dbLog('ERROR', 'loadAll', 'Supabase 데이터 로드 실패 — ' + firstErr.message, firstErr);
           throw new Error('Supabase 데이터 로드 실패: ' + firstErr.message + hint);
         }
+        cache.batches    = b.data || [];
         cache.orders     = o.data || [];
-        cache.production = p.data || [];
         cache.users      = u.data || [];
         cache.history    = h.data || [];
         histSeq = cache.history.reduce((mx, x) => Math.max(mx, x.history_id || 0), 0);
@@ -256,37 +261,32 @@
             else dbLog('WARN', 'loadAll', 'tb_as_photo 조회 실패 — ' + error.message);
           }).catch(e => dbLog('WARN', 'loadAll', 'tb_as_photo 로드 오류 — ' + e.message)),
 
-          client.from('tb_func_inspection').select('*').order('order_id').then(({ data, error }) => {
-            if (!error) cache.func_inspections = data || [];
-            else dbLog('WARN', 'loadAll', 'tb_func_inspection 조회 실패 — ' + error.message);
-          }).catch(e => dbLog('WARN', 'loadAll', 'tb_func_inspection 로드 오류 — ' + e.message)),
+          client.from('tb_inspection_func').select('*').order('id').then(({ data, error }) => {
+            if (!error) { cache.func_inspections = data || []; funcInspSeq = cache.func_inspections.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
+            else dbLog('WARN', 'loadAll', 'tb_inspection_func 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_inspection_func 로드 오류 — ' + e.message)),
 
-          client.from('tb_ship_inspection').select('*').order('order_id').then(({ data, error }) => {
-            if (!error) cache.ship_inspections = data || [];
-            else dbLog('WARN', 'loadAll', 'tb_ship_inspection 조회 실패 — ' + error.message);
-          }).catch(e => dbLog('WARN', 'loadAll', 'tb_ship_inspection 로드 오류 — ' + e.message)),
+          client.from('tb_inspection_ship').select('*').order('id').then(({ data, error }) => {
+            if (!error) { cache.ship_inspections = data || []; shipInspSeq = cache.ship_inspections.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
+            else dbLog('WARN', 'loadAll', 'tb_inspection_ship 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_inspection_ship 로드 오류 — ' + e.message)),
 
           client.from('tb_usagetype_public').select('*').then(({ data, error }) => {
-            if (!error) cache.usage_type_public = data || [];
+            if (!error) { cache.usage_type_public = data || []; pubSeq = cache.usage_type_public.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
             else dbLog('WARN', 'loadAll', 'tb_usagetype_public 조회 실패 — ' + error.message);
           }).catch(e => dbLog('WARN', 'loadAll', 'tb_usagetype_public 로드 오류 — ' + e.message)),
-
-          client.from('tb_chargepoint_infor').select('*').then(({ data, error }) => {
-            if (!error) cache.chargepoints = data || [];
-            else dbLog('WARN', 'loadAll', 'tb_chargepoint_infor 조회 실패 — ' + error.message);
-          }).catch(e => dbLog('WARN', 'loadAll', 'tb_chargepoint_infor 로드 오류 — ' + e.message)),
         ]);
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
         try {
           const mapResult = (r, fn) => r.error ? [] : (r.data || []).map(fn);
           const [mc, mm, mpv, mcpo] = await Promise.all([
-            client.from('tb_master_customer').select('*').order('name'),
+            client.from('tb_customer').select('*').order('name'),
             client.from('tb_master_model').select('*').order('id'),
             client.from('tb_program_version').select('*').order('id'),
             client.from('tb_master_cpo').select('*').order('id'),
           ]);
-          cache.customers = mapResult(mc, c => ({ name: c.name, is_address: c.is_address || '', last: c.last || '' }));
+          cache.customers = mapResult(mc, c => ({ name: c.name, address: c.address || '' }));
           cache.cpos = mapResult(mcpo, c => ({ id: c.id, name: c.name, code: c.code }));
           // model_code → model (하위 호환성 유지)
           cache.models = mapResult(mm, m => ({ model: m.model_code || '', description: m.description || '', power: m.power || '' }));
@@ -305,183 +305,296 @@
 
         const elapsed = Date.now() - t0;
         dbLog('SUCCESS', 'loadAll', `전체 조회 완료 (${elapsed}ms)`, {
-          tb_sales_order:      cache.orders.length,
-          tb_production_info:  cache.production.length,
+          tb_sales_order:      cache.batches.length,
+          tb_charge_infor:     cache.orders.length,
           tb_customer_manager: cache.managers.length,
           users:               cache.users.length,
           tb_order_history:    cache.history.length,
         });
       },
 
+      // 결정 A: tb_charge_infor(충전기 유닛)를 뷰가 기대하는 "order" 형태로 평탄화한다.
+      // o.id(충전기 유닛 PK)를 order_id로, 원래 배치 PK는 batch_id로 노출한다.
       loadOrders() {
-        const pmap = {};
-        cache.production.forEach(p => { const { order_id, ...rest } = p; pmap[order_id] = rest; });
-        const pubmap = {};
-        cache.usage_type_public.forEach(p => { pubmap[p.order_id] = p; });
+        const batchMap = {};
+        cache.batches.forEach(b => { batchMap[b.order_id] = b; });
+        const pubMap = {};
+        cache.usage_type_public.forEach(p => { pubMap[p.id] = p; });
         return [...cache.orders]
-          .sort((a, b) => (b.created || '').localeCompare(a.created || '') || b.order_id - a.order_id)
+          .sort((a, b) => (b.created || '').localeCompare(a.created || '') || String(b.id).localeCompare(String(a.id)))
           .map(o => {
-            const pub = pubmap[o.order_id] || {};
+            const batch = batchMap[o.order_id] || {};
+            const pub = o.usage_public_id != null ? (pubMap[o.usage_public_id] || {}) : {};
             return {
               ...o,
+              order_id: o.id,
+              batch_id: o.order_id || '',
+              requested_by: batch.requested_by || '',
+              inspection_date: pub.inspection_date || '',
               station_id: pub.station_id || '',
               charger_no: pub.charger_no || '',
               router_no:  pub.router_no  || '',
               usim_no:    pub.usim_no    || '',
-              ...(pmap[o.order_id] ? { production: pmap[o.order_id] } : {}),
+              cpo_name:   pub.cpo_name   || '',
             };
           });
       },
 
-      addOrder(form) {
-        const id = cache.orders.reduce((mx, o) => Math.max(mx, o.order_id), 24000) + 1;
-        const row = { order_id: id, customer_name: form.customer_name || '', customer_manager: form.customer_manager || '', cpo_name: form.cpo_name || '', usage_type: form.usage_type || '공용', model_name: form.model_name, delivery_date: form.delivery_date || '', install_address: form.install_address || '', field_manager_name: form.field_manager_name || '', field_manager_phone: form.field_manager_phone || '', status: 'PENDING', created: TODAY, cable_length: form.cable_length || null, requested_by: form.requested_by || '' };
-        cache.orders.push(row);
-        dbLog('INFO', 'write:tb_sales_order', `주문 추가 — order_id=${id}, 요청자=${form.requested_by || '—'}`);
+      _genOrderId() {
+        const d = new Date();
+        const yy = String(d.getFullYear()).slice(2);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const prefix = `${yy}${mm}${dd}-`;
+        const nums = cache.batches
+          .filter(b => b.order_id && String(b.order_id).startsWith(prefix))
+          .map(b => parseInt(String(b.order_id).slice(prefix.length), 10))
+          .filter(n => !isNaN(n));
+        const next = nums.length ? Math.max(...nums) + 1 : 0;
+        return `${prefix}${String(next).padStart(4, '0')}`;
+      },
+
+      // '{order_id}-01'부터 시작하는 충전기 유닛 ID를 배치 스코프로 순차 채번
+      _genChargeId(order_id) {
+        const prefix = `${order_id}-`;
+        const nums = cache.orders
+          .filter(o => o.order_id === order_id)
+          .map(o => parseInt(String(o.id).slice(prefix.length), 10))
+          .filter(n => !isNaN(n));
+        const next = nums.length ? Math.max(...nums) + 1 : 1;
+        return `${prefix}${String(next).padStart(2, '0')}`;
+      },
+
+      _isRegisteredCharger(o) {
+        return o.status === 'COMPLETED' || o.order_id == null;
+      },
+
+      // qty만큼 tb_charge_infor(충전기 유닛)를 생성하는 배치 등록.
+      // 반환값 { batch_id, charge_ids }: charge_ids[0]이 기존 addOrder()의 반환값(단일 order_id) 역할을 한다.
+      addOrderBatch(form) {
+        const batchId = this._genOrderId();
+        const qty = Math.max(1, parseInt(form.qty, 10) || 1);
+        const usageType = form.usage_type || '공용';
+        const batchRow = { order_id: batchId, model_name: form.model_name, usage_type: usageType, qty, requested_by: form.requested_by || '', created: TODAY };
+        cache.batches.push(batchRow);
+        dbLog('INFO', 'write:tb_sales_order', `배치 등록 — order_id=${batchId}, 모델=${form.model_name}, 수량=${qty}`);
+
+        const chargeIds = [];
+        const chargeRows = [];
+        for (let i = 0; i < qty; i++) {
+          const chargeId = this._genChargeId(batchId);
+          const chargeRow = {
+            id: chargeId, order_id: batchId, model_name: form.model_name, usage_type: usageType,
+            serial_no: '', status: 'PENDING',
+            usage_public_id: null, func_inspection_id: null, ship_inspection_id: null,
+            sw_version: '', fw_version: '', cable_length: null,
+            prod_date: '', delivery_date: '', ship_from_address: '', install_address: '',
+            customer_name: '', customer_manager: '', field_manager_phone: '',
+            created: TODAY,
+          };
+          cache.orders.push(chargeRow);
+          chargeIds.push(chargeId);
+
+          // 생산요청 등록 시점에 시리얼번호 자동 채번 (모델에 등록된 채번 규칙이 없으면 생략).
+          // 생산착수(startProduction) 시에는 이미 채번된 값이 있으면 재채번하지 않는다.
+          // generateSerialSuggestion은 캐시만 참조하므로 동기 호출 가능 — insert 페이로드에 바로 포함시킨다.
+          const serial = this.generateSerialSuggestion(form.model_name, usageType, TODAY, chargeId);
+          if (serial) chargeRow.serial_no = serial;
+          chargeRows.push(chargeRow);
+        }
+
+        // tb_charge_infor.order_id는 tb_sales_order.order_id를 참조하는 FK(fk_charge_order)이므로,
+        // 배치 insert가 커밋되기 전에 유닛 insert가 도착하면 FK 위반이 난다. 두 write를 별도의
+        // dbWrite로 각각 fire-and-forget 하면 순서가 보장되지 않으므로, 하나의 dbWrite 안에서
+        // 배치 → 유닛 순으로 순차 await 한다(updateOrder/saveProduction과 동일한 패턴).
         dbWrite('tb_sales_order', 'insert', async () => {
-          await client.from('tb_sales_order').insert(row);
-          if ((form.usage_type || '공용') === '공용') {
-            const pub = { order_id: id, station_id: form.station_id || '', charger_no: form.charger_no || '', router_no: form.router_no || '', usim_no: form.usim_no || '' };
-            cache.usage_type_public.push(pub);
-            return client.from('tb_usagetype_public').insert(pub);
+          const batchRes = await client.from('tb_sales_order').insert(batchRow);
+          if (batchRes.error) return batchRes;
+          for (const chargeRow of chargeRows) {
+            const res = await client.from('tb_charge_infor').insert(chargeRow);
+            if (res.error) return res;
           }
           return { error: null };
         });
-        // 생산요청 등록 시점에 시리얼번호 자동 채번 (모델에 등록된 채번 규칙이 없으면 생략).
-        // 생산착수(startProduction) 시에는 이미 채번된 값이 있으면 재채번하지 않는다.
-        const serial = this.generateSerialSuggestion(form.model_name, form.usage_type, TODAY, id);
-        if (serial) this.saveProduction(id, { serial_no: serial });
-        return id;
+        return { batch_id: batchId, charge_ids: chargeIds };
       },
 
       // 생산요청(PENDING) 수정과 생산완료(AWAIT_PICKUP) 영업정보 입력이 모두 이 함수를 쓰되
       // 서로 다른 필드 부분집합만 보내므로, form에 실제로 담긴 키만 병합한다(전체 덮어쓰기 금지).
+      // order_id 인자는 충전기 유닛 ID(tb_charge_infor.id)를 가리킨다(결정 A).
       updateOrder(order_id, form) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || (o.status !== 'PENDING' && o.status !== 'AWAIT_PICKUP')) {
-          dbLog('WARN', 'write:tb_sales_order', `주문 수정 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `충전기 정보 수정 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        const FIELDS = ['customer_name', 'customer_manager', 'cpo_name', 'usage_type', 'model_name', 'delivery_date', 'install_address', 'field_manager_name', 'field_manager_phone', 'cable_length', 'requested_by'];
+        const FIELDS = ['model_name', 'usage_type', 'customer_name', 'customer_manager', 'field_manager_phone', 'delivery_date', 'install_address', 'ship_from_address', 'cable_length'];
         const upd = {};
         FIELDS.forEach(k => { if (form[k] !== undefined) upd[k] = form[k]; });
         Object.assign(o, upd);
-        dbLog('INFO', 'write:tb_sales_order', `주문 수정 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'update', async () => {
-          await client.from('tb_sales_order').update(upd).eq('order_id', order_id);
-          const hasPubFields = ['station_id', 'charger_no', 'router_no', 'usim_no'].some(k => form[k] !== undefined);
-          if (hasPubFields) {
-            const existing = cache.usage_type_public.find(p => p.order_id === order_id) || {};
-            const pub = {
-              order_id,
-              station_id: form.station_id ?? existing.station_id ?? '',
-              charger_no: form.charger_no ?? existing.charger_no ?? '',
-              router_no:  form.router_no  ?? existing.router_no  ?? '',
-              usim_no:    form.usim_no    ?? existing.usim_no    ?? '',
-            };
-            const idx = cache.usage_type_public.findIndex(p => p.order_id === order_id);
-            if (idx !== -1) cache.usage_type_public[idx] = pub; else cache.usage_type_public.push(pub);
-            if ((o.usage_type || '공용') === '공용') {
-              return client.from('tb_usagetype_public').upsert(pub, { onConflict: 'order_id' });
+
+        // 공용 전용 필드(station_id 등, cpo_name, inspection_date)는 tb_usagetype_public 위성 테이블로 라우팅.
+        // 캐시는 동기 반영 — Supabase 응답을 기다렸다가 반영하면, 직후 호출되는 loadOrders()가 값을
+        // 못 보고 isSalesInfoComplete가 false로 평가되어 화면 전환이 저장 즉시 일어나지 않는 문제가 있었다.
+        const PUB_FIELDS = ['station_id', 'charger_no', 'router_no', 'usim_no', 'cpo_name', 'inspection_date'];
+        const hasPubFields = PUB_FIELDS.some(k => form[k] !== undefined);
+        let pubInsert = null, pubUpdate = null;
+        if (hasPubFields && (o.usage_type || '공용') === '공용') {
+          if (o.usage_public_id != null) {
+            const existing = cache.usage_type_public.find(p => p.id === o.usage_public_id);
+            if (existing) {
+              const changed = {};
+              PUB_FIELDS.forEach(k => { if (form[k] !== undefined) { existing[k] = form[k]; changed[k] = form[k]; } });
+              pubUpdate = { id: existing.id, ...changed };
             }
+          } else {
+            const id = ++pubSeq;
+            const row = { id, inspection_date: form.inspection_date || '', station_id: form.station_id || '', charger_no: form.charger_no || '', router_no: form.router_no || '', usim_no: form.usim_no || '', cpo_name: form.cpo_name || '', created: TODAY };
+            cache.usage_type_public.push(row);
+            o.usage_public_id = id;
+            pubInsert = row;
+          }
+        }
+
+        dbLog('INFO', 'write:tb_charge_infor', `충전기 정보 수정 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'update', async () => {
+          await client.from('tb_charge_infor').update(upd).eq('id', order_id);
+          if (pubInsert) {
+            await client.from('tb_usagetype_public').insert(pubInsert);
+            await client.from('tb_charge_infor').update({ usage_public_id: pubInsert.id }).eq('id', order_id);
+          } else if (pubUpdate) {
+            const { id, ...rest } = pubUpdate;
+            await client.from('tb_usagetype_public').update(rest).eq('id', id);
           }
           return { error: null };
         });
         return true;
       },
 
-      // 생산요청 취소 — PENDING 오더만 완전 삭제(공용이면 tb_usagetype_public 행도 함께 삭제).
+      // 생산요청 취소 — PENDING 유닛만 완전 삭제(공용이면 tb_usagetype_public 행도 함께 삭제).
+      // 배치(tb_sales_order)에 남은 유닛이 0개가 되면 배치 행도 함께 삭제한다(빈 배치를 남기지 않음).
       // 취소 이력(action:'cancel')은 이 함수 호출 전 actions.cancelOrder()에서 먼저 기록한다.
       deleteOrder(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || o.status !== 'PENDING') {
-          dbLog('WARN', 'write:tb_sales_order', `주문 취소 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `충전기 취소 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
-        cache.orders = cache.orders.filter(x => x.order_id !== order_id);
-        const hadPub = cache.usage_type_public.some(p => p.order_id === order_id);
-        cache.usage_type_public = cache.usage_type_public.filter(p => p.order_id !== order_id);
-        dbLog('INFO', 'write:tb_sales_order', `주문 취소(삭제) — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'delete', async () => {
-          if (hadPub) await client.from('tb_usagetype_public').delete().eq('order_id', order_id);
-          return client.from('tb_sales_order').delete().eq('order_id', order_id);
+        const batchId = o.order_id;
+        cache.orders = cache.orders.filter(x => x.id !== order_id);
+        const hadPub = o.usage_public_id != null;
+        if (hadPub) cache.usage_type_public = cache.usage_type_public.filter(p => p.id !== o.usage_public_id);
+        const batchEmpty = !!batchId && !cache.orders.some(x => x.order_id === batchId);
+        if (batchEmpty) cache.batches = cache.batches.filter(b => b.order_id !== batchId);
+        dbLog('INFO', 'write:tb_charge_infor', `충전기 취소(삭제) — id=${order_id}${batchEmpty ? ', 배치도 함께 삭제' : ''}`);
+        dbWrite('tb_charge_infor', 'delete', async () => {
+          if (hadPub) await client.from('tb_usagetype_public').delete().eq('id', o.usage_public_id);
+          await client.from('tb_charge_infor').delete().eq('id', order_id);
+          if (batchEmpty) await client.from('tb_sales_order').delete().eq('order_id', batchId);
+          return { error: null };
         });
         return true;
       },
 
+      // inspection_date(검정일자)는 tb_charge_infor 컬럼이 아니라 tb_usagetype_public(위성 테이블)
+      // 소속이므로 분리해서 라우팅한다(updateOrder()의 PUB_FIELDS 처리와 동일한 이유).
       saveProduction(order_id, p) {
-        cache.production = cache.production.filter(x => x.order_id !== order_id);
-        cache.production.push({ order_id, ...p });
-        dbLog('INFO', 'write:tb_production_info', `생산 정보 저장 — order_id=${order_id}`);
-        dbWrite('tb_production_info', 'upsert', () => client.from('tb_production_info').upsert({ order_id, ...p }, { onConflict: 'order_id' }));
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o) return;
+        const { inspection_date, ...chargeFields } = p;
+        Object.assign(o, chargeFields);
+        let pubInsert = null, pubUpdate = null;
+        if (inspection_date !== undefined && (o.usage_type || '공용') === '공용') {
+          if (o.usage_public_id != null) {
+            const existing = cache.usage_type_public.find(x => x.id === o.usage_public_id);
+            if (existing) { existing.inspection_date = inspection_date; pubUpdate = { id: existing.id, inspection_date }; }
+          } else {
+            const id = ++pubSeq;
+            const row = { id, inspection_date, station_id: '', charger_no: '', router_no: '', usim_no: '', cpo_name: '', created: TODAY };
+            cache.usage_type_public.push(row);
+            o.usage_public_id = id;
+            pubInsert = row;
+          }
+        }
+        dbLog('INFO', 'write:tb_charge_infor', `생산 정보 저장 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'update', async () => {
+          if (Object.keys(chargeFields).length) await client.from('tb_charge_infor').update(chargeFields).eq('id', order_id);
+          if (pubInsert) {
+            await client.from('tb_usagetype_public').insert(pubInsert);
+            await client.from('tb_charge_infor').update({ usage_public_id: pubInsert.id }).eq('id', order_id);
+          } else if (pubUpdate) {
+            const { id, ...rest } = pubUpdate;
+            await client.from('tb_usagetype_public').update(rest).eq('id', id);
+          }
+          return { error: null };
+        });
       },
 
+      // saveProduction()과 동일한 이유로 inspection_date는 tb_usagetype_public로 분리 라우팅한다.
       completeOrder(order_id, p) {
-        cache.production = cache.production.filter(x => x.order_id !== order_id);
-        cache.production.push({ order_id, ...p });
-        const o = cache.orders.find(x => x.order_id === order_id);
-        if (o) o.status = 'AWAIT_PICKUP';
-        dbLog('INFO', 'write:tb_sales_order', `생산 완료 — 출하대기 전환, order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'complete', async () => {
-          await client.from('tb_production_info').upsert({ order_id, ...p }, { onConflict: 'order_id' });
-          return client.from('tb_sales_order').update({ status: 'AWAIT_PICKUP' }).eq('order_id', order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o) return;
+        const { inspection_date, ...chargeFields } = p;
+        Object.assign(o, chargeFields, { status: 'AWAIT_PICKUP' });
+        let pubInsert = null, pubUpdate = null;
+        if (inspection_date !== undefined && (o.usage_type || '공용') === '공용') {
+          if (o.usage_public_id != null) {
+            const existing = cache.usage_type_public.find(x => x.id === o.usage_public_id);
+            if (existing) { existing.inspection_date = inspection_date; pubUpdate = { id: existing.id, inspection_date }; }
+          } else {
+            const id = ++pubSeq;
+            const row = { id, inspection_date, station_id: '', charger_no: '', router_no: '', usim_no: '', cpo_name: '', created: TODAY };
+            cache.usage_type_public.push(row);
+            o.usage_public_id = id;
+            pubInsert = row;
+          }
+        }
+        dbLog('INFO', 'write:tb_charge_infor', `생산 완료 — 출하대기 전환, id=${order_id}`);
+        dbWrite('tb_charge_infor', 'complete', async () => {
+          await client.from('tb_charge_infor').update({ ...chargeFields, status: 'AWAIT_PICKUP' }).eq('id', order_id);
+          if (pubInsert) {
+            await client.from('tb_usagetype_public').insert(pubInsert);
+            await client.from('tb_charge_infor').update({ usage_public_id: pubInsert.id }).eq('id', order_id);
+          } else if (pubUpdate) {
+            const { id, ...rest } = pubUpdate;
+            await client.from('tb_usagetype_public').update(rest).eq('id', id);
+          }
+          return { error: null };
         });
       },
 
       shipOrder(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || o.status !== 'AWAIT_PICKUP') {
-          dbLog('WARN', 'write:tb_sales_order', `출하 처리 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `출하 처리 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
         o.status = 'COMPLETED';
-        dbLog('INFO', 'write:tb_sales_order', `출하 완료 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'ship', () => client.from('tb_sales_order').update({ status: 'COMPLETED' }).eq('order_id', order_id));
-        // 출하 완료 시 충전기 설치 정보 자동 등록 (tb_chargepoint_infor)
-        const prod = cache.production.find(x => x.order_id === order_id);
-        const serial = prod && prod.serial_no ? String(prod.serial_no).trim() : '';
-        if (serial) {
-          const r = this.addChargepoint({
-            serial_no:       serial,
-            model_name:      o.model_name      || '',
-            order_id,
-            install_address: o.install_address || '',
-          });
-          if (!r.ok) dbLog('WARN', 'write:tb_chargepoint_infor', `출하 시 충전기 등록 생략 — ${r.msg} (serial_no=${serial})`);
-        } else {
-          dbLog('WARN', 'write:tb_chargepoint_infor', `출하 시 충전기 등록 생략 — 시리얼 없음, order_id=${order_id}`);
-        }
+        dbLog('INFO', 'write:tb_charge_infor', `출하 완료 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'ship', () => client.from('tb_charge_infor').update({ status: 'COMPLETED' }).eq('id', order_id));
         return true;
       },
 
       revertOrder(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
-        if (o) o.status = 'PENDING';
-        const prod = cache.production.find(x => x.order_id === order_id);
-        // 출하 시 자동 등록된 충전기 설치 정보 삭제를 위해 초기화 전에 시리얼 확보
-        const revertSerial = prod && prod.serial_no ? String(prod.serial_no).trim() : '';
-        if (prod) prod.serial_no = null;
-        if (revertSerial) {
-          cache.chargepoints = cache.chargepoints.filter(
-            c => String(c.serial_no || '').trim().toUpperCase() !== revertSerial.toUpperCase()
-          );
-        }
-        // 출하 사진 경로를 캐시에서 수집 (삭제 전에)
-        const shipRow = cache.ship_inspections.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o) return;
+        o.status = 'PENDING';
+        o.serial_no = '';
+        const funcId = o.func_inspection_id;
+        const shipId = o.ship_inspection_id;
+        o.func_inspection_id = null;
+        o.ship_inspection_id = null;
+        const shipRow = shipId != null ? cache.ship_inspections.find(x => x.id === shipId) : null;
         const shipPhotoPaths = shipRow
           ? JSON.parse(shipRow.photos || '[]').map(p => p.storage_path).filter(Boolean)
           : [];
-        cache.func_inspections = cache.func_inspections.filter(x => x.order_id !== order_id);
-        cache.ship_inspections = cache.ship_inspections.filter(x => x.order_id !== order_id);
-        dbLog('INFO', 'write:revert', `생산대기로 변경 — serial 초기화·검사·충전기 정보 삭제, order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'revert', async () => {
-          await client.from('tb_sales_order').update({ status: 'PENDING' }).eq('order_id', order_id);
-          await client.from('tb_production_info').update({ serial_no: null }).eq('order_id', order_id);
-          await client.from('tb_func_inspection').delete().eq('order_id', order_id);
-          await client.from('tb_ship_inspection').delete().eq('order_id', order_id);
-          if (revertSerial) {
-            await client.from('tb_chargepoint_infor').delete().eq('serial_no', revertSerial);
-          }
+        if (funcId != null) cache.func_inspections = cache.func_inspections.filter(x => x.id !== funcId);
+        if (shipId != null) cache.ship_inspections = cache.ship_inspections.filter(x => x.id !== shipId);
+        dbLog('INFO', 'write:revert', `생산대기로 변경 — serial 초기화·검사 정보 삭제, id=${order_id}`);
+        dbWrite('tb_charge_infor', 'revert', async () => {
+          await client.from('tb_charge_infor').update({ status: 'PENDING', serial_no: '', func_inspection_id: null, ship_inspection_id: null }).eq('id', order_id);
+          if (funcId != null) await client.from('tb_inspection_func').delete().eq('id', funcId);
+          if (shipId != null) await client.from('tb_inspection_ship').delete().eq('id', shipId);
           if (shipPhotoPaths.length > 0) {
             try { await client.storage.from('ship-photos').remove(shipPhotoPaths); } catch (_) {}
           }
@@ -490,53 +603,52 @@
       },
 
       revertToAwaitPickup(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || o.status !== 'COMPLETED') {
-          dbLog('WARN', 'write:tb_sales_order', `AWAIT_PICKUP 복귀 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `AWAIT_PICKUP 복귀 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
         o.status = 'AWAIT_PICKUP';
-        dbLog('INFO', 'write:tb_sales_order', `출하대기로 변경 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'revertToAwaitPickup', () => client.from('tb_sales_order').update({ status: 'AWAIT_PICKUP' }).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_charge_infor', `출하대기로 변경 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'revertToAwaitPickup', () => client.from('tb_charge_infor').update({ status: 'AWAIT_PICKUP' }).eq('id', order_id));
         return true;
       },
 
       revertToInProgress(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || o.status !== 'COMPLETED') {
-          dbLog('WARN', 'write:tb_sales_order', `IN_PROGRESS 복귀 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `IN_PROGRESS 복귀 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
         o.status = 'IN_PROGRESS';
-        dbLog('INFO', 'write:tb_sales_order', `생산진행중으로 변경 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'revertToInProgress', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_charge_infor', `생산진행중으로 변경 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'revertToInProgress', () => client.from('tb_charge_infor').update({ status: 'IN_PROGRESS' }).eq('id', order_id));
         return true;
       },
 
       awaitToInProgress(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || o.status !== 'AWAIT_PICKUP') {
-          dbLog('WARN', 'write:tb_sales_order', `작업중 복귀 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `작업중 복귀 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
         o.status = 'IN_PROGRESS';
-        dbLog('INFO', 'write:tb_sales_order', `출하대기→작업중 변경 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'awaitToInProgress', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_charge_infor', `출하대기→작업중 변경 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'awaitToInProgress', () => client.from('tb_charge_infor').update({ status: 'IN_PROGRESS' }).eq('id', order_id));
         return true;
       },
 
       startProduction(order_id) {
-        const o = cache.orders.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
         if (!o || o.status !== 'PENDING') {
-          dbLog('WARN', 'write:tb_sales_order', `생산 시작 불가 — order_id=${order_id}, status=${o?.status ?? '없음'}`);
+          dbLog('WARN', 'write:tb_charge_infor', `생산 시작 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
         o.status = 'IN_PROGRESS';
-        dbLog('INFO', 'write:tb_sales_order', `생산 시작 — order_id=${order_id}`);
-        dbWrite('tb_sales_order', 'start', () => client.from('tb_sales_order').update({ status: 'IN_PROGRESS' }).eq('order_id', order_id));
+        dbLog('INFO', 'write:tb_charge_infor', `생산 시작 — id=${order_id}`);
+        dbWrite('tb_charge_infor', 'start', () => client.from('tb_charge_infor').update({ status: 'IN_PROGRESS' }).eq('id', order_id));
         // 생산요청 등록 시점에 이미 채번되어 있으면 재채번하지 않는다(되돌리기 등으로 초기화된 경우에만 여기서 새로 채번).
-        const existing = cache.production.find(p => p.order_id === order_id);
-        if (!existing || !existing.serial_no) {
+        if (!o.serial_no) {
           const serial = this.generateSerialSuggestion(o.model_name, o.usage_type, TODAY, order_id);
           if (serial) this.saveProduction(order_id, { serial_no: serial });
         }
@@ -544,9 +656,7 @@
       },
 
       serialExists(serial, excludeOrderId) {
-        if (cache.production.some(p => p.serial_no === serial && p.order_id !== excludeOrderId)) return true;
-        const cp = this.getChargepointBySerial(serial);
-        return !!cp && cp.order_id !== excludeOrderId;
+        return cache.orders.some(o => o.serial_no === serial && o.id !== excludeOrderId);
       },
 
       // 모델·용도·생산일자로 다음 사용 가능한 시리얼번호를 추천(중복 자동 회피)
@@ -700,14 +810,14 @@
 
       addHistory(order_id, changedBy, changedAt, fields, action, serial_no) {
         const id = ++histSeq;
-        const row = { history_id: id, order_id, serial_no: serial_no || '', changed_at: changedAt, changed_by: changedBy, action: action || 'update', changed_fields: JSON.stringify(fields) };
+        const row = { history_id: id, charge_id: order_id, serial_no: serial_no || '', changed_at: changedAt, changed_by: changedBy, action: action || 'update', changed_fields: JSON.stringify(fields) };
         cache.history.push(row);
-        dbLog('INFO', 'write:tb_order_history', `이력 추가 — order_id=${order_id}, action=${action || 'update'}, by=${changedBy}`);
+        dbLog('INFO', 'write:tb_order_history', `이력 추가 — charge_id=${order_id}, action=${action || 'update'}, by=${changedBy}`);
         dbWrite('tb_order_history', 'insert', () => client.from('tb_order_history').insert(row));
       },
 
       getHistory(order_id) {
-        return [...cache.history.filter(h => h.order_id === order_id)]
+        return [...cache.history.filter(h => h.charge_id === order_id)]
           .sort((a, b) => (b.changed_at || '').localeCompare(a.changed_at || ''))
           .map(r => ({ ...r, changed_fields: JSON.parse(r.changed_fields || '[]') }));
       },
@@ -737,7 +847,7 @@
         return cache.as_receptions.find(x => x.id === id) || null;
       },
 
-      addAsReception(form) {
+      addAsReception(form, by) {
         const id = ++asRecSeq;
         const reception_no = this._genReceptionNo();
         const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -763,8 +873,19 @@
           created_at:     now,
         };
         cache.as_receptions.push(row);
+        // 최초 이력('' → 접수대기)은 reception_id가 이 행을 FK로 참조하므로,
+        // tb_as_reception insert가 실제로 커밋된 뒤에 이어서 실행되어야 한다.
+        // 두 insert를 별개의 dbWrite로 분리하면 네트워크 순서가 뒤바뀌어
+        // tb_as_log가 존재하지 않는 reception_id를 참조해 FK 위반이 날 수 있다.
+        const logId = ++asLogSeq;
+        const logRow = { id: logId, reception_id: id, changed_at: now, changed_by: by || '', from_status: '', to_status: '접수대기', memo: '접수 등록' };
+        cache.as_logs.push(logRow);
         dbLog('INFO', 'write:tb_as_reception', `AS 접수 등록 — id=${id}, no=${reception_no}`);
-        dbWrite('tb_as_reception', 'insert', () => client.from('tb_as_reception').insert(row));
+        dbWrite('tb_as_reception', 'insert', async () => {
+          const { error } = await client.from('tb_as_reception').insert(row);
+          if (error) return { error };
+          return client.from('tb_as_log').insert(logRow);
+        });
         return { id, reception_no };
       },
 
@@ -838,25 +959,25 @@
         return [...cache.customers];
       },
 
-      addMasterCustomer(name, is_address) {
+      addMasterCustomer(name, address) {
         if (cache.customers.find(c => c.name === name))
           return { ok: false, msg: '이미 등록된 고객사명입니다' };
-        const last = new Date().toISOString().slice(0, 10);
-        cache.customers.push({ name, is_address: !!is_address, last });
-        dbLog('INFO', 'write:tb_master_customer', `고객사 추가 — ${name}`);
-        dbWrite('tb_master_customer', 'insert', () => client.from('tb_master_customer').insert({ name, is_address: !!is_address, last }));
+        const row = { name, address: address || '' };
+        cache.customers.push(row);
+        dbLog('INFO', 'write:tb_customer', `고객사 추가 — ${name}`);
+        dbWrite('tb_customer', 'insert', () => client.from('tb_customer').insert(row));
         return { ok: true };
       },
 
-      updateMasterCustomer(idx, name, is_address) {
+      updateMasterCustomer(idx, name, address) {
         const c = cache.customers[idx];
         if (!c) return { ok: false, msg: '고객사를 찾을 수 없습니다' };
         const dupName = cache.customers.findIndex(x => x.name === name);
         if (dupName !== -1 && dupName !== idx) return { ok: false, msg: '이미 등록된 고객사명입니다' };
         const oldName = c.name;
-        cache.customers[idx] = { ...c, name, is_address: !!is_address };
-        dbLog('INFO', 'write:tb_master_customer', `고객사 수정 — ${oldName} → ${name}`);
-        dbWrite('tb_master_customer', 'update', () => client.from('tb_master_customer').update({ name, is_address: !!is_address }).eq('name', oldName));
+        cache.customers[idx] = { name, address: address || '' };
+        dbLog('INFO', 'write:tb_customer', `고객사 수정 — ${oldName} → ${name}`);
+        dbWrite('tb_customer', 'update', () => client.from('tb_customer').update({ name, address: address || '' }).eq('name', oldName));
         return { ok: true };
       },
 
@@ -865,8 +986,8 @@
         if (!c) return;
         const name = c.name;
         cache.customers.splice(idx, 1);
-        dbLog('INFO', 'write:tb_master_customer', `고객사 삭제 — ${name}`);
-        dbWrite('tb_master_customer', 'delete', () => client.from('tb_master_customer').delete().eq('name', name));
+        dbLog('INFO', 'write:tb_customer', `고객사 삭제 — ${name}`);
+        dbWrite('tb_customer', 'delete', () => client.from('tb_customer').delete().eq('name', name));
       },
 
       getCpos() {
@@ -965,15 +1086,17 @@
         dbWrite('tb_master_model', 'delete', () => client.from('tb_master_model').delete().eq('model_code', model));
       },
 
-      // ── 충전기 설치 정보 (tb_chargepoint_infor) ───────────────────
+      // ── 충전기 정보 (tb_charge_infor) — "실물로 존재가 확정된 충전기"만 대상 ──
+      // AS접수 시리얼 조회 등에서 PENDING/IN_PROGRESS 유닛까지 잡히면 안 되므로
+      // _isRegisteredCharger()로 COMPLETED이거나 오더 미연결(order_id=null, 수동등록)인 것만 필터링.
       loadChargepoints() {
-        return cache.chargepoints;
+        return cache.orders.filter(o => this._isRegisteredCharger(o));
       },
 
       getChargepointBySerial(serial_no) {
         const q = String(serial_no || '').trim().toUpperCase();
         if (!q) return null;
-        return cache.chargepoints.find(c => String(c.serial_no || '').trim().toUpperCase() === q) || null;
+        return cache.orders.find(o => this._isRegisteredCharger(o) && String(o.serial_no || '').trim().toUpperCase() === q) || null;
       },
 
       addChargepoint(data) {
@@ -981,48 +1104,73 @@
         if (!serial_no) return { ok: false, msg: '시리얼번호를 입력하세요' };
         if (this.getChargepointBySerial(serial_no))
           return { ok: false, msg: '이미 등록된 시리얼번호입니다' };
+        const id = 'CP-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         const row = {
-          serial_no,
+          id, order_id: null,
           model_name:      data.model_name      || '',
-          order_id:        data.order_id        || null,
+          usage_type:      data.usage_type      || '',
+          serial_no,
+          status:           'COMPLETED',
+          usage_public_id: null, func_inspection_id: null, ship_inspection_id: null,
+          sw_version: '', fw_version: '', cable_length: null,
+          prod_date: '', delivery_date: '', ship_from_address: '',
           install_address: data.install_address || '',
+          customer_name: '', customer_manager: '', field_manager_phone: '',
           created:         data.created         || '',
         };
-        cache.chargepoints.push(row);
-        dbLog('INFO', 'write:tb_chargepoint_infor', `충전기 정보 추가 — serial_no=${serial_no}`);
-        dbWrite('tb_chargepoint_infor', 'insert', () => client.from('tb_chargepoint_infor').insert(row));
+        cache.orders.push(row);
+        dbLog('INFO', 'write:tb_charge_infor', `충전기 정보 수동 등록 — serial_no=${serial_no}`);
+        dbWrite('tb_charge_infor', 'insert', () => client.from('tb_charge_infor').insert(row));
         return { ok: true };
       },
 
       getFuncInspection(order_id) {
-        const r = cache.func_inspections.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o || o.func_inspection_id == null) return null;
+        const r = cache.func_inspections.find(x => x.id === o.func_inspection_id);
         if (!r) return null;
         return { insp_date: r.insp_date, inspector: r.inspector, checks: JSON.parse(r.checks || '{}'), notes: r.notes || '', saved_at: r.saved_at };
       },
 
       saveFuncInspection(order_id, data) {
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o) return;
         const checks = JSON.stringify(data.checks || {});
-        const existing = cache.func_inspections.find(x => x.order_id === order_id);
-        if (existing) {
-          Object.assign(existing, { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+        const payload = { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at };
+        if (o.func_inspection_id != null) {
+          const existing = cache.func_inspections.find(x => x.id === o.func_inspection_id);
+          if (existing) Object.assign(existing, payload);
+          dbLog('INFO', 'write:tb_inspection_func', `기능 검사 성적서 저장 — charge_id=${order_id}`);
+          dbWrite('tb_inspection_func', 'update', () => client.from('tb_inspection_func').update(payload).eq('id', o.func_inspection_id));
         } else {
-          cache.func_inspections.push({ order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
+          const id = ++funcInspSeq;
+          cache.func_inspections.push({ id, ...payload });
+          o.func_inspection_id = id;
+          dbLog('INFO', 'write:tb_inspection_func', `기능 검사 성적서 신규 저장 — charge_id=${order_id}`);
+          dbWrite('tb_inspection_func', 'insert', async () => {
+            await client.from('tb_inspection_func').insert({ id, ...payload });
+            return client.from('tb_charge_infor').update({ func_inspection_id: id }).eq('id', order_id);
+          });
         }
-        dbLog('INFO', 'write:tb_func_inspection', `기능 검사 성적서 저장 — order_id=${order_id}`);
-        dbWrite('tb_func_inspection', 'upsert', () => client.from('tb_func_inspection').upsert(
-          { order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at },
-          { onConflict: 'order_id' }
-        ));
       },
 
       deleteFuncInspection(order_id) {
-        cache.func_inspections = cache.func_inspections.filter(x => x.order_id !== order_id);
-        dbLog('INFO', 'write:tb_func_inspection', `기능 검사 성적서 삭제 — order_id=${order_id}`);
-        dbWrite('tb_func_inspection', 'delete', () => client.from('tb_func_inspection').delete().eq('order_id', order_id));
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o || o.func_inspection_id == null) return;
+        const id = o.func_inspection_id;
+        cache.func_inspections = cache.func_inspections.filter(x => x.id !== id);
+        o.func_inspection_id = null;
+        dbLog('INFO', 'write:tb_inspection_func', `기능 검사 성적서 삭제 — charge_id=${order_id}`);
+        dbWrite('tb_inspection_func', 'delete', async () => {
+          await client.from('tb_charge_infor').update({ func_inspection_id: null }).eq('id', order_id);
+          return client.from('tb_inspection_func').delete().eq('id', id);
+        });
       },
 
       getShipInspectionDB(order_id) {
-        const r = cache.ship_inspections.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o || o.ship_inspection_id == null) return null;
+        const r = cache.ship_inspections.find(x => x.id === o.ship_inspection_id);
         if (!r) return null;
         return {
           insp_date: r.insp_date,
@@ -1035,42 +1183,54 @@
       },
 
       saveShipInspection(order_id, data) {
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o) return;
         if (data == null) {
-          cache.ship_inspections = cache.ship_inspections.filter(x => x.order_id !== order_id);
-          dbLog('INFO', 'write:tb_ship_inspection', `출하 검사 성적서 삭제 — order_id=${order_id}`);
-          dbWrite('tb_ship_inspection', 'delete', () => client.from('tb_ship_inspection').delete().eq('order_id', order_id));
+          if (o.ship_inspection_id == null) return;
+          const id = o.ship_inspection_id;
+          cache.ship_inspections = cache.ship_inspections.filter(x => x.id !== id);
+          o.ship_inspection_id = null;
+          dbLog('INFO', 'write:tb_inspection_ship', `출하 검사 성적서 삭제 — charge_id=${order_id}`);
+          dbWrite('tb_inspection_ship', 'delete', async () => {
+            await client.from('tb_charge_infor').update({ ship_inspection_id: null }).eq('id', order_id);
+            return client.from('tb_inspection_ship').delete().eq('id', id);
+          });
           return;
         }
         const checks = JSON.stringify(data.checks || {});
-        const existing = cache.ship_inspections.find(x => x.order_id === order_id);
-        if (existing) {
-          Object.assign(existing, { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at });
-          // photos 필드는 건드리지 않음 — addShipPhoto/deleteShipPhoto로만 변경
+        const payload = { insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at };
+        if (o.ship_inspection_id != null) {
+          const existing = cache.ship_inspections.find(x => x.id === o.ship_inspection_id);
+          if (existing) Object.assign(existing, payload); // photos 필드는 건드리지 않음 — addShipPhoto/deleteShipPhoto로만 변경
+          dbLog('INFO', 'write:tb_inspection_ship', `출하 검사 성적서 저장 — charge_id=${order_id}`);
+          dbWrite('tb_inspection_ship', 'update', () => client.from('tb_inspection_ship').update(payload).eq('id', o.ship_inspection_id));
         } else {
-          cache.ship_inspections.push({ order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at, photos: '[]' });
+          const id = ++shipInspSeq;
+          cache.ship_inspections.push({ id, ...payload, photos: '[]' });
+          o.ship_inspection_id = id;
+          dbLog('INFO', 'write:tb_inspection_ship', `출하 검사 성적서 신규 저장 — charge_id=${order_id}`);
+          dbWrite('tb_inspection_ship', 'insert', async () => {
+            await client.from('tb_inspection_ship').insert({ id, ...payload });
+            return client.from('tb_charge_infor').update({ ship_inspection_id: id }).eq('id', order_id);
+          });
         }
-        dbLog('INFO', 'write:tb_ship_inspection', `출하 검사 성적서 저장 — order_id=${order_id}`);
-        dbWrite('tb_ship_inspection', 'upsert', () => client.from('tb_ship_inspection').upsert(
-          { order_id, insp_date: data.insp_date, inspector: data.inspector, checks, notes: data.notes || '', saved_at: data.saved_at },
-          { onConflict: 'order_id' }
-        ));
-        // photos 컬럼을 upsert payload에 포함하지 않음:
-        //   INSERT 시 → DB DEFAULT '[]' 적용
-        //   UPDATE 시 → 기존 photos 값 유지 (Supabase upsert는 payload에 없는 컬럼을 덮어쓰지 않음)
       },
 
       getShipPhotos(order_id) {
-        const r = cache.ship_inspections.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        if (!o || o.ship_inspection_id == null) return [];
+        const r = cache.ship_inspections.find(x => x.id === o.ship_inspection_id);
         if (!r) return [];
         try { return JSON.parse(r.photos || '[]'); } catch (_) { return []; }
       },
 
       async addShipPhoto(order_id, file, by) {
-        const existing = cache.ship_inspections.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        const existing = o && o.ship_inspection_id != null ? cache.ship_inspections.find(x => x.id === o.ship_inspection_id) : null;
         if (!existing) throw new Error('출하검사 성적서를 먼저 저장하세요');
         const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
         const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')).toLowerCase() : '';
-        const storagePath = `order/${order_id}/${Date.now()}${ext}`;
+        const storagePath = `charge/${order_id}/${Date.now()}${ext}`;
         let url = '';
         try {
           const { error: upErr } = await client.storage.from('ship-photos').upload(storagePath, file, { upsert: false });
@@ -1085,26 +1245,27 @@
         const currentPhotos = JSON.parse(existing.photos || '[]');
         currentPhotos.push(photoEntry);
         existing.photos = JSON.stringify(currentPhotos);
-        dbLog('INFO', 'write:tb_ship_inspection', `출하 사진 추가 — order_id=${order_id}, path=${storagePath}`);
+        dbLog('INFO', 'write:tb_inspection_ship', `출하 사진 추가 — charge_id=${order_id}, path=${storagePath}`);
         const photosJson = existing.photos;
-        dbWrite('tb_ship_inspection', 'update-photos', () =>
-          client.from('tb_ship_inspection').update({ photos: photosJson }).eq('order_id', order_id)
+        dbWrite('tb_inspection_ship', 'update-photos', () =>
+          client.from('tb_inspection_ship').update({ photos: photosJson }).eq('id', existing.id)
         );
         return photoEntry;
       },
 
       async deleteShipPhoto(order_id, storagePath) {
-        const existing = cache.ship_inspections.find(x => x.order_id === order_id);
+        const o = cache.orders.find(x => x.id === order_id);
+        const existing = o && o.ship_inspection_id != null ? cache.ship_inspections.find(x => x.id === o.ship_inspection_id) : null;
         if (!existing) return;
         const currentPhotos = JSON.parse(existing.photos || '[]');
         existing.photos = JSON.stringify(currentPhotos.filter(p => p.storage_path !== storagePath));
-        dbLog('INFO', 'write:tb_ship_inspection', `출하 사진 삭제 — order_id=${order_id}, path=${storagePath}`);
+        dbLog('INFO', 'write:tb_inspection_ship', `출하 사진 삭제 — charge_id=${order_id}, path=${storagePath}`);
         if (storagePath) {
           try { await client.storage.from('ship-photos').remove([storagePath]); } catch (_) {}
         }
         const photosJson = existing.photos;
-        dbWrite('tb_ship_inspection', 'update-photos', () =>
-          client.from('tb_ship_inspection').update({ photos: photosJson }).eq('order_id', order_id)
+        dbWrite('tb_inspection_ship', 'update-photos', () =>
+          client.from('tb_inspection_ship').update({ photos: photosJson }).eq('id', existing.id)
         );
       },
 
@@ -1176,10 +1337,10 @@
       // 마스터 테이블이 비어 있으면 초기 데이터 삽입
       if (backend.cache.customers.length === 0) {
         try {
-          const { data, error } = await client.from('tb_master_customer').insert(SEED_MASTER_CUSTOMERS).select();
+          const { data, error } = await client.from('tb_customer').insert(SEED_MASTER_CUSTOMERS).select();
           if (error) dbLog('WARN', 'init', '초기 고객사 삽입 실패 — ' + error.message);
           else {
-            backend.cache.customers = (data || []).map(c => ({ name: c.name, is_address: !!c.is_address, last: c.last || '' }));
+            backend.cache.customers = (data || []).map(c => ({ name: c.name, address: c.address || '' }));
             dbLog('INFO', 'init', `초기 고객사 데이터 삽입 — ${backend.cache.customers.length}개`);
           }
         } catch (e) { dbLog('WARN', 'init', '초기 고객사 삽입 오류 — ' + e.message); }
@@ -1215,7 +1376,7 @@
     },
 
     loadOrders()             { return this.backend.loadOrders(); },
-    addOrder(f)              { return this.backend.addOrder(f); },
+    addOrderBatch(f)         { return this.backend.addOrderBatch(f); },
     updateOrder(id, f)       { return this.backend.updateOrder(id, f); },
     deleteOrder(id)          { return this.backend.deleteOrder(id); },
     saveProduction(id, p)    { return this.backend.saveProduction(id, p); },
@@ -1249,7 +1410,7 @@
     deleteAsRecord(id)           { return this.backend.deleteAsRecord(id); },
     loadAsReceptions()           { return this.backend.loadAsReceptions(); },
     getAsReception(id)           { return this.backend.getAsReception(id); },
-    addAsReception(form)         { return this.backend.addAsReception(form); },
+    addAsReception(form, by)     { return this.backend.addAsReception(form, by); },
     updateAsReception(id, form)  { return this.backend.updateAsReception(id, form); },
     addAsLog(rid, fs, ts, m, by)       { return this.backend.addAsLog(rid, fs, ts, m, by); },
     getAsLogs(rid)                     { return this.backend.getAsLogs(rid); },

@@ -32,7 +32,7 @@ const FALLBACK_VIEWS = ['lookup'];
 const EXPECTED = {
   admin:      ALL_VIEWS,
   sales:      ['dashboard', 'waiting', 'lookup', 'as-receipt', 'as-processing'],
-  production: ['dashboard', 'waiting', 'AwaitPickup', 'lookup'],
+  production: ['dashboard', 'waiting', 'lookup'],
   quality:    ['dashboard', 'AwaitPickup', 'lookup', 'as-receipt', 'as-processing'],
 };
 

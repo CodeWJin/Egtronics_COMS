@@ -10,7 +10,7 @@ function getUserDisplayName(userId) {
   return u ? u.name : userId;
 }
 
-// AS 접수 자체엔 모델 필드가 없어 시리얼번호(tb_chargepoint_infor) 또는
+// AS 접수 자체엔 모델 필드가 없어 시리얼번호(tb_charge_infor) 또는
 // 연결된 오더(tb_sales_order)를 통해 역으로 조회한다.
 function getReceptionModelName(r) {
   if (r.serial_no) {
@@ -208,7 +208,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
   const [query, setQuery] = useStateAREC('');
   const [selectedOrder, setSelectedOrder] = useStateAREC(null);
 
-  // ── 시리얼번호로 충전기 조회 (tb_chargepoint_infor) ──────────────
+  // ── 시리얼번호로 충전기 조회 (tb_charge_infor) ──────────────
   const [cpQuery, setCpQuery] = useStateAREC('');
   const [cpResult, setCpResult] = useStateAREC(null);   // null | 충전기 row | 'notfound' | 'invalid'
   const [showAddCp, setShowAddCp] = useStateAREC(false);
@@ -247,7 +247,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
         (o.station_id                    || '').toLowerCase().includes(q) ||
         (o.customer_name                 || '').toLowerCase().includes(q) ||
         (o.install_address               || '').toLowerCase().includes(q) ||
-        (o.production?.serial_no         || '').toLowerCase().includes(q) ||
+        (o.serial_no                     || '').toLowerCase().includes(q) ||
         (o.model_name                    || '').toLowerCase().includes(q)
       )
     );
@@ -273,7 +273,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
   };
 
   const handleOrderSelect = (order) => {
-    const serial = order.production?.serial_no || '';
+    const serial = order.serial_no || '';
     setForm(f => ({
       ...f,
       customer_name: order.customer_name || f.customer_name,
@@ -307,7 +307,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
 
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', flex: 1 }}>
 
-          {/* 시리얼번호로 충전기 조회 (tb_chargepoint_infor) */}
+          {/* 시리얼번호로 충전기 조회 (tb_charge_infor) */}
           <div>
             <div className="field__label" style={{ marginBottom: 8 }}>
               시리얼번호 조회
@@ -421,7 +421,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
                             onKeyDown={(e) => e.key === 'Enter' && handleOrderSelect(o)}>
                             <td>{o.customer_name || '—'}</td>
                             <td className="cell-mono">{o.station_id || '—'}</td>
-                            <td className="cell-mono">{o.production?.serial_no || '—'}</td>
+                            <td className="cell-mono">{o.serial_no || '—'}</td>
                             <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {o.install_address || '—'}
                             </td>
@@ -558,7 +558,7 @@ function AsReceiptModal({ onClose, onSubmit }) {
   );
 }
 
-// ── 신규 충전기 등록 모달 (DB: tb_chargepoint_infor) ────────────────
+// ── 신규 충전기 등록 모달 (DB: tb_charge_infor) ────────────────
 function AddChargepointModal({ serialNo, onClose, onAdded }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
@@ -594,7 +594,7 @@ function AddChargepointModal({ serialNo, onClose, onAdded }) {
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-add-cp-title" style={{ width: 460, maxWidth: '94vw' }}>
         <div className="modal__head">
           <h2 id="modal-add-cp-title" className="modal__title">신규 충전기 등록</h2>
-          <p className="modal__sub">tb_chargepoint_infor에 시리얼번호 <strong style={{ color: 'var(--ink-1)' }}>{serialNo}</strong>를 등록합니다</p>
+          <p className="modal__sub">tb_charge_infor에 시리얼번호 <strong style={{ color: 'var(--ink-1)' }}>{serialNo}</strong>를 등록합니다</p>
         </div>
         <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="field">

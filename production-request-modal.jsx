@@ -254,8 +254,7 @@ function ProductionRequestModal({ order, onClose }) {
     submittingRef.current = true;
     const requestedBy = s.currentUser?.name || '';
     validRows.forEach(({ model_name, usage_type, qty }) => {
-      const count = clampQty(qty);
-      for (let q = 0; q < count; q++) window.actions.addOrder({ model_name, usage_type, requested_by: requestedBy });
+      window.actions.addOrderBatch({ model_name, usage_type, qty: clampQty(qty), requested_by: requestedBy });
     });
     setRows([makeRow()]);
     setSelectedRowIds(new Set());
@@ -720,13 +719,13 @@ function AddCustomerModal({ onClose, onAdded }) {
   window.useLockScroll();
   const dialogRef = window.useModalKeyboard(onClose);
   const [name, setName] = useStateSI('');
-  const [isAddress, setIsAddress] = useStateSI(false);
+  const [address, setAddress] = useStateSI('');
   const [err, setErr] = useStateSI('');
 
   const save = () => {
     const trimmedName = name.trim();
     if (!trimmedName) { setErr('고객사명을 입력하세요'); return; }
-    const result = window.PMDB.addMasterCustomer(trimmedName, isAddress);
+    const result = window.PMDB.addMasterCustomer(trimmedName, address);
     if (!result.ok) { setErr(result.msg); return; }
     onAdded && onAdded(trimmedName);
   };
@@ -746,12 +745,10 @@ function AddCustomerModal({ onClose, onAdded }) {
                    placeholder="예: (주)에이비씨"
                    onKeyDown={(e) => e.key === 'Enter' && save()}/>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-            <input type="checkbox" checked={isAddress}
-                   onChange={(e) => setIsAddress(e.target.checked)}
-                   style={{ width: 15, height: 15, accentColor: 'var(--primary)' }}/>
-            주소지 고객사 (is_address)
-          </label>
+          <div className="field">
+            <label className="field__label" htmlFor="si-add-cust-address">주소</label>
+            <AddressField id="si-add-cust-address" value={address} onChange={setAddress}/>
+          </div>
           {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
         </div>
         <div className="modal__foot">

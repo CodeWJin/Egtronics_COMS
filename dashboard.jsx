@@ -188,7 +188,7 @@ function DashboardScreen() {
   }, [s.asReceptions]);
 
   const salesDates = useMemoDASH(() => s.orders.map(o => o.created).filter(Boolean), [s.orders]);
-  const prodDates = useMemoDASH(() => s.orders.map(o => o.production?.prod_date).filter(Boolean), [s.orders]);
+  const prodDates = useMemoDASH(() => s.orders.map(o => o.prod_date).filter(Boolean), [s.orders]);
   const asDates = useMemoDASH(() => (s.asReceptions || [])
     .filter(r => r.status === '처리완료' && r.completed_at)
     .map(r => String(r.completed_at).slice(0, 10)), [s.asReceptions]);

@@ -33,7 +33,7 @@ function OrderLookupScreen() {
   const [fAsOnly, setFAsOnly] = useStateOL(false);
   const [showAdvanced, setShowAdvanced] = useStateOL(false);
 
-  // tb_chargepoint_infor — 오더에 연결된 것(출하 완료 시 자동 등록)과 연결되지 않은 것
+  // tb_charge_infor — 오더에 연결된 것(출하 완료 시 자동 등록)과 연결되지 않은 것
   // (AS 접수에서 시리얼 미조회 시 수동 등록) 모두 포함
   const chargepoints = useMemoOL(() => window.PMDB.loadChargepoints(), [s.orders]);
   const orderById = useMemoOL(() => {
@@ -103,7 +103,7 @@ function OrderLookupScreen() {
         <div>
           <div className="screen__crumbs">통합 조회 · 설치 충전기</div>
           <h1 className="screen__title">충전기 통합 조회</h1>
-          <p className="screen__sub">등록된 충전기(tb_chargepoint_infor)를 시리얼번호로 검색합니다. 행을 선택하면 우측에 상세가 열립니다.</p>
+          <p className="screen__sub">등록된 충전기(tb_charge_infor)를 시리얼번호로 검색합니다. 행을 선택하면 우측에 상세가 열립니다.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <span className="badge badge--complete" style={{ fontSize: 11 }}><Icon name="check" size={10}/>등록된 충전기 전체 표시</span>
@@ -349,7 +349,7 @@ function ChargepointDrawer({ chargepoint: cp, onClose }) {
       <aside ref={asideRef} tabIndex={-1} className={`drawer${closing ? ' drawer--closing' : ''}`} role="dialog" aria-modal="true" aria-label="충전기 상세">
         <div className="drawer__head">
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="drawer__eyebrow">tb_chargepoint_infor</div>
+            <div className="drawer__eyebrow">tb_charge_infor</div>
             <div className="drawer__title" style={{ margin: '5px 0 10px' }}>{cp.serial_no}</div>
             <span className="badge badge--neutral"><Icon name="alert" size={10}/>연결된 오더 없음</span>
           </div>
@@ -625,7 +625,7 @@ function OrderDrawer({ order, onClose }) {
     return () => window.removeEventListener('keydown', fn);
   }, [handleClose, funcDrawerOpen, shipDrawerOpen, funcReportVisible, shipReportVisible, shipPhotoLightbox]);
 
-  const p = order.production;
+  const hasProduction = !!(order.prod_date || order.serial_no);
   const modelObj = React.useMemo(() => window.findModelInfo(order.model_name), [order.model_name]);
   const s = window.useStore();
   const role = s.currentUser ? s.currentUser.role : null;
@@ -690,11 +690,6 @@ function OrderDrawer({ order, onClose }) {
               <Field k="라우터 S/N" v={order.router_no || '—'} mono/>
               <Field k="USIM (ICCID)" v={order.usim_no || '—'} mono full/>
               <Field k="설치주소" v={order.install_address || '미입력'} full/>
-              {(order.field_manager_name || order.field_manager_phone) && (
-                <Field k="현장담당자"
-                       v={[order.field_manager_name, order.field_manager_phone].filter(Boolean).join(' · ')}
-                       full/>
-              )}
             </div>
           </section>
 
@@ -705,13 +700,13 @@ function OrderDrawer({ order, onClose }) {
               </div>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>생산 실적 정보</span>
             </div>
-            {p ? (
+            {hasProduction ? (
               <div className="dgrid">
-                <Field k="생산일자" v={p.prod_date}/>
-                <Field k="검정일자" v={p.inspection_date}/>
-                <Field k="시리얼" v={p.serial_no} mono/>
-                <Field k="S/W 버전" v={p.sw_version} mono/>
-                <Field k="F/W 버전" v={p.fw_version} mono/>
+                <Field k="생산일자" v={order.prod_date}/>
+                <Field k="검정일자" v={order.inspection_date}/>
+                <Field k="시리얼" v={order.serial_no} mono/>
+                <Field k="S/W 버전" v={order.sw_version} mono/>
+                <Field k="F/W 버전" v={order.fw_version} mono/>
               </div>
             ) : (
               <div style={{ padding: '16px', background: 'var(--warning-50)', border: '1px solid var(--warning)', borderRadius: 'var(--r-lg)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -745,11 +740,11 @@ function OrderDrawer({ order, onClose }) {
           )}
 
           <OrderHistorySection orderId={order.order_id}/>
-          <AsReceptionSection orderId={order.order_id} serialNo={p?.serial_no}/>
+          <AsReceptionSection orderId={order.order_id} serialNo={order.serial_no}/>
         </div>
 
         <div className="drawer__foot">
-          {p && (
+          {hasProduction && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <button className="btn btn--secondary" onClick={() => setFuncReportVisible(true)}
                 disabled={!funcInspection}
@@ -759,7 +754,7 @@ function OrderDrawer({ order, onClose }) {
               {!funcInspection && <window.HelpDot text="기능 검사 성적서가 아직 작성되지 않았습니다"/>}
             </span>
           )}
-          {p && (
+          {hasProduction && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <button className="btn btn--secondary" onClick={() => setShipReportVisible(true)}
                 disabled={!shipInspection}
@@ -774,7 +769,7 @@ function OrderDrawer({ order, onClose }) {
               <Icon name="save" size={13}/> 영업 정보 수정
             </button>
           )}
-          {canMap && !p && (
+          {canMap && !hasProduction && (
             <button className="btn btn--primary" onClick={goWaiting}>
               <Icon name="factory" size={13}/> 생산 대기 화면으로 이동
             </button>

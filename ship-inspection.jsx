@@ -537,7 +537,7 @@ window.setShipInspection = function(orderId, data) {
 function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, onSave, onClose }) {
   const [closing, setClosing] = React.useState(false);
   const today = new Date().toISOString().slice(0, 10);
-  const p = order.production || {};
+  const p = order;
   const modelInfo = modelInfoProp || window.findModelInfo(order.model_name);
 
   const [inspDate, setInspDate] = React.useState(
@@ -726,7 +726,7 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
 
 /* ────────── 기능 검사 성적서 (printable document) ────────── */
 function InspectionReport({ order, inspectionData, onClose }) {
-  const p = order.production;
+  const p = order;
   const modelInfo = window.findModelInfo(order.model_name);
 
   // inspectionData prop이 없으면 DB / localStorage 캐시에서 로드
@@ -882,7 +882,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
 
 /* ────────── 출하 검사 성적서 미리보기 ────────── */
 function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) {
-  const p = order.production;
+  const p = order;
   const displayChecklist = d._checklist || SHIP_CHECKLIST_DEFAULT;
   const shipAllPassed = displayChecklist.every(item => isItemComplete(item, d.checks?.[item.key]));
   const [lightbox, setLightbox] = React.useState(null);
@@ -1106,7 +1106,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
 
 /* ────────── 기능 검사 성적서 미리보기 ────────── */
 function FuncInspectionReport({ order, inspectionData: d, onClose, onEdit }) {
-  const p = order.production;
+  const p = order;
   const modelInfo = window.findModelInfo(order.model_name);
   const displayChecklist = d._checklist || FUNC_CHECKLIST_DEFAULT;
   const funcAllPassed = displayChecklist.every(item => isItemComplete(item, d.checks?.[item.key]));
