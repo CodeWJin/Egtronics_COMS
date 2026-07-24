@@ -10,6 +10,14 @@ function ComboField({ value, onChange, options, placeholder, error, displayKey =
   const menuIdRef = useRefSI(null);
   if (menuIdRef.current === null) menuIdRef.current = `combo-menu-${Math.random().toString(36).slice(2, 7)}`;
   const menuId = menuIdRef.current;
+  // useModalKeyboard()가 모달을 열자마자(30ms 뒤) 첫 포커스 가능 요소를 자동 focus() 시키는데,
+  // 이 필드가 그 대상이면 사용자가 손대지 않았는데도 목록이 열려 버린다 — 마운트 직후 잠깐은 무시한다.
+  const autoFocusGuardRef = useRefSI(true);
+
+  useEffectSI(() => {
+    const t = setTimeout(() => { autoFocusGuardRef.current = false; }, 100);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffectSI(() => {
     const fn = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setShowAll(false); } };
@@ -42,7 +50,7 @@ function ComboField({ value, onChange, options, placeholder, error, displayKey =
                aria-activedescendant={activeDescendant}
                value={value || ''}
                onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlight(0); setShowAll(false); }}
-               onFocus={() => { setOpen(true); setShowAll(true); }}
+               onFocus={() => { if (autoFocusGuardRef.current) return; setOpen(true); setShowAll(true); }}
                onKeyDown={(e) => {
                  if (e.key === 'ArrowDown') { setHighlight((h) => Math.min(h + 1, filtered.length - 1)); e.preventDefault(); }
                  if (e.key === 'ArrowUp')   { setHighlight((h) => Math.max(h - 1, 0)); e.preventDefault(); }
