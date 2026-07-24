@@ -60,6 +60,15 @@ CREATE TABLE IF NOT EXISTS tb_customer_manager (
   PRIMARY KEY (customer_name, name)
 );
 
+-- 고객사 납품장소 (복합 PK: customer_name + label) — tb_customer_manager와 동일한 패턴
+CREATE TABLE IF NOT EXISTS tb_customer_address (
+  customer_name TEXT    NOT NULL,
+  label         TEXT    NOT NULL,
+  address       TEXT    NOT NULL DEFAULT '',
+  is_primary    INTEGER DEFAULT 0,
+  PRIMARY KEY (customer_name, label)
+);
+
 -- 충전기 정보 — 허브 테이블. 충전기 유닛 1대 = 1행.
 -- 구 tb_production_info(생산실적) + 구 tb_chargepoint_infor(설치정보)를 완전 흡수.
 CREATE TABLE IF NOT EXISTS tb_charge_infor (
@@ -303,6 +312,10 @@ ALTER TABLE tb_customer_manager ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tb_customer_manager_anon_all ON tb_customer_manager;
 CREATE POLICY tb_customer_manager_anon_all ON tb_customer_manager FOR ALL TO anon USING (true) WITH CHECK (true);
 
+ALTER TABLE tb_customer_address ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tb_customer_address_anon_all ON tb_customer_address;
+CREATE POLICY tb_customer_address_anon_all ON tb_customer_address FOR ALL TO anon USING (true) WITH CHECK (true);
+
 ALTER TABLE tb_order_history ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tb_order_history_anon_all ON tb_order_history;
 CREATE POLICY tb_order_history_anon_all ON tb_order_history FOR ALL TO anon USING (true) WITH CHECK (true);
@@ -412,7 +425,14 @@ INSERT INTO tb_customer_manager (customer_name, name, phone, is_primary) VALUES
   ('마이크로', '강XX', '010-2222-1111', 1)
 ON CONFLICT (customer_name, name) DO NOTHING;
 
--- 8-4. CPO 운영사 마스터
+-- 8-4. 고객사 납품장소
+INSERT INTO tb_customer_address (customer_name, label, address, is_primary) VALUES
+  ('카스',     '본사',    '', 1),
+  ('카스',     '물류창고', '', 0),
+  ('마이크로', '본사',    '', 1)
+ON CONFLICT (customer_name, label) DO NOTHING;
+
+-- 8-5. CPO 운영사 마스터
 INSERT INTO tb_master_cpo (name, code) VALUES
   ('한국전력공사', 'KEPCO'),
   ('환경부',       'ME'),
@@ -420,7 +440,7 @@ INSERT INTO tb_master_cpo (name, code) VALUES
   ('차지비',       'CHEVI')
 ON CONFLICT DO NOTHING;
 
--- 8-5. 충전기 모델 마스터
+-- 8-6. 충전기 모델 마스터
 INSERT INTO tb_master_model (model_code, description, power) VALUES
   ('EGSW100703',   '공용 · IC · PLC · OBD',    '7kW'),
   ('EGSW100703I',  '공용 · IC',                 '7kW'),
@@ -446,7 +466,7 @@ INSERT INTO tb_master_model (model_code, description, power) VALUES
   ('EGFA220001',   '2채널 · CCS1 듀얼',         '200kW')
 ON CONFLICT DO NOTHING;
 
--- 8-6. S/W · F/W 버전 마스터 (통합)
+-- 8-7. S/W · F/W 버전 마스터 (통합)
 INSERT INTO tb_program_version (type, tag, released, stable) VALUES
   ('S/W', 'v1.6.2-core',    '2026-05-14', true),
   ('S/W', 'v1.6.1-core',    '2026-04-02', true),
@@ -458,19 +478,19 @@ INSERT INTO tb_program_version (type, tag, released, stable) VALUES
   ('F/W', 'v1.7.0-fw-beta', '2026-05-22', false)
 ON CONFLICT DO NOTHING;
 
--- 8-7. 영업 오더(배치) — 예시로 2건(공용 2대 배치, 비공용 1대 배치)만 시드
+-- 8-8. 영업 오더(배치) — 예시로 2건(공용 2대 배치, 비공용 1대 배치)만 시드
 INSERT INTO tb_sales_order (order_id, model_name, usage_type, qty, requested_by, created) VALUES
   ('260208001', 'EGFA210001', '공용',   2, '신정륜', '2026-05-22'),
   ('260208002', 'EGSW101102', '비공용', 1, '신정륜', '2026-05-27')
 ON CONFLICT (order_id) DO NOTHING;
 
--- 8-8. 공용충전기 전용 정보 (배치 260208001의 유닛 1개 몫)
+-- 8-9. 공용충전기 전용 정보 (배치 260208001의 유닛 1개 몫)
 INSERT INTO tb_usagetype_public (id, inspection_date, station_id, charger_no, router_no, usim_no, cpo_name, created) VALUES
   (1, '', 'CT9006', '01', 'RTR-2024-08172', '8982001234567890123', '한국전력공사', '2026-05-22')
 ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('tb_usagetype_public', 'id'), (SELECT MAX(id) FROM tb_usagetype_public));
 
--- 8-9. 충전기 정보 (배치 260208001 → 유닛 2대, 배치 260208002 → 유닛 1대)
+-- 8-10. 충전기 정보 (배치 260208001 → 유닛 2대, 배치 260208002 → 유닛 1대)
 INSERT INTO tb_charge_infor
   (id, order_id, model_name, usage_type, serial_no, status, usage_public_id,
    sw_version, fw_version, cable_length, prod_date, delivery_date, ship_from_address, install_address,
