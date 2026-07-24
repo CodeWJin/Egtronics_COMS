@@ -733,6 +733,50 @@
         dbWrite('tb_customer_manager', 'delete', () => client.from('tb_customer_manager').delete().eq('customer_name', row.customer_name).eq('name', row.name));
       },
 
+      getAddresses(customer_name) {
+        const list = customer_name ? cache.customer_addresses.filter(a => a.customer_name === customer_name) : [...cache.customer_addresses];
+        return list.sort((a, b) => (b.is_primary || 0) - (a.is_primary || 0) || (a.label || '').localeCompare(b.label || ''));
+      },
+
+      addAddress(a) {
+        if (a.is_primary) cache.customer_addresses.forEach(x => { if (x.customer_name === a.customer_name) x.is_primary = 0; });
+        const id = ++addrSeq;
+        const row = { address_id: id, customer_name: a.customer_name, label: a.label, address: a.address || '', is_primary: a.is_primary ? 1 : 0 };
+        cache.customer_addresses.push(row);
+        dbLog('INFO', 'write:tb_customer_address', `납품장소 추가 — 고객=${a.customer_name}, 장소=${a.label}`);
+        dbWrite('tb_customer_address', 'insert', async () => {
+          if (a.is_primary) await client.from('tb_customer_address').update({ is_primary: 0 }).eq('customer_name', a.customer_name);
+          return client.from('tb_customer_address').insert({ customer_name: a.customer_name, label: a.label, address: a.address || '', is_primary: a.is_primary ? 1 : 0 });
+        });
+        return id;
+      },
+
+      updateAddress(id, a) {
+        const row = cache.customer_addresses.find(x => x.address_id === id);
+        if (!row) return;
+        if (a.is_primary) cache.customer_addresses.forEach(x => { if (x.customer_name === row.customer_name) x.is_primary = 0; });
+        const oldLabel = row.label;
+        const upd = { address: a.address || '', is_primary: a.is_primary ? 1 : 0 };
+        Object.assign(row, { label: a.label, ...upd });
+        dbLog('INFO', 'write:tb_customer_address', `납품장소 수정 — 고객=${row.customer_name}, 장소=${oldLabel}→${a.label}`);
+        dbWrite('tb_customer_address', 'update', async () => {
+          if (a.is_primary) await client.from('tb_customer_address').update({ is_primary: 0 }).eq('customer_name', row.customer_name);
+          if (a.label !== oldLabel) {
+            await client.from('tb_customer_address').delete().eq('customer_name', row.customer_name).eq('label', oldLabel);
+            return client.from('tb_customer_address').insert({ customer_name: row.customer_name, label: a.label, ...upd });
+          }
+          return client.from('tb_customer_address').update(upd).eq('customer_name', row.customer_name).eq('label', oldLabel);
+        });
+      },
+
+      deleteAddress(id) {
+        const row = cache.customer_addresses.find(x => x.address_id === id);
+        if (!row) return;
+        cache.customer_addresses = cache.customer_addresses.filter(x => x.address_id !== id);
+        dbLog('INFO', 'write:tb_customer_address', `납품장소 삭제 — 고객=${row.customer_name}, 장소=${row.label}`);
+        dbWrite('tb_customer_address', 'delete', () => client.from('tb_customer_address').delete().eq('customer_name', row.customer_name).eq('label', row.label));
+      },
+
       async authenticate(userId, password) {
         const u = cache.users.find(x => x.user_id === userId);
         if (!u) { dbLog('WARN', 'auth', `로그인 실패 — user_id=${userId}`); return null; }
@@ -1407,6 +1451,10 @@
     addManager(m)            { return this.backend.addManager(m); },
     updateManager(id, m)     { return this.backend.updateManager(id, m); },
     deleteManager(id)        { return this.backend.deleteManager(id); },
+    getAddresses(c)          { return this.backend.getAddresses(c); },
+    addAddress(a)            { return this.backend.addAddress(a); },
+    updateAddress(id, a)     { return this.backend.updateAddress(id, a); },
+    deleteAddress(id)        { return this.backend.deleteAddress(id); },
     async authenticate(id, pw)     { return this.backend.authenticate(id, pw); },
     getUser(id)                    { return this.backend.getUser(id); },
     verifyUserPhone(id, ph)        { return this.backend.verifyUserPhone(id, ph); },
