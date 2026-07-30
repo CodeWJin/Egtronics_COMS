@@ -256,10 +256,9 @@ function ProductionRequestModal({ order, onClose }) {
     validRows.forEach(({ model_name, usage_type, qty }) => {
       window.actions.addOrderBatch({ model_name, usage_type, qty: clampQty(qty), requested_by: requestedBy });
     });
-    setRows([makeRow()]);
-    setSelectedRowIds(new Set());
-    setSubmitted(false);
     submittingRef.current = false;
+    onClose();
+    window.actions.showConfirm(`생산요청 ${totalValidQty}건이 등록되었습니다.`, () => {}, { confirmLabel: '확인', hideCancel: true });
   };
 
   const cancelRequest = () => {

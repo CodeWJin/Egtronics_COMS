@@ -50,7 +50,7 @@ function stageProgress(order) {
   if (order.status === 'AWAIT_PICKUP' && !window.isSalesInfoComplete(order)) {
     const items = [
       order.cable_length, order.customer_name, order.customer_manager,
-      order.field_manager_phone, order.install_address, order.delivery_date,
+      order.field_manager_phone, order.ship_from_address, order.delivery_date,
       ...(isPublic ? [order.station_id, order.charger_no, order.router_no, order.usim_no] : []),
     ];
     return { done: items.filter(Boolean).length, total: items.length };
@@ -335,7 +335,7 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
     return [
       o.order_id, o.status, o.prod_date, o.serial_no, o.sw_version, o.fw_version, o.inspection_date,
       o.cable_length, o.customer_name, o.customer_manager, o.field_manager_phone,
-      o.install_address, o.delivery_date, o.station_id, o.charger_no, o.router_no, o.usim_no,
+      o.ship_from_address, o.delivery_date, o.station_id, o.charger_no, o.router_no, o.usim_no,
     ].join('|');
   }).join(';');
 
@@ -549,6 +549,7 @@ function ProductionEntryModal({ order, onClose }) {
 
   const saveDraft = () => {
     window.PMDB.saveProduction(order.order_id, form);
+    window.setFuncInspection(order.order_id, funcInspectionData);
     window.actions.refreshOrders();
     window.actions.flashToast('입력 내용이 임시 저장되었습니다', 'success');
     onClose();
@@ -831,8 +832,8 @@ function SalesCompletionModal({ order, onClose }) {
     customer_name: order.customer_name || '',
     customer_manager: order.customer_manager || '',
     field_manager_phone: order.field_manager_phone || '',
-    install_address: order.install_address || '',
-    install_address_detail: '',
+    ship_from_address: order.ship_from_address || '',
+    ship_from_address_detail: '',
     delivery_date: order.delivery_date || '',
     cpo_name: order.cpo_name || '',
     station_id: order.station_id || '',
@@ -843,7 +844,10 @@ function SalesCompletionModal({ order, onClose }) {
   const [submitted, setSubmitted] = useStatePW(false);
   const [masterCustomers, setMasterCustomers] = useStatePW(() => window.PMDB.getCustomers());
   const [masterCpos, setMasterCpos] = useStatePW(() => window.PMDB.getCpos());
-  const [managers, setManagers] = useStatePW(() => window.PMDB.getManagers ? window.PMDB.getManagers(order.customer_name) : []);
+  const [managers, setManagers] = useStatePW(() => {
+    if (!order.customer_name || !window.PMDB.getManagers) return [];
+    return window.PMDB.getManagers(order.customer_name).map(m => ({ ...m, display: m.phone ? `${m.name} (${m.phone})` : m.name }));
+  });
   const [addresses, setAddresses] = useStatePW(() => window.PMDB.getAddresses ? window.PMDB.getAddresses(order.customer_name) : []);
   const [modal, setModal] = useStatePW(null);
 
@@ -869,7 +873,7 @@ function SalesCompletionModal({ order, onClose }) {
     customer_name: !form.customer_name && '발주처를 입력해 주세요',
     customer_manager: !form.customer_manager && '발주처 담당자를 입력해 주세요',
     field_manager_phone: !form.field_manager_phone && '발주처 담당자 전화번호를 입력해 주세요',
-    install_address: !form.install_address && '납품장소를 입력해 주세요',
+    ship_from_address: !form.ship_from_address && '납품장소를 입력해 주세요',
     delivery_date: !form.delivery_date && '납품일자를 선택해 주세요',
     station_id: isPublic && !form.station_id && '충전소 ID를 입력해 주세요',
     charger_no: isPublic && !form.charger_no && '충전기 ID를 입력해 주세요',
@@ -882,13 +886,13 @@ function SalesCompletionModal({ order, onClose }) {
   const submit = () => {
     setSubmitted(true);
     if (hasErr) return;
-    const addr = [form.install_address.trim(), form.install_address_detail.trim()].filter(Boolean).join(' ');
+    const addr = [form.ship_from_address.trim(), form.ship_from_address_detail.trim()].filter(Boolean).join(' ');
     const payload = {
       cable_length: form.cable_length,
       customer_name: form.customer_name,
       customer_manager: form.customer_manager,
       field_manager_phone: form.field_manager_phone,
-      install_address: addr,
+      ship_from_address: addr,
       delivery_date: form.delivery_date,
       cpo_name: form.cpo_name,
       ...(isPublic ? { station_id: form.station_id, charger_no: form.charger_no, router_no: form.router_no, usim_no: form.usim_no } : {}),
@@ -1004,9 +1008,21 @@ function SalesCompletionModal({ order, onClose }) {
 
               <div className="field" style={{ gridColumn: '1 / -1' }}>
                 <label className="field__label" htmlFor="scm-address">납품장소<span className="field__req">*</span></label>
+                {addresses.length > 0 && (
+                  <div style={{ marginBottom: 6, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', overflow: 'hidden' }} role="listbox" aria-label="발주처 등록 납품장소">
+                    {addresses.map((a) => (
+                      <div key={a.address_id} className="combo__item" role="option" tabIndex={0}
+                           onClick={() => update('ship_from_address', a.address)}
+                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update('ship_from_address', a.address); } }}>
+                        <span>{a.label}{!!a.is_primary && <span className="badge badge--info" style={{ marginLeft: 6 }}>대표</span>}</span>
+                        <span className="combo__item__meta">{a.address}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="mgr-field">
-                  <AddressField id="scm-address" value={form.install_address}
-                    onChange={(v) => update('install_address', v)} error={showErr('install_address')}/>
+                  <AddressField id="scm-address" value={form.ship_from_address}
+                    onChange={(v) => update('ship_from_address', v)} error={showErr('ship_from_address')}/>
                   <button type="button" className="btn btn--secondary mgr-field__manage"
                           onClick={() => {
                             if (!form.customer_name) { window.actions.flashToast('발주처를 먼저 선택해 주세요', 'error'); return; }
@@ -1015,21 +1031,9 @@ function SalesCompletionModal({ order, onClose }) {
                     <Icon name="map-pin" size={13}/>
                   </button>
                 </div>
-                {addresses.length > 0 && (
-                  <div style={{ marginTop: 6, border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', overflow: 'hidden' }} role="listbox" aria-label="발주처 등록 납품장소">
-                    {addresses.map((a) => (
-                      <div key={a.address_id} className="combo__item" role="option" tabIndex={0}
-                           onClick={() => update('install_address', a.address)}
-                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); update('install_address', a.address); } }}>
-                        <span>{a.label}{!!a.is_primary && <span className="badge badge--info" style={{ marginLeft: 6 }}>대표</span>}</span>
-                        <span className="combo__item__meta">{a.address}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
                 <input className="input" style={{ marginTop: 6 }} aria-label="상세주소" placeholder="상세주소 (동·호수, 층수 등)"
-                  value={form.install_address_detail} onChange={(e) => update('install_address_detail', e.target.value)}/>
-                {showErr('install_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.install_address}</div>}
+                  value={form.ship_from_address_detail} onChange={(e) => update('ship_from_address_detail', e.target.value)}/>
+                {showErr('ship_from_address') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.ship_from_address}</div>}
               </div>
             </div>
           </section>
@@ -1107,7 +1111,7 @@ function SalesCompletionModal({ order, onClose }) {
             const list = refreshAddresses(form.customer_name);
             if (picked) {
               const addr = list.find(a => a.label === picked);
-              if (addr) update('install_address', addr.address);
+              if (addr) update('ship_from_address', addr.address);
             }
           }}/>
       )}
@@ -1156,7 +1160,7 @@ function ShipReadyModal({ order, onClose }) {
           <div className="dgrid">
             <PWField k="시리얼" v={order.serial_no} mono/>
             <PWField k="발주처" v={order.customer_name}/>
-            <PWField k="납품장소" v={order.install_address}/>
+            <PWField k="납품장소" v={order.ship_from_address}/>
             <PWField k="납품일자" v={order.delivery_date}/>
           </div>
           <section aria-labelledby="srm-ship-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>

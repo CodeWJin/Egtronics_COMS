@@ -674,22 +674,29 @@ function OrderDrawer({ order, onClose }) {
                 <Icon name="cart" size={16} style={{ color: 'var(--primary-600)' }}/>
               </div>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>영업 정보</span>
+              <span className="badge badge--neutral" style={{ marginLeft: 2 }}>{order.usage_type || '공용'}</span>
               {!window.isSalesInfoComplete(order) && (order.status === 'PENDING' || order.status === 'IN_PROGRESS' || order.status === 'AWAIT_PICKUP') && (
                 <span className="badge badge--pending" style={{ marginLeft: 4 }}>생산완료 단계 입력 예정</span>
               )}
             </div>
             <div className="dgrid">
+              <Field k="오더배치번호" v={order.batch_id || '—'} mono/>
               <Field k="모델 코드" v={modelObj?.model || '—'} mono/>
               <Field k="모델명" v={order.model_name}/>
               <Field k="생산요청자" v={order.requested_by || '미입력'}/>
               <Field k="케이블 길이" v={order.cable_length || '미입력'}/>
               <Field k="발주처" v={order.customer_name || '미입력'}/>
               <Field k="담당자" v={order.customer_manager ? managerDisplay : '미입력'}/>
+              <Field k="담당자 연락처" v={order.field_manager_phone || '미입력'} mono/>
               <Field k="납품일자" v={order.delivery_date || '미입력'} mono/>
-              <Field k="충전소 ID" v={order.station_id || '—'} mono/>
-              <Field k="라우터 S/N" v={order.router_no || '—'} mono/>
-              <Field k="USIM (ICCID)" v={order.usim_no || '—'} mono full/>
-              <Field k="설치주소" v={order.install_address || '미입력'} full/>
+              <Field k="납품장소" v={order.ship_from_address || '미입력'} full/>
+              {order.usage_type !== '비공용' && (<>
+                <Field k="충전소 ID" v={order.station_id || '—'} mono/>
+                <Field k="충전기 ID" v={order.charger_no || '—'} mono/>
+                <Field k="라우터 S/N" v={order.router_no || '—'} mono/>
+                <Field k="USIM (ICCID)" v={order.usim_no || '—'} mono/>
+                <Field k="CPO 운영사" v={order.cpo_name || '—'}/>
+              </>)}
             </div>
           </section>
 

@@ -814,8 +814,8 @@ function InspectionReport({ order, inspectionData, onClose }) {
                   <td className="report__mono" style={{ fontSize: 11 }}>{order.usim_no}</td>
                 </tr>
                 <tr>
-                  <th>설치 주소</th>
-                  <td colSpan={3}>{order.install_address}</td>
+                  <th>납품장소</th>
+                  <td colSpan={3}>{order.ship_from_address}</td>
                 </tr>
                 <tr>
                   <th>검정 유효기간</th>

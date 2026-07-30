@@ -46,7 +46,7 @@ window.findModelInfo = function (modelName) {
 // 같은 status(AWAIT_PICKUP)에서 구분하는 파생 플래그. o는 tb_charge_infor(충전기 유닛) 기준.
 window.isSalesInfoComplete = function (o) {
   if (!o) return false;
-  const commonOk = !!(o.customer_name && o.delivery_date && o.install_address && o.cable_length && o.customer_manager && o.field_manager_phone);
+  const commonOk = !!(o.customer_name && o.delivery_date && o.ship_from_address && o.cable_length && o.customer_manager && o.field_manager_phone);
   if (!commonOk) return false;
   // router_no/usim_no는 필수 입력이 아니므로 전환 조건에서 제외한다 (station_id/charger_no만 필수)
   if ((o.usage_type || '공용') === '공용') return !!(o.station_id && o.charger_no);
@@ -87,7 +87,7 @@ window.useLockScroll = useLockScroll;
 
 const ORDER_FIELD_LABELS = {
   customer_name: '고객사', customer_manager: '고객사 담당자', model_name: '모델',
-  delivery_date: '납품일자', install_address: '설치주소',
+  delivery_date: '납품일자', install_address: '설치주소', ship_from_address: '납품장소',
   station_id: '충전소 ID', router_no: '라우터번호', usim_no: 'USIM번호',
   cable_length: '케이블 길이', field_manager_phone: '담당자 전화번호', requested_by: '생산요청자',
 };
@@ -699,7 +699,7 @@ function ConfirmModal() {
           </p>
         </div>
         <div className="modal__foot">
-          <button className="btn btn--ghost" onClick={() => window.actions.closeConfirm()}>취소</button>
+          {!modal.hideCancel && <button className="btn btn--ghost" onClick={() => window.actions.closeConfirm()}>취소</button>}
           <button
             className={`btn ${modal.danger ? 'btn--danger' : 'btn--primary'}`}
             onClick={() => { window.actions.closeConfirm(); modal.onConfirm(); }}>
