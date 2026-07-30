@@ -63,6 +63,18 @@ CREATE TABLE IF NOT EXISTS tb_master_cpo (
 );
 ALTER TABLE tb_master_cpo DISABLE ROW LEVEL SECURITY;
 
+-- 고객사 납품장소 (복합 PK: customer_name + label)
+CREATE TABLE IF NOT EXISTS tb_customer_address (
+  customer_name TEXT    NOT NULL,
+  label         TEXT    NOT NULL,
+  address       TEXT    NOT NULL DEFAULT '',
+  is_primary    INTEGER DEFAULT 0,
+  PRIMARY KEY (customer_name, label)
+);
+ALTER TABLE tb_customer_address ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tb_customer_address_anon_all ON tb_customer_address;
+CREATE POLICY tb_customer_address_anon_all ON tb_customer_address FOR ALL TO anon USING (true) WITH CHECK (true);
+
 -- ┌─────────────────────────────────────────────────────────┐
 -- │  CHECK 제약 (npm test 통과에 필요)                        │
 -- └─────────────────────────────────────────────────────────┘

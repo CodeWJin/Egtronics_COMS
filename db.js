@@ -174,8 +174,9 @@
   function makeSupabaseBackend(client) {
     // cache.orders: tb_charge_infor(충전기 유닛) 원본 행. cache.batches: tb_sales_order(배치) 원본 행.
     // loadOrders()가 매 호출마다 두 캐시 + 위성 테이블을 조인해 뷰용 평탄화 객체를 만든다.
-    const cache = { orders: [], batches: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [] };
+    const cache = { orders: [], batches: [], managers: [], users: [], history: [], customers: [], cpos: [], program_versions: [], models: [], as_receptions: [], as_logs: [], as_photos: [], func_inspections: [], ship_inspections: [], usage_type_public: [], customer_addresses: [] };
     let mgrSeq = 0;
+    let addrSeq = 0;
     let histSeq = 0;
     let asRecSeq = 0;
     let asLogSeq = 0;
@@ -275,6 +276,19 @@
             if (!error) { cache.usage_type_public = data || []; pubSeq = cache.usage_type_public.reduce((mx, x) => Math.max(mx, x.id || 0), 0); }
             else dbLog('WARN', 'loadAll', 'tb_usagetype_public 조회 실패 — ' + error.message);
           }).catch(e => dbLog('WARN', 'loadAll', 'tb_usagetype_public 로드 오류 — ' + e.message)),
+
+          client.from('tb_customer_address').select('*').then(({ data, error }) => {
+            if (!error) {
+              addrSeq = 0;
+              cache.customer_addresses = (data || []).map(row => ({
+                address_id:    ++addrSeq,
+                customer_name: row.customer_name,
+                label:         row.label,
+                address:       row.address || '',
+                is_primary:    row.is_primary || 0,
+              }));
+            } else dbLog('WARN', 'loadAll', 'tb_customer_address 조회 실패 — ' + error.message);
+          }).catch(e => dbLog('WARN', 'loadAll', 'tb_customer_address 로드 오류 — ' + e.message)),
         ]);
 
         // 마스터 데이터 로드 (테이블 미존재 시에도 앱 정상 동작)
@@ -717,6 +731,50 @@
         cache.managers = cache.managers.filter(x => x.manager_id !== id);
         dbLog('INFO', 'write:tb_customer_manager', `담당자 삭제 — 고객=${row.customer_name}, 이름=${row.name}`);
         dbWrite('tb_customer_manager', 'delete', () => client.from('tb_customer_manager').delete().eq('customer_name', row.customer_name).eq('name', row.name));
+      },
+
+      getAddresses(customer_name) {
+        const list = customer_name ? cache.customer_addresses.filter(a => a.customer_name === customer_name) : [...cache.customer_addresses];
+        return list.sort((a, b) => (b.is_primary || 0) - (a.is_primary || 0) || (a.label || '').localeCompare(b.label || ''));
+      },
+
+      addAddress(a) {
+        if (a.is_primary) cache.customer_addresses.forEach(x => { if (x.customer_name === a.customer_name) x.is_primary = 0; });
+        const id = ++addrSeq;
+        const row = { address_id: id, customer_name: a.customer_name, label: a.label, address: a.address || '', is_primary: a.is_primary ? 1 : 0 };
+        cache.customer_addresses.push(row);
+        dbLog('INFO', 'write:tb_customer_address', `납품장소 추가 — 고객=${a.customer_name}, 장소=${a.label}`);
+        dbWrite('tb_customer_address', 'insert', async () => {
+          if (a.is_primary) await client.from('tb_customer_address').update({ is_primary: 0 }).eq('customer_name', a.customer_name);
+          return client.from('tb_customer_address').insert({ customer_name: a.customer_name, label: a.label, address: a.address || '', is_primary: a.is_primary ? 1 : 0 });
+        });
+        return id;
+      },
+
+      updateAddress(id, a) {
+        const row = cache.customer_addresses.find(x => x.address_id === id);
+        if (!row) return;
+        if (a.is_primary) cache.customer_addresses.forEach(x => { if (x.customer_name === row.customer_name) x.is_primary = 0; });
+        const oldLabel = row.label;
+        const upd = { address: a.address || '', is_primary: a.is_primary ? 1 : 0 };
+        Object.assign(row, { label: a.label, ...upd });
+        dbLog('INFO', 'write:tb_customer_address', `납품장소 수정 — 고객=${row.customer_name}, 장소=${oldLabel}→${a.label}`);
+        dbWrite('tb_customer_address', 'update', async () => {
+          if (a.is_primary) await client.from('tb_customer_address').update({ is_primary: 0 }).eq('customer_name', row.customer_name);
+          if (a.label !== oldLabel) {
+            await client.from('tb_customer_address').delete().eq('customer_name', row.customer_name).eq('label', oldLabel);
+            return client.from('tb_customer_address').insert({ customer_name: row.customer_name, label: a.label, ...upd });
+          }
+          return client.from('tb_customer_address').update(upd).eq('customer_name', row.customer_name).eq('label', oldLabel);
+        });
+      },
+
+      deleteAddress(id) {
+        const row = cache.customer_addresses.find(x => x.address_id === id);
+        if (!row) return;
+        cache.customer_addresses = cache.customer_addresses.filter(x => x.address_id !== id);
+        dbLog('INFO', 'write:tb_customer_address', `납품장소 삭제 — 고객=${row.customer_name}, 장소=${row.label}`);
+        dbWrite('tb_customer_address', 'delete', () => client.from('tb_customer_address').delete().eq('customer_name', row.customer_name).eq('label', row.label));
       },
 
       async authenticate(userId, password) {
@@ -1393,6 +1451,10 @@
     addManager(m)            { return this.backend.addManager(m); },
     updateManager(id, m)     { return this.backend.updateManager(id, m); },
     deleteManager(id)        { return this.backend.deleteManager(id); },
+    getAddresses(c)          { return this.backend.getAddresses(c); },
+    addAddress(a)            { return this.backend.addAddress(a); },
+    updateAddress(id, a)     { return this.backend.updateAddress(id, a); },
+    deleteAddress(id)        { return this.backend.deleteAddress(id); },
     async authenticate(id, pw)     { return this.backend.authenticate(id, pw); },
     getUser(id)                    { return this.backend.getUser(id); },
     verifyUserPhone(id, ph)        { return this.backend.verifyUserPhone(id, ph); },

@@ -651,6 +651,120 @@ function ManagerManageModal({ customerName, onClose, onChanged }) {
   );
 }
 
+/* ────────── 고객사 납품장소 관리 모달 (DB: tb_customer_address) ────────── */
+function AddressManageModal({ customerName, onClose, onChanged }) {
+  window.useLockScroll();
+  const dialogRef = window.useModalKeyboard(onClose);
+  const [list, setList] = useStateSI([]);
+  const [draft, setDraft] = useStateSI(null); // { address_id?, label, address, is_primary }
+  const [err, setErr] = useStateSI('');
+
+  const reload = () => setList(window.PMDB.getAddresses(customerName));
+  useEffectSI(() => { reload(); }, [customerName]);
+
+  const startAdd = () => { setErr(''); setDraft({ label: '', address: '', is_primary: list.length === 0 }); };
+  const startEdit = (a) => { setErr(''); setDraft({ ...a }); };
+
+  const saveDraft = () => {
+    if (!draft.label.trim()) { setErr('장소명을 입력하세요'); return; }
+    if (!draft.address.trim()) { setErr('주소를 입력하세요'); return; }
+    if (draft.address_id) {
+      window.PMDB.updateAddress(draft.address_id, draft);
+    } else {
+      window.PMDB.addAddress({ ...draft, customer_name: customerName });
+    }
+    reload();
+    onChanged && onChanged(draft.label);
+    setDraft(null);
+  };
+
+  const remove = (a) => {
+    window.PMDB.deleteAddress(a.address_id);
+    reload();
+    onChanged && onChanged(null);
+  };
+
+  const makePrimary = (a) => {
+    window.PMDB.updateAddress(a.address_id, { ...a, is_primary: 1 });
+    reload();
+    onChanged && onChanged(a.label);
+  };
+
+  return (
+    <div className="modal-backdrop" ref={dialogRef} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-customer-addr-title" style={{ width: 520, maxWidth: '94vw' }}>
+        <div className="modal__head">
+          <h2 id="modal-customer-addr-title" className="modal__title">납품장소 관리</h2>
+          <p className="modal__sub"><strong style={{ color: 'var(--ink-1)' }}>{customerName}</strong></p>
+        </div>
+        <div className="modal__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="mgr-list">
+            {list.length === 0 && (
+              <div className="emptystate" style={{ padding: '20px 0' }}>
+                <div className="emptystate__title">등록된 납품장소가 없습니다</div>
+                <div className="emptystate__sub">아래 '납품장소 추가'로 등록하세요</div>
+              </div>
+            )}
+            {list.map(a => (
+              <div key={a.address_id} className="mgr-row">
+                <div className="mgr-row__main">
+                  <div className="mgr-row__name">
+                    {a.label}
+                    {!!a.is_primary && <span className="badge badge--info" style={{ marginLeft: 6 }}>대표</span>}
+                  </div>
+                  <div className="mgr-row__meta">
+                    <span>{a.address || '—'}</span>
+                  </div>
+                </div>
+                <div className="mgr-row__actions">
+                  {!a.is_primary && <button className="btn btn--ghost btn--sm" onClick={() => makePrimary(a)}>대표 지정</button>}
+                  <button className="btn btn--secondary btn--sm" onClick={() => startEdit(a)}>수정</button>
+                  <button className="btn btn--ghost btn--sm btn--icon" aria-label="삭제" onClick={() => remove(a)}><Icon name="x" size={14}/></button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {draft ? (
+            <div className="mgr-edit">
+              <div className="mgr-edit__title">{draft.address_id ? '납품장소 수정' : '납품장소 추가'}</div>
+              <div className="form-grid">
+                <div className="field">
+                  <label className="field__label" htmlFor="si-addr-label">장소명 <span className="field__req">*</span></label>
+                  <input id="si-addr-label" className="input" autoFocus value={draft.label}
+                         onChange={(e) => setDraft(d => ({ ...d, label: e.target.value }))}/>
+                </div>
+              </div>
+              <div className="field" style={{ marginTop: 8 }}>
+                <label className="field__label" htmlFor="si-addr-address">주소 <span className="field__req">*</span></label>
+                <AddressField id="si-addr-address" value={draft.address}
+                  onChange={(v) => setDraft(d => ({ ...d, address: v }))}/>
+              </div>
+              <label className="mgr-edit__primary">
+                <input type="checkbox" checked={!!draft.is_primary}
+                       onChange={(e) => setDraft(d => ({ ...d, is_primary: e.target.checked }))}/>
+                대표 납품장소로 지정
+              </label>
+              {err && <div role="alert" className="field__err"><Icon name="alert" size={12}/> {err}</div>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                <button className="btn btn--secondary btn--sm" onClick={() => { setDraft(null); setErr(''); }}>취소</button>
+                <button className="btn btn--primary btn--sm" onClick={saveDraft}><Icon name="check" size={13}/> 저장</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn--secondary" style={{ alignSelf: 'flex-start' }} onClick={startAdd}>
+              <Icon name="plus" size={13}/> 납품장소 추가
+            </button>
+          )}
+        </div>
+        <div className="modal__foot">
+          <button className="btn btn--secondary" onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ────────── 수정 이력 모달 (DB: tb_order_history) ────────── */
 function OrderHistoryModal({ orderId, onClose }) {
   window.useLockScroll();

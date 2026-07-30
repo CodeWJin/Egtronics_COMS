@@ -54,20 +54,32 @@ window.isSalesInfoComplete = function (o) {
 };
 
 // main 스크롤 잠금 훅 — 드로어·모달 공용
+// 모달 안에서 또 다른 모달(예: 생산완료 모달 → 납품장소 관리 모달)을 여는
+// 중첩 케이스를 지원하기 위해 참조 카운트로 잠금을 공유한다. 그렇지 않으면
+// 안쪽 모달이 닫힐 때 바깥 모달이 열려 있어도 스크롤 상태를 초기화해 버려
+// 페이지 위치가 순간적으로 튀는 문제가 생긴다.
+let scrollLockCount = 0;
+let scrollLockTop = 0;
 function useLockScroll() {
   useEffectSH(() => {
     const el = document.querySelector('main');
     if (!el) return;
-    const scrollTop = el.scrollTop;
     const inner = el.firstElementChild;
-    el.style.overflow = 'hidden';
-    // overflow:hidden 적용 시 브라우저가 scrollTop을 0으로 리셋하므로
-    // 첫 번째 자식을 위로 밀어 시각적 위치를 유지
-    if (inner && scrollTop > 0) inner.style.marginTop = `-${scrollTop}px`;
+    if (scrollLockCount === 0) {
+      scrollLockTop = el.scrollTop;
+      el.style.overflow = 'hidden';
+      // overflow:hidden 적용 시 브라우저가 scrollTop을 0으로 리셋하므로
+      // 첫 번째 자식을 위로 밀어 시각적 위치를 유지
+      if (inner && scrollLockTop > 0) inner.style.marginTop = `-${scrollLockTop}px`;
+    }
+    scrollLockCount++;
     return () => {
-      el.style.overflow = '';
-      if (inner) inner.style.marginTop = '';
-      el.scrollTop = scrollTop;
+      scrollLockCount--;
+      if (scrollLockCount === 0) {
+        el.style.overflow = '';
+        if (inner) inner.style.marginTop = '';
+        el.scrollTop = scrollLockTop;
+      }
     };
   }, []);
 }
