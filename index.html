@@ -80,8 +80,7 @@ window.updateBootStatus = function(msg) {
 <!-- DB 레이어 -->
 <script src="db.js"></script>
 
-<!-- 카카오 우편번호 서비스 -->
-<script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<!-- 카카오 우편번호 서비스 — production-request-modal.jsx의 AddressField가 사용 시점에 지연 로드함 -->
 
 <!-- Babel 변환이 필요한 JSX 파일 -->
 <script type="text/babel" src="tweaks-panel.jsx"></script>

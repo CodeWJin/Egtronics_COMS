@@ -2105,6 +2105,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface-2);
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
 }
@@ -2388,6 +2389,7 @@ input, select, textarea { font-family: inherit; }
 
 .login__form { display: flex; flex-direction: column; gap: 16px; }
 .login__form .input { height: 46px; }
+.login__form .input-group__btn { height: 46px; }
 .login__err {
   display: flex; align-items: center; gap: 6px;
   font-size: 13px; color: var(--danger-700);
@@ -2787,13 +2789,17 @@ input, select, textarea { font-family: inherit; }
 }
 
 /* Screen-level entrance — applied via key={view} wrapper in app.jsx */
+/* fill-mode은 backwards만 사용: forwards/both로 끝나면 애니메이션 종료 후에도
+   transform이 matrix(identity)로 계속 유지되어 이 안에 렌더링되는 modal 등
+   position:fixed 자손의 containing block/stacking context가 깨진다
+   (예: 모바일 탭바 z-index에 모달이 가려지는 버그) */
 .screen-enter {
-  animation: screenin 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: screenin 180ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* Sub-view entrance — kanban / card / table / timeline toggle */
 .view-enter {
-  animation: screenin 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: screenin 160ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /* KPI stat tiles stagger (fires with screen-enter) */

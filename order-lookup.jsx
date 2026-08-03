@@ -18,13 +18,16 @@ function OrderLookupScreen() {
   const [search, setSearch] = useStateOL('');
   const [fModel, setFModel] = useStateOL('all');
   const [models, setModels] = useStateOL(() => window.PMDB.getModels());
+  const [masterCustomers, setMasterCustomers] = useStateOL(() => window.PMDB.getCustomers());
+  const [masterCpos, setMasterCpos] = useStateOL(() => window.PMDB.getCpos());
 
   React.useEffect(() => {
-    const sync = () => setModels(window.PMDB.getModels());
+    const sync = () => { setModels(window.PMDB.getModels()); setMasterCustomers(window.PMDB.getCustomers()); setMasterCpos(window.PMDB.getCpos()); };
     window.addEventListener('masterLoaded', sync);
     return () => window.removeEventListener('masterLoaded', sync);
   }, []);
   const [fCustomer, setFCustomer] = useStateOL('all');
+  const [fCpo, setFCpo] = useStateOL('all');
   const [dateFrom, setDateFrom] = useStateOL('');
   const [dateTo, setDateTo] = useStateOL('');
   const [selSerial, setSelSerial] = useStateOL(null);
@@ -42,14 +45,12 @@ function OrderLookupScreen() {
     return m;
   }, [s.orders]);
 
-  const customers = useMemoOL(() => [...new Set(s.orders.map(o => o.customer_name))], [s.orders]);
-
   const dateRangeErr = dateFrom && dateTo && dateTo < dateFrom;
-  const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
+  const activeFilters = (fModel !== 'all') + (fCustomer !== 'all') + (fCpo !== 'all') + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (search ? 1 : 0) + (fAsOnly ? 1 : 0);
 
   const filtered = useMemoOL(() => {
     const allReceptions = fAsOnly ? safeLoadAsReceptions() : [];
-    let list = chargepoints.map(cp => ({ cp, order: cp.order_id ? orderById.get(String(cp.order_id)) : null }));
+    let list = chargepoints.map(cp => ({ cp, order: cp.order_id ? orderById.get(String(cp.id)) : null }));
     list = list.filter(({ cp, order }) => {
       if (fModel !== 'all') {
         // model_name에 코드가 저장된 충전기도 표시명 기준 필터에 매칭
@@ -57,9 +58,10 @@ function OrderLookupScreen() {
         if (mName !== fModel) return false;
       }
       if (fCustomer !== 'all' && (!order || order.customer_name !== fCustomer)) return false;
+      if (fCpo !== 'all' && (!order || order.cpo_name !== fCpo)) return false;
       if (dateFrom && (!cp.created || cp.created < dateFrom)) return false;
       if (dateTo && (!cp.created || cp.created > dateTo)) return false;
-      if (fAsOnly && !(order && allReceptions.some(r => r.order_id === order.order_id))) return false;
+      if (fAsOnly && !allReceptions.some(r => (cp.serial_no && r.serial_no === cp.serial_no) || (order && r.order_id === order.order_id))) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = [cp.serial_no, cp.model_name, cp.install_address, cp.order_id,
@@ -78,10 +80,10 @@ function OrderLookupScreen() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [chargepoints, orderById, search, fModel, fCustomer, dateFrom, dateTo, sortKey, sortDir, fAsOnly]);
+  }, [chargepoints, orderById, search, fModel, fCustomer, fCpo, dateFrom, dateTo, sortKey, sortDir, fAsOnly]);
 
   const reset = () => {
-    setSearch(''); setFModel('all'); setFCustomer('all');
+    setSearch(''); setFModel('all'); setFCustomer('all'); setFCpo('all');
     setDateFrom(''); setDateTo(''); setFAsOnly(false);
   };
 
@@ -95,7 +97,7 @@ function OrderLookupScreen() {
     : null;
 
   const selectedEntry = chargepoints.find(cp => cp.serial_no === selSerial);
-  const selectedOrder = selectedEntry?.order_id ? orderById.get(String(selectedEntry.order_id)) : null;
+  const selectedOrder = selectedEntry?.order_id ? orderById.get(String(selectedEntry.id)) : null;
 
   return (
     <div className="screen">
@@ -153,14 +155,21 @@ function OrderLookupScreen() {
                   <label className="field__label" htmlFor="ol-model">모델</label>
                   <select id="ol-model" className="select" value={fModel} onChange={(e) => setFModel(e.target.value)}>
                     <option value="all">모델 전체</option>
-                    {models.map(m => <option key={m.model} value={m.model}>{m.description || m.model}</option>)}
+                    {models.map(m => <option key={m.model} value={m.model}>{m.model}</option>)}
                   </select>
                 </div>
                 <div className="field">
                   <label className="field__label" htmlFor="ol-customer">고객사</label>
                   <select id="ol-customer" className="select" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)}>
                     <option value="all">고객사 전체</option>
-                    {customers.map(c => <option key={c} value={c}>{c}</option>)}
+                    {masterCustomers.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor="ol-cpo">CPO 운영사</label>
+                  <select id="ol-cpo" className="select" value={fCpo} onChange={(e) => setFCpo(e.target.value)}>
+                    <option value="all">CPO 전체</option>
+                    {masterCpos.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="field">
@@ -194,7 +203,7 @@ function OrderLookupScreen() {
           )}
 
           {/* 활성 필터 칩 — 검색어 제외 고급 필터가 적용된 경우 */}
-          {(fModel !== 'all' || fCustomer !== 'all' || dateFrom || dateTo || fAsOnly) && (
+          {(fModel !== 'all' || fCustomer !== 'all' || fCpo !== 'all' || dateFrom || dateTo || fAsOnly) && (
             <div className="chips" style={{ marginTop: 10 }}>
               {fModel !== 'all' && (
                 <button type="button" className="chip chip--active" onClick={() => setFModel('all')}
@@ -206,6 +215,12 @@ function OrderLookupScreen() {
                 <button type="button" className="chip chip--active" onClick={() => setFCustomer('all')}
                         style={{ fontSize: 12, padding: '4px 10px' }}>
                   고객사: {fCustomer} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
+                </button>
+              )}
+              {fCpo !== 'all' && (
+                <button type="button" className="chip chip--active" onClick={() => setFCpo('all')}
+                        style={{ fontSize: 12, padding: '4px 10px' }}>
+                  CPO: {fCpo} <span style={{ marginLeft: 4, opacity: 0.7 }}>×</span>
                 </button>
               )}
               {(dateFrom || dateTo) && (
@@ -292,10 +307,10 @@ function OrderLookupScreen() {
                     )}
                   </td>
                   <td className="cell-muted ol-table__col--address" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {cp.install_address || <span style={{ color: 'var(--ink-5)' }}>—</span>}
+                    {cp.install_address || <span style={{ color: 'var(--ink-4)' }}>—</span>}
                   </td>
                   <td className="ol-table__col--created" style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
-                    {cp.created || <span style={{ color: 'var(--ink-5)' }}>—</span>}
+                    {cp.created || <span style={{ color: 'var(--ink-4)' }}>—</span>}
                   </td>
                   <td className="ol-table__col--linked">
                     {order ? (

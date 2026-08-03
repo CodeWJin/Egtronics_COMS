@@ -51,7 +51,7 @@ function stageProgress(order) {
     const items = [
       order.cable_length, order.customer_name, order.customer_manager,
       order.field_manager_phone, order.ship_from_address, order.delivery_date,
-      ...(isPublic ? [order.station_id, order.charger_no, order.router_no, order.usim_no] : []),
+      ...(isPublic ? [order.station_id, order.charger_no] : []),
     ];
     return { done: items.filter(Boolean).length, total: items.length };
   }
@@ -566,7 +566,7 @@ function ProductionEntryModal({ order, onClose }) {
   const showErr = (k) => (showAll || touched[k]) && errors[k];
 
   return (
-    <div className="modal-backdrop" ref={dialogRef}>
+    <div className="modal-backdrop" ref={dialogRef} style={openFuncInspect ? { zIndex: 'calc(var(--z-drawer) - 1)' } : undefined}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="pem-title" style={{ width: 780, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
           <h2 id="pem-title" className="modal__title">
@@ -848,7 +848,7 @@ function SalesCompletionModal({ order, onClose }) {
     if (!order.customer_name || !window.PMDB.getManagers) return [];
     return window.PMDB.getManagers(order.customer_name).map(m => ({ ...m, display: m.phone ? `${m.name} (${m.phone})` : m.name }));
   });
-  const [addresses, setAddresses] = useStatePW(() => window.PMDB.getAddresses ? window.PMDB.getAddresses(order.customer_name) : []);
+  const [addresses, setAddresses] = useStatePW(() => (order.customer_name && window.PMDB.getAddresses) ? window.PMDB.getAddresses(order.customer_name) : []);
   const [modal, setModal] = useStatePW(null);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -877,17 +877,14 @@ function SalesCompletionModal({ order, onClose }) {
     delivery_date: !form.delivery_date && '납품일자를 선택해 주세요',
     station_id: isPublic && !form.station_id && '충전소 ID를 입력해 주세요',
     charger_no: isPublic && !form.charger_no && '충전기 ID를 입력해 주세요',
-    router_no: isPublic && !form.router_no && '라우터번호를 입력해 주세요',
-    usim_no: isPublic && !form.usim_no ? 'USIM번호를 입력해 주세요' : (isPublic && form.usim_no && form.usim_no.length < 19 ? '19자리 이상' : null),
+    usim_no: isPublic && form.usim_no && form.usim_no.length < 19 ? '19자리 이상' : null,
   };
   const hasErr = Object.values(errors).some(Boolean);
   const showErr = (k) => submitted && errors[k];
 
-  const submit = () => {
-    setSubmitted(true);
-    if (hasErr) return;
+  const buildPayload = () => {
     const addr = [form.ship_from_address.trim(), form.ship_from_address_detail.trim()].filter(Boolean).join(' ');
-    const payload = {
+    return {
       cable_length: form.cable_length,
       customer_name: form.customer_name,
       customer_manager: form.customer_manager,
@@ -897,7 +894,18 @@ function SalesCompletionModal({ order, onClose }) {
       cpo_name: form.cpo_name,
       ...(isPublic ? { station_id: form.station_id, charger_no: form.charger_no, router_no: form.router_no, usim_no: form.usim_no } : {}),
     };
-    window.actions.updateOrder(order.order_id, payload);
+  };
+
+  const submit = () => {
+    setSubmitted(true);
+    if (hasErr) return;
+    window.actions.updateOrder(order.order_id, buildPayload());
+    onClose();
+  };
+
+  const saveDraft = () => {
+    window.actions.updateOrder(order.order_id, buildPayload());
+    window.actions.flashToast('입력 내용이 임시 저장되었습니다', 'success');
     onClose();
   };
 
@@ -1058,14 +1066,13 @@ function SalesCompletionModal({ order, onClose }) {
                   {showErr('charger_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.charger_no}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label" htmlFor="scm-router">라우터 번호 <span className="field__req">*</span></label>
-                  <input id="scm-router" className={`input ${showErr('router_no') ? 'input--error' : ''}`}
+                  <label className="field__label" htmlFor="scm-router">라우터 번호</label>
+                  <input id="scm-router" className="input"
                          style={{ fontFamily: 'var(--font-mono)' }} placeholder="RTR-2024-00001"
                          value={form.router_no} onChange={(e) => update('router_no', e.target.value)}/>
-                  {showErr('router_no') && <div role="alert" className="field__err"><Icon name="alert" size={12}/>{errors.router_no}</div>}
                 </div>
                 <div className="field">
-                  <label className="field__label" htmlFor="scm-usim">USIM 번호 <span className="field__req">*</span></label>
+                  <label className="field__label" htmlFor="scm-usim">USIM 번호</label>
                   <input id="scm-usim" className={`input ${showErr('usim_no') ? 'input--error' : ''}`}
                          style={{ fontFamily: 'var(--font-mono)' }} placeholder="ICCID 19~20자리" maxLength={20} inputMode="numeric"
                          value={form.usim_no} onChange={(e) => update('usim_no', e.target.value.replace(/\D/g, ''))}/>
@@ -1077,6 +1084,7 @@ function SalesCompletionModal({ order, onClose }) {
         </div>
         <div className="modal__foot">
           <button className="btn btn--secondary" onClick={onClose}>취소</button>
+          <button className="btn btn--secondary" onClick={saveDraft}><Icon name="save" size={13}/> 임시저장</button>
           <button className="btn btn--primary" onClick={submit}><Icon name="check" size={13}/> 저장</button>
         </div>
       </div>
@@ -1150,7 +1158,7 @@ function ShipReadyModal({ order, onClose }) {
   };
 
   return (
-    <div className="modal-backdrop" ref={dialogRef}>
+    <div className="modal-backdrop" ref={dialogRef} style={openShipInspect ? { zIndex: 'calc(var(--z-drawer) - 1)' } : undefined}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="srm-title" style={{ width: 560, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
           <h2 id="srm-title" className="modal__title">출하대기 처리</h2>

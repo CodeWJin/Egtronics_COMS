@@ -198,7 +198,7 @@ function ShipPhotoTab({ orderId, hasInspRow, onCountChange }) {
           출하검사 성적서를 먼저 저장하세요
         </div>
         <div style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.5 }}>
-          체크리스트 탭에서 검사 정보를 입력하고 저장하면<br/>사진을 첨부할 수 있습니다.
+          위 체크리스트에 검사 정보를 입력하고 저장하면<br/>사진을 첨부할 수 있습니다.
         </div>
       </div>
     );

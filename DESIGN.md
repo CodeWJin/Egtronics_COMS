@@ -356,6 +356,9 @@ A deliberately atmospheric split panel — the one screen in the app allowed a d
 ### Inspection Report Document (signature component)
 The printable 성적서 (`{component.report}`) is the one place the flat workbench allows a document metaphor: a 720px white sheet, 22px-radius, the system's deepest shadow (`0 24px 64px rgba(0,0,0,0.16)`), with a double-ruled `{colors.ink-1}` header rule instead of a hairline. Pass marks render as a pill-outlined `{colors.success-deep}` badge (`.report__pass`), never a bare checkmark. A rotated circular `{colors.danger}` stamp (`.report__stamp`, -9° tilt, 82% opacity) marks the document as an official inspection artifact — the one decorative flourish permitted in the entire system, and it's load-bearing (denotes formal sign-off), not ornamental. Serial numbers inside the table render in `{typography.mono}`. On `@media print`, all chrome (`.report__bar`) is hidden and only the document prints full-bleed.
 
+### TweaksPanel (documented exception — deliberately outside this system)
+`tweaks-panel.jsx`'s floating panel (`admin`-only, live theme controls for accent/corner/density) is intentionally built outside every rule in this document, including the glassmorphism ban in Do's and Don'ts. It is a meta-configuration overlay for the design system itself, not a product surface — a `role="admin"`-gated instrument panel, not something an operator or sales/production/quality user ever sees. Its own visual language (`rgba(250,249,247,.78)` translucent fill, `backdrop-filter: blur(24px) saturate(160%)`, a warm `#29261b` ink instead of `{colors.ink-1}`, ad hoc radii from 4px–14px) is scoped entirely to its own injected `__TWEAKS_STYLE` block and does not leak into any other component. Do not extend this exception to any other screen, and do not use it as precedent for glassmorphism elsewhere — it is carved out specifically because it configures the system rather than participating in it.
+
 ## 6. Do's and Don'ts
 
 ### Do:
@@ -369,7 +372,7 @@ The printable 성적서 (`{component.report}`) is the one place the flat workben
 ### Don't:
 - **Don't** introduce a second accent color — Action Blue is the only "this is interactive" signal in the system.
 - **Don't** add drop shadows to resting cards, kanban tiles, or table rows — shadow is reserved for temporarily-floating layers.
-- **Don't** replicate global SaaS dashboard chrome (Notion/Linear/Vercel-style sidebars, gradient cards, glassmorphism) — PRODUCT.md names this explicitly as an anti-reference.
+- **Don't** replicate global SaaS dashboard chrome (Notion/Linear/Vercel-style sidebars, gradient cards, glassmorphism) — PRODUCT.md names this explicitly as an anti-reference. The `admin`-only TweaksPanel is the one documented exception (see Components); it configures the system rather than being part of the product surface.
 - **Don't** ship AI-양산 디자인 patterns: gradient text, hero-metric templates, identical icon-grid cards. PRODUCT.md's anti-reference list applies to every new screen.
 - **Don't** use pure black (`#000000`) anywhere — `{colors.nav-void}` and `{colors.login-void}` are the system's only two dark surfaces, and body content stays in the `ink` ramp.
 - **Don't** let a status color stand alone without text — this is a hard accessibility requirement, not a style preference.

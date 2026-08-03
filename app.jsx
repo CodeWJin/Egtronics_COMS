@@ -3,17 +3,21 @@
 function App() {
   const s = window.useStore();
 
-  // 브라우저 뒤로가기/앞으로가기 지원
+  // 브라우저 뒤로가기/앞으로가기 지원 + 주소창 직접 해시 변경 지원
   React.useEffect(() => {
     const store = window['__pm_store__'];
-    if (!history.state || !history.state.view) {
-      const validViews = ['dashboard', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
-      const hashView = window.location.hash.slice(1);
-      if (hashView && validViews.includes(hashView)) {
-        store.view = hashView;
-      }
-      history.replaceState({ view: store.view, selectedOrderId: store.selectedOrderId }, '', '#' + store.view);
+    const validViews = ['dashboard', 'waiting', 'AwaitPickup', 'lookup', 'admin', 'as-receipt', 'as-processing'];
+    // 마운트 시점에 store.view는 항상 기본값('dashboard')에서 새로 시작하므로,
+    // 이전 세션의 history.state(새로고침 시 브라우저가 보존)나 주소창 해시가 있다면 그쪽을 우선 반영한다.
+    const restoredView = history.state && validViews.includes(history.state.view) ? history.state.view : null;
+    const hashView = window.location.hash.slice(1);
+    const targetView = restoredView || (validViews.includes(hashView) ? hashView : null);
+    if (targetView && targetView !== store.view) {
+      store.view = targetView;
+      if (restoredView) store.selectedOrderId = 'selectedOrderId' in history.state ? history.state.selectedOrderId : null;
+      window.notify();
     }
+    history.replaceState({ view: store.view, selectedOrderId: store.selectedOrderId }, '', '#' + store.view);
     const handlePop = (e) => {
       const state = e.state;
       if (state && state.view) {
@@ -22,8 +26,20 @@ function App() {
         window.notify();
       }
     };
+    // popstate는 pushState/replaceState로 쌓인 기록에만 반응한다 — 주소창에서 해시를 직접
+    // 바꾸거나 외부 링크로 들어오는 경우(같은 문서라 리로드 없음)는 이 리스너가 없으면 무시된다.
+    const handleHashChange = () => {
+      const hashView = window.location.hash.slice(1);
+      if (hashView && validViews.includes(hashView) && hashView !== store.view) {
+        window.actions.setViewReplace(hashView);
+      }
+    };
     window.addEventListener('popstate', handlePop);
-    return () => window.removeEventListener('popstate', handlePop);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('popstate', handlePop);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   // Tweaks
@@ -189,7 +205,7 @@ function boot() {
       if (bootEl) {
         bootEl.textContent = '';
         const box = document.createElement('div');
-        box.style.cssText = 'max-width:480px;padding:24px;background:var(--surface,#fff);border-radius:var(--r-md,11px);box-shadow:0 4px 24px rgba(0,0,0,0.12);font-family:Pretendard Variable,system-ui,sans-serif';
+        box.style.cssText = 'max-width:480px;padding:24px;background:var(--surface,#fff);border-radius:var(--r-md,11px);box-shadow:var(--shadow-modal, 0 24px 64px rgba(0,0,0,0.18));font-family:Pretendard Variable,system-ui,sans-serif';
         const title = document.createElement('div');
         title.style.cssText = 'color:var(--danger,#EF4444);font-weight:700;font-size:14px;margin-bottom:12px';
         title.textContent = '⚠ Supabase 연결 실패';
