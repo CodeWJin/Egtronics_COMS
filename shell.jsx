@@ -147,6 +147,7 @@ window.actions = {
     s.toast = { kind: 'success', text: `오더 #${batch_id} 등록 완료 (${charge_ids.length}대)` };
     notify();
     setTimeout(() => { window[STORE_KEY].toast = null; notify(); }, 2400);
+    return { batch_id, charge_ids };
   },
   // 영업 수정: 생산대기(PENDING) 오더만 진입
   editOrder(id) {

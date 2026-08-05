@@ -121,7 +121,19 @@ function ProductionWaitingScreen() {
     const set = new Set();
     filtered.forEach(o => {
       const hist = window.PMDB.getHistory(o.order_id) || [];
-      if (hist.some(h => h.action !== 'create')) set.add(o.order_id);
+      const isReady = o.status === 'AWAIT_PICKUP' && window.isSalesInfoComplete(o);
+      if (isReady) {
+        // 출하대기 건은 "이미 값이 있던 필드를 다시 바꾼" 이력만 수정으로 본다 — 출하대기
+        // 전환 자체(빈 필드를 처음 채우는 SalesCompletionModal 저장)는 제외한다.
+        // ponytail: before 값이 하나라도 비어 있으면 "최초 채움"으로 간주하는 필드 단위 휴리스틱.
+        // 한 저장에 신규 채움과 기존값 수정이 섞이면 놓칠 수 있음 — 필요해지면 상태 스냅샷 기반으로 승격.
+        const hasRealEdit = hist.some(h =>
+          h.action === 'update' && h.changed_fields.length > 0 &&
+          h.changed_fields.every(f => f.before !== ''));
+        if (hasRealEdit) set.add(o.order_id);
+      } else if (hist.some(h => h.action !== 'create')) {
+        set.add(o.order_id);
+      }
     });
     return set;
   }, [filtered]);
@@ -147,6 +159,9 @@ function ProductionWaitingScreen() {
       // 생산 부서는 AwaitPickup 화면(품질 전용) 접근 권한이 없으므로, 이 칸반에서
       // 바로 출하 전 검사 작성 + 출하완료 처리까지 끝낼 수 있게 모달로 처리한다.
       if (role === 'production') { setReadyOrder(order); return; }
+      // 영업 부서도 AwaitPickup 화면 접근 권한이 없으므로, 출하대기 건은
+      // 생산완료와 동일한 모달(SalesCompletionModal)로 영업정보를 수정하게 한다.
+      if (role === 'sales') { setSalesOrder(order); return; }
       const allowed = window.ROLE_TABS[role] || [];
       if (allowed.includes('AwaitPickup')) window.actions.setView('AwaitPickup');
     }
@@ -913,7 +928,9 @@ function SalesCompletionModal({ order, onClose }) {
     <div className="modal-backdrop" ref={dialogRef}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="scm-title" style={{ width: 680, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal__head">
-          <h2 id="scm-title" className="modal__title">생산완료 · 영업정보 입력</h2>
+          <h2 id="scm-title" className="modal__title">
+            {window.isSalesInfoComplete(order) ? '영업정보 수정' : '영업정보 입력'}
+          </h2>
           <p className="modal__sub">{order.model_name} · {order.usage_type || '공용'}</p>
         </div>
         <div className="modal__body" style={{ overflow: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>

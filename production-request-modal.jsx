@@ -152,6 +152,7 @@ function ProductionRequestModal({ order, onClose }) {
   const [modelModalRow, setModelModalRow] = useStateSI(null);
   const [selectedRowIds, setSelectedRowIds] = useStateSI(() => new Set());
   const [addRowCount, setAddRowCount] = useStateSI(1);
+  const [salesDraftOrder, setSalesDraftOrder] = useStateSI(null);
   const selectAllRef = useRefSI(null);
 
   const updateRow = (i, k, v) => setRows(r => r.map((row, idx) => idx === i ? { ...row, [k]: v } : row));
@@ -259,6 +260,22 @@ function ProductionRequestModal({ order, onClose }) {
     submittingRef.current = false;
     onClose();
     window.actions.showConfirm(`생산요청 ${totalValidQty}건이 등록되었습니다.`, () => {}, { confirmLabel: '확인', hideCancel: true });
+  };
+
+  // 수량 1개 행은 등록과 동시에 영업정보(생산완료 단계 입력)를 바로 채울 수 있게
+  // 이 행만 즉시 addOrderBatch로 등록하고 SalesCompletionModal을 띄운다.
+  // updateOrder는 PENDING 상태에서도 허용되므로 방금 만든 PENDING 유닛에 바로 저장 가능.
+  const quickRegisterAndFillSales = (i) => {
+    const row = rows[i];
+    if (!row.model_name || rowErrors[i].model_name) { setSubmitted(true); return; }
+    const requestedBy = s.currentUser?.name || '';
+    const { charge_ids } = window.actions.addOrderBatch({ model_name: row.model_name, usage_type: row.usage_type, qty: 1, requested_by: requestedBy });
+    const created = s.orders.find(o => o.order_id === charge_ids[0]);
+    setRows(r => {
+      const next = r.filter((_, idx) => idx !== i);
+      return next.length ? next : [makeRow()];
+    });
+    if (created) setSalesDraftOrder(created);
   };
 
   const cancelRequest = () => {
@@ -443,6 +460,14 @@ function ProductionRequestModal({ order, onClose }) {
                           {!isEdit && (
                             <td style={{ padding: '4px 8px', textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                                {clampQty(row.qty) === 1 && row.model_name && !rowErrors[i].model_name && (
+                                  <button type="button" className="btn btn--ghost btn--sm"
+                                          style={{ padding: '4px 6px', color: 'var(--primary)' }}
+                                          onClick={() => quickRegisterAndFillSales(i)}
+                                          title="이 1대만 바로 등록하고 생산완료·영업정보 입력">
+                                    <Icon name="plus" size={13}/>
+                                  </button>
+                                )}
                                 <button type="button" className="btn btn--ghost btn--sm"
                                         style={{ padding: '4px 6px', color: 'var(--ink-4)' }}
                                         onClick={() => duplicateRow(i)} title="행 복제 (같은 모델·용도로 한 행 더 추가)">
@@ -524,6 +549,9 @@ function ProductionRequestModal({ order, onClose }) {
           currentModel={modelModalRow === 'bulk' ? '' : rows[modelModalRow]?.model_name}
           currentPower={modelModalRow === 'bulk' ? '' : (rows[modelModalRow]?._power || masterModels.find(m => m.model === rows[modelModalRow]?.model_name)?.power || '')}
         />
+      )}
+      {salesDraftOrder && (
+        <SalesCompletionModal order={salesDraftOrder} onClose={() => setSalesDraftOrder(null)}/>
       )}
     </div>
   );
