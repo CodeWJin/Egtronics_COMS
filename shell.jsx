@@ -188,7 +188,7 @@ window.actions = {
     const s = window[STORE_KEY];
     const current = s.orders.find(x => x.order_id === id);
     const ok = window.PMDB.updateOrder(id, form);
-    if (!ok) { window.actions.flashToast('생산대기 상태가 아니어서 수정할 수 없습니다', 'error'); return false; }
+    if (!ok) { window.actions.flashToast('현재 상태에서는 영업정보를 수정할 수 없습니다', 'error'); return false; }
     if (current) {
       const changed = Object.entries(ORDER_FIELD_LABELS)
         .filter(([k]) => String(current[k] || '') !== String(form[k] || ''))
@@ -285,6 +285,7 @@ window.actions = {
     const s = window[STORE_KEY];
     const ok = window.PMDB.shipOrder(order_id);
     if (!ok) { window.actions.flashToast('출하대기 상태의 오더만 출하 처리할 수 있습니다', 'error'); return; }
+    window.PMDB.addHistory(order_id, s.currentUser ? s.currentUser.name : '알 수 없음', localTimestamp(), [], 'ship');
     s.orders = window.PMDB.loadOrders();
     s.toast = { kind: 'success', text: `오더 #${order_id} 출하 완료 처리` };
     notify();

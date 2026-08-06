@@ -31,8 +31,8 @@ function OrderLookupScreen() {
   const [dateFrom, setDateFrom] = useStateOL('');
   const [dateTo, setDateTo] = useStateOL('');
   const [selSerial, setSelSerial] = useStateOL(null);
-  const [sortKey, setSortKey] = useStateOL('created');
-  const [sortDir, setSortDir] = useStateOL('desc');
+  const [sortKey, setSortKey] = useStateOL('serial_no');
+  const [sortDir, setSortDir] = useStateOL('asc');
   const [fAsOnly, setFAsOnly] = useStateOL(false);
   const [showAdvanced, setShowAdvanced] = useStateOL(false);
 

@@ -1163,13 +1163,12 @@ input, select, textarea { font-family: inherit; }
 }
 
 /* ============================================================
-   Kanban
+   Kanban — 4단계 컬럼(생산요청/생산착수/생산완료/출하대기)
    ============================================================ */
 
 .kanban-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .kanban {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   align-items: flex-start;
 }
@@ -1181,7 +1180,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 480px;
+  min-height: 200px;
 }
 .kanban__colhead {
   display: flex;
@@ -1211,83 +1210,81 @@ input, select, textarea { font-family: inherit; }
   padding: 1px 8px;
   font-weight: 500;
 }
-/* Apple store-utility-card adapted for kanban cards */
-.kanban__card {
+
+/* ============================================================
+   Order tree — 컬럼 내부를 발주처 → 납품장소 → 모델로 묶는 트리
+   ============================================================ */
+
+.order-tree { display: flex; flex-direction: column; gap: 3px; }
+.order-tree__customer + .order-tree__customer { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-1); }
+.order-tree__address { margin-left: 12px; }
+.order-tree__model { margin-left: 12px; margin-bottom: 8px; }
+
+.order-tree__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 4px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  color: var(--ink-1);
+  text-align: left;
+}
+.order-tree__head--customer { font-size: 13px; font-weight: 700; }
+.order-tree__head--address { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.order-tree__head--model { font-size: 11.5px; font-weight: 600; color: var(--ink-3); cursor: default; padding: 4px 4px 3px; }
+.order-tree__head--customer:hover,
+.order-tree__head--address:hover { background: var(--surface); }
+.order-tree__head:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.order-tree__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.order-tree__count {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  background: var(--surface);
+  border: 1px solid var(--border-1);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.order-tree__rows { display: flex; flex-direction: column; gap: 4px; }
+.order-tree__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 7px 9px;
   background: var(--surface);
   border: 1px solid var(--border-1);
   border-radius: var(--r-md);
-  padding: 14px 16px;
   cursor: pointer;
-  transition: border-color 140ms, box-shadow 200ms, transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  container-type: inline-size;
+  transition: border-color 140ms, box-shadow 200ms;
+  flex-wrap: wrap;
 }
-/* 카드 자체 폭이 157px 밑으로 좁아지면(칼럼 다수 · 좁은 화면) 줄바꿈 대신 말줄임 처리 */
-@container (max-width: 157px) {
-  .kanban__card__title,
-  .kanban__card__sub,
-  .kanban__card__id,
-  .kanban__card__serial,
-  .kanban__card__meta span {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .kanban__card__meta { flex-wrap: nowrap; }
-}
-.kanban__card:hover {
-  border-color: var(--primary);
-  box-shadow: var(--shadow-hover-lift);
-  transform: translateY(-1px);
-}
-.kanban__card:active { transform: scale(0.98); }
-.kanban__card:focus-visible {
+.order-tree__row:hover { border-color: var(--primary); box-shadow: var(--shadow-hover-lift); }
+.order-tree__row:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-color: var(--primary);
 }
-.kanban__card__top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.kanban__card__id { font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); }
-.kanban__card__title {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--ink-1);
-  margin-bottom: 4px;
-  letter-spacing: -0.224px;
-}
-.kanban__card__sub { font-size: 13px; color: var(--ink-3); margin-bottom: 10px; }
-.kanban__card__meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--ink-3);
-}
-.kanban__card__serial {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--ink-3);
-  margin-bottom: 6px;
-  letter-spacing: -0.2px;
-}
-.kanban__card__progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-.kanban__card__progress-track {
+.order-tree__serial { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+
+.order-tree__progress { display: flex; align-items: center; gap: 6px; width: 100%; flex-shrink: 0; order: 10; }
+.order-tree__progress-track {
   flex: 1;
   height: 5px;
   background: var(--border-1);
   border-radius: 999px;
   overflow: hidden;
 }
-.kanban__card__progress-fill {
+.order-tree__progress-fill {
   width: 100%;
   height: 100%;
   border-radius: 999px;
@@ -1295,9 +1292,9 @@ input, select, textarea { font-family: inherit; }
   transition: transform 200ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
-  .kanban__card__progress-fill { transition: none; }
+  .order-tree__progress-fill { transition: none; }
 }
-.kanban__card__progress-text {
+.order-tree__progress-text {
   font-size: 11px;
   color: var(--ink-3);
   font-weight: 600;
@@ -1697,7 +1694,6 @@ input, select, textarea { font-family: inherit; }
 
   .readonly-strip__grid { grid-template-columns: 1fr 1fr; gap: 10px 14px; }
   .readonly-strip { padding: 14px 16px; }
-  .kanban__col { min-height: 0; padding: 10px; }
   .card__body { padding: 14px; }
   .card__head { padding: 14px 14px 12px; }
   .mgr-field { flex-wrap: wrap; }
@@ -2611,7 +2607,6 @@ input, select, textarea { font-family: inherit; }
 .textarea:focus-visible {
   outline: none; /* box-shadow handles this */
 }
-.kanban__card:focus-visible,
 .ordercard:focus-visible,
 .timeline__item:focus-visible {
   outline: 2px solid var(--primary);
@@ -2797,7 +2792,7 @@ input, select, textarea { font-family: inherit; }
   animation: screenin 180ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-/* Sub-view entrance — kanban / card / table / timeline toggle */
+/* Sub-view entrance — tree / card / table / timeline toggle */
 .view-enter {
   animation: screenin 160ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
@@ -2875,14 +2870,10 @@ input, select, textarea { font-family: inherit; }
   animation-delay: calc(var(--i, 0) * 35ms);
 }
 
-/* Kanban card stagger — uses --i CSS custom prop set via JSX */
+/* 카드 stagger — uses --i CSS custom prop set via JSX */
 @keyframes cardin {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: none; }
-}
-.kanban__card {
-  animation: cardin 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--i, 0) * 35ms);
 }
 
 /* Order card grid stagger — uses --i CSS custom prop set via JSX */

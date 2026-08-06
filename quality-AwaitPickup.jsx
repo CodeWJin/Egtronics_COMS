@@ -122,7 +122,7 @@ function ProductionCompleteScreen() {
         if (!hay.includes(q)) return false;
       }
       return true;
-    });
+    }).sort((a, b) => (a.serial_no || '').localeCompare(b.serial_no || ''));
   }, [completed, search, filterModel, filterUsage]);
 
   // ── 출하검사 완료건 다중선택 → 일괄 출하완료 ──────────────────────

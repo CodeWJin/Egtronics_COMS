@@ -192,6 +192,10 @@ function DashboardScreen() {
   const asDates = useMemoDASH(() => (s.asReceptions || [])
     .filter(r => r.status === '처리완료' && r.completed_at)
     .map(r => String(r.completed_at).slice(0, 10)), [s.asReceptions]);
+  const shipDates = useMemoDASH(
+    () => window.PMDB.getShipHistory().map(h => String(h.changed_at || '').slice(0, 10)).filter(Boolean),
+    [s.orders]
+  );
 
   // chartColor: Chart.js는 canvas에 직접 그리므로 CSS 변수를 해석할 수 없어 리터럴 값 필요 —
   // 각 값은 styles.css :root 토큰(--primary / --indigo-700 / --danger)과 반드시 동일하게 유지
@@ -255,16 +259,21 @@ function DashboardScreen() {
           { key: 'PENDING',      label: '생산대기',   icon: 'package', accent: 'var(--warning)',    view: 'waiting',     foot: '생산 시작 전 오더' },
           { key: 'IN_PROGRESS',  label: '생산진행중', icon: 'factory', accent: 'var(--indigo-700)', view: 'waiting',     foot: '생산 라인 작업중' },
           { key: 'AWAIT_PICKUP', label: '출하대기',   icon: 'truck',   accent: 'var(--primary)',    view: 'AwaitPickup', foot: '검사 완료 · 픽업 대기' },
-          { key: 'COMPLETED',    label: '출하완료',   icon: 'check',   accent: 'var(--success)',    view: 'lookup',      foot: '누적 출하 건수' },
+          {
+            key: 'COMPLETED', label: '출하완료', icon: 'check', accent: 'var(--success)', view: 'lookup',
+            value: latestCount(shipDates),
+            foot: `${granularity === 'week' ? '이번 주' : '이번 달'} 출하완료 · 누적 ${pipelineCounts.COMPLETED}건`,
+          },
         ].map(p => {
           const clickable = allowedTabs.includes(p.view);
+          const value = p.value != null ? p.value : pipelineCounts[p.key];
           const inner = (
             <>
               <div className="stat__top">
                 <span className="stat__label">{p.label}</span>
                 <span className="stat__icon" style={{ color: p.accent }}><Icon name={p.icon} size={15}/></span>
               </div>
-              <div className="stat__value">{pipelineCounts[p.key]}<small>건</small></div>
+              <div className="stat__value">{value}<small>건</small></div>
               <div className="stat__foot">{p.foot}{clickable ? ' · 클릭해서 이동' : ''}</div>
             </>
           );

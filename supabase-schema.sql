@@ -387,3 +387,27 @@ CREATE POLICY "ship_photos_select" ON storage.objects
 CREATE POLICY "ship_photos_delete" ON storage.objects
   FOR DELETE TO anon
   USING (bucket_id = 'ship-photos');
+
+-- ┌─────────────────────────────────────────────────────────┐
+-- │  Realtime — 다른 사용자의 변경을 실시간으로 반영            │
+-- │  (db.js의 startRealtimeSync가 이 테이블들을 구독한다)      │
+-- └─────────────────────────────────────────────────────────┘
+
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'tb_charge_infor', 'tb_sales_order', 'tb_usagetype_public',
+    'tb_customer_manager', 'tb_customer_address', 'tb_users',
+    'tb_as_reception', 'tb_as_log', 'tb_as_photo',
+    'tb_inspection_func', 'tb_inspection_ship', 'tb_order_history'
+  ]
+  LOOP
+    BEGIN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
+    EXCEPTION WHEN duplicate_object THEN
+      NULL; -- 이미 추가된 테이블은 건너뜀 (재실행 안전)
+    END;
+  END LOOP;
+END $$;

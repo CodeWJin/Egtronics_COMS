@@ -23,12 +23,56 @@ function deliveryHint(d) {
 }
 
 // 4단계 칸반 컬럼 — 생산완료/출하대기는 둘 다 AWAIT_PICKUP 상태이며 영업정보 입력완료 여부로만 구분
-const KANBAN_COLS = [
-  { id: 'request',  title: '생산요청', dot: 'var(--ink-4)',   filter: (o) => o.status === 'PENDING' },
-  { id: 'progress', title: '생산착수', dot: 'var(--primary)', filter: (o) => o.status === 'IN_PROGRESS' },
-  { id: 'done',     title: '생산완료', dot: 'var(--warning)', filter: (o) => o.status === 'AWAIT_PICKUP' && !window.isSalesInfoComplete(o) },
-  { id: 'ready',    title: '출하대기', dot: 'var(--success)', filter: (o) => o.status === 'AWAIT_PICKUP' && window.isSalesInfoComplete(o) },
-];
+const STAGE_META = {
+  request:  { id: 'request',  title: '생산요청', dot: 'var(--ink-4)' },
+  progress: { id: 'progress', title: '생산착수', dot: 'var(--primary)' },
+  done:     { id: 'done',     title: '생산완료', dot: 'var(--warning)' },
+  ready:    { id: 'ready',    title: '출하대기', dot: 'var(--success)' },
+};
+const KANBAN_COLS = Object.values(STAGE_META);
+
+function orderStageId(o) {
+  if (o.status === 'PENDING') return 'request';
+  if (o.status === 'IN_PROGRESS') return 'progress';
+  if (o.status === 'AWAIT_PICKUP') return window.isSalesInfoComplete(o) ? 'ready' : 'done';
+  return 'request';
+}
+
+// 오더를 발주처 → 납품장소 → 모델 3단 트리로 묶는다. 발주처/납품장소는 생산완료 단계에
+// 이르러야 입력되므로, 그 전 단계(생산요청·생산착수) 오더는 각각 미정 그룹으로 모인다.
+function buildOrderTree(orders) {
+  const collator = new Intl.Collator('ko');
+  const sortKeys = (keys, placeholder) => keys.sort((a, b) => {
+    if (a === placeholder) return 1;
+    if (b === placeholder) return -1;
+    return collator.compare(a, b);
+  });
+
+  const byCustomer = new Map();
+  const bySerial = [...orders].sort((a, b) => (a.serial_no || '').localeCompare(b.serial_no || ''));
+  bySerial.forEach(o => {
+    const custKey = o.customer_name || '발주처 미정';
+    const addrKey = o.ship_from_address || '납품장소 미정';
+    if (!byCustomer.has(custKey)) byCustomer.set(custKey, new Map());
+    const byAddress = byCustomer.get(custKey);
+    if (!byAddress.has(addrKey)) byAddress.set(addrKey, new Map());
+    const byModel = byAddress.get(addrKey);
+    if (!byModel.has(o.model_name)) byModel.set(o.model_name, []);
+    byModel.get(o.model_name).push(o);
+  });
+
+  return sortKeys([...byCustomer.keys()], '발주처 미정').map(custKey => {
+    const byAddress = byCustomer.get(custKey);
+    const addresses = sortKeys([...byAddress.keys()], '납품장소 미정').map(addrKey => {
+      const byModel = byAddress.get(addrKey);
+      const models = [...byModel.keys()].sort((a, b) => collator.compare(a, b)).map(modelKey => ({
+        key: modelKey, orders: byModel.get(modelKey),
+      }));
+      return { key: addrKey, orders: models.flatMap(m => m.orders), models };
+    });
+    return { key: custKey, orders: addresses.flatMap(a => a.orders), addresses };
+  });
+}
 
 // 칸반 카드 진행율 — 생산착수(progress)/생산완료(done) 컬럼에서만 값을 반환한다.
 // 분모 필드 목록은 ProductionEntryModal·SalesCompletionModal의 errors 객체와 동일하게 유지할 것.
@@ -72,7 +116,6 @@ function ProductionWaitingScreen() {
   const [filterModel, setFilterModel] = useStatePW('all');
   const [filterUsage, setFilterUsage] = useStatePW('all');
   const [models, setModels] = useStatePW(() => window.PMDB.getModels());
-  const [selectedIds, setSelectedIds] = useStatePW(() => new Set());
   const [entryOrder, setEntryOrder] = useStatePW(null);
   const [salesOrder, setSalesOrder] = useStatePW(null);
   const [revertReviewOrder, setRevertReviewOrder] = useStatePW(null);
@@ -143,7 +186,14 @@ function ProductionWaitingScreen() {
 
   const onPick = (order, colId) => {
     if (colId === 'request') {
-      if (isSales) window.actions.editOrder(order.order_id);
+      if (isSales) { window.actions.editOrder(order.order_id); return; }
+      if (role === 'production' || role === 'admin') {
+        window.actions.showConfirm(
+          `오더 #${order.order_id}을(를) 생산착수로 전환할까요?`,
+          () => window.actions.startProduction(order.order_id),
+          { confirmLabel: '생산착수' }
+        );
+      }
       return;
     }
     if (colId === 'progress') {
@@ -167,58 +217,6 @@ function ProductionWaitingScreen() {
     }
   };
 
-  // ── 다중선택 → 생산 시작(생산요청 → 생산착수) 일괄 처리 (영업 역할 제외) ──
-  const selectableStatuses = useMemoPW(() => new Set(['PENDING']), []);
-  const selectedOrders = useMemoPW(
-    () => [...selectedIds].map(id => s.orders.find(o => o.order_id === id)).filter(Boolean),
-    [selectedIds, s.orders]
-  );
-  const selectionGroup = selectedOrders[0]
-    ? { model: selectedOrders[0].model_name, usage: selectedOrders[0].usage_type || '공용' }
-    : null;
-
-  const canSelect = (order) => {
-    if (!selectableStatuses.has(order.status)) return false;
-    if (!selectionGroup) return true;
-    return order.model_name === selectionGroup.model && (order.usage_type || '공용') === selectionGroup.usage;
-  };
-
-  const toggleSelect = (order) => {
-    if (!canSelect(order) && !selectedIds.has(order.order_id)) return;
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(order.order_id)) next.delete(order.order_id); else next.add(order.order_id);
-      return next;
-    });
-  };
-
-  const quickStart = () => {
-    if (selectedOrders.length === 0) return;
-    window.actions.showConfirm(
-      `생산대기 ${selectedOrders.length}건을 생산착수로 전환할까요?\n생산 실적은 이후 카드를 눌러 개별 입력하면 됩니다.`,
-      () => {
-        selectedOrders.forEach(o => window.PMDB.startProduction(o.order_id));
-        window.actions.refreshOrders();
-        window.actions.flashToast(`${selectedOrders.length}건 생산착수 처리되었습니다`, 'success');
-        setSelectedIds(new Set());
-      }
-    );
-  };
-
-  const toggleAll = (groupOrders) => {
-    const selectable = groupOrders.filter(o => canSelect(o) || selectedIds.has(o.order_id));
-    const allChecked = selectable.length > 0 && selectable.every(o => selectedIds.has(o.order_id));
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (allChecked) {
-        selectable.forEach(o => next.delete(o.order_id));
-      } else {
-        selectable.forEach(o => { if (canSelect(o)) next.add(o.order_id); });
-      }
-      return next;
-    });
-  };
-
   return (
     <div className="screen">
       <div className="screen__head">
@@ -226,7 +224,7 @@ function ProductionWaitingScreen() {
           <div className="screen__crumbs">생산 부서 · 생산대기 큐</div>
           <h1 className="screen__title">생산 대기 목록</h1>
           <p className="screen__sub">{isSales
-            ? '영업 담당자는 생산요청 카드를 선택해 모델·수량을 수정하거나, 생산완료 카드에서 발주 정보를 입력할 수 있습니다.'
+            ? '영업 담당자는 생산요청 카드를 선택해 모델·수량을 수정할 수 있고, 카드의 "영업정보" 버튼으로 어느 단계에서든 발주 정보를 입력·수정할 수 있습니다.'
             : '카드를 클릭하면 단계별 입력 모달이 열립니다.'}</p>
         </div>
         {role !== 'production' && (
@@ -268,20 +266,6 @@ function ProductionWaitingScreen() {
         </span>
       </div>
 
-      {!isSales && selectedIds.size > 0 && (
-        <div className="toolbar" style={{ background: 'var(--primary-50)', border: '1px solid var(--primary-100)' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-700, var(--primary))' }}>
-            <Icon name="check" size={13}/> {selectedIds.size}건 선택됨
-            {selectionGroup && <span style={{ fontWeight: 400, color: 'var(--ink-3)', marginLeft: 6 }}>· {selectionGroup.model} / {selectionGroup.usage}</span>}
-          </span>
-          <div style={{ flex: 1 }}/>
-          <button className="btn btn--ghost btn--sm" onClick={() => setSelectedIds(new Set())}>선택 해제</button>
-          <button className="btn btn--secondary btn--sm" onClick={quickStart}>
-            <Icon name="bolt" size={13}/> 생산 착수 ({selectedIds.size}건)
-          </button>
-        </div>
-      )}
-
       <div className="view-enter">
         {filtered.length === 0 ? (
           <div className="table-wrap">
@@ -309,9 +293,8 @@ function ProductionWaitingScreen() {
             </div>
           </div>
         ) : (
-          <ViewKanban orders={filtered} onPick={onPick} editedIds={editedIds}
-            selectable={!isSales} selectedIds={selectedIds} canSelect={canSelect}
-            onToggleSelect={toggleSelect} onToggleAll={toggleAll}/>
+          <ViewOrderTree orders={filtered} onPick={onPick} editedIds={editedIds}
+            role={role} onOpenSales={(order) => setSalesOrder(order)}/>
         )}
       </div>
 
@@ -334,8 +317,16 @@ function ProductionWaitingScreen() {
   );
 }
 
-/* ────────── 칸반 뷰 ────────── */
-function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSelect, onToggleSelect, onToggleAll }) {
+/* ────────── 칸반 뷰 — 컬럼(생산요청/생산착수/생산완료/출하대기) 내부를 발주처 → 납품장소 → 모델 트리로 구성 ────────── */
+function ViewOrderTree({ orders, onPick, editedIds, role, onOpenSales }) {
+  const canEnterSales = role === 'sales' || role === 'admin';
+  const [collapsed, setCollapsed] = useStatePW(() => new Set());
+  const toggleCollapsed = (key) => setCollapsed(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
   const hasProgress = orders.some(o => o.status === 'IN_PROGRESS');
   const hasAwait = orders.some(o => o.status === 'AWAIT_PICKUP');
   const visibleCols = KANBAN_COLS.filter(col => {
@@ -344,13 +335,14 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
     return true;
   });
 
-  // stageProgress()에 영향을 주는 필드만으로 의존성 키를 만든다 — orders는 검색어 입력마다
-  // 새 배열 참조로 재생성되므로 [orders]에 걸면 매 키 입력마다 getFuncInspection 재조회가 반복된다.
-  const progressDeps = orders.map(o => {
+  // stageProgress()/트리 그룹핑에 영향을 주는 필드만으로 의존성 키를 만든다 — orders는 검색어
+  // 입력마다 새 배열 참조로 재생성되므로 [orders]에 걸면 매 키 입력마다 재계산이 반복된다.
+  const treeDeps = orders.map(o => {
     return [
       o.order_id, o.status, o.prod_date, o.serial_no, o.sw_version, o.fw_version, o.inspection_date,
       o.cable_length, o.customer_name, o.customer_manager, o.field_manager_phone,
       o.ship_from_address, o.delivery_date, o.station_id, o.charger_no, o.router_no, o.usim_no,
+      o.model_name,
     ].join('|');
   }).join(';');
 
@@ -358,17 +350,24 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
     const map = new Map();
     orders.forEach(o => map.set(o.order_id, stageProgress(o)));
     return map;
-  }, [progressDeps]);
+  }, [treeDeps]);
+
+  // 컬럼별로 오더를 나눈 뒤, 각 컬럼 내부를 발주처 → 납품장소 → 모델 트리로 구성한다.
+  const colTrees = useMemoPW(() => {
+    const map = new Map();
+    KANBAN_COLS.forEach(col => {
+      const items = orders.filter(o => orderStageId(o) === col.id);
+      map.set(col.id, { items, tree: buildOrderTree(items) });
+    });
+    return map;
+  }, [treeDeps]);
 
   return (
     <div className="view-panel">
     <div className="kanban-scroll">
-    <div className="kanban" style={{ gridTemplateColumns: `repeat(${visibleCols.length}, minmax(200px, 1fr))` }}>
+    <div className="kanban" style={{ gridTemplateColumns: `repeat(${visibleCols.length}, minmax(240px, 1fr))` }}>
       {visibleCols.map(col => {
-        const items = orders.filter(col.filter);
-        const groupSelectable = selectable && col.id === 'request';
-        const selectableInCol = groupSelectable ? items.filter(o => canSelect ? canSelect(o) : true) : [];
-        const allChecked = selectableInCol.length > 0 && selectableInCol.every(o => selectedIds?.has(o.order_id));
+        const { items, tree } = colTrees.get(col.id);
         return (
           <div key={col.id} className="kanban__col">
             <div className="kanban__colhead">
@@ -378,66 +377,88 @@ function ViewKanban({ orders, onPick, editedIds, selectable, selectedIds, canSel
               </div>
               <span className="kanban__count">{items.length}</span>
             </div>
-            {groupSelectable && selectableInCol.length > 0 && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--ink-3)', padding: '0 2px 6px' }}>
-                <span className="tap-checkbox">
-                  <input type="checkbox" checked={allChecked}
-                    onChange={() => onToggleAll && onToggleAll(items)}
-                    style={{ width: 14, height: 14, accentColor: 'var(--primary)' }}/>
-                </span>
-                전체 선택
-              </label>
-            )}
             {items.length === 0 && (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--ink-4)', fontSize: 12 }}>—</div>
             )}
-            {items.map((o, idx) => {
-              const d = deliveryHint(o.delivery_date);
-              const prog = progressByOrder.get(o.order_id);
-              const serial = o.serial_no;
-              const checked = selectable && col.id === 'request' && !!selectedIds?.has(o.order_id);
-              const selDisabled = col.id === 'request' && selectable && !checked && canSelect && !canSelect(o);
-              return (
-                <div key={o.order_id}
-                     style={{ '--i': idx, ...(checked ? { outline: '2px solid var(--primary)', outlineOffset: -2 } : {}) }}
-                     className="kanban__card"
-                     role="button" tabIndex={0}
-                     onClick={() => onPick(o, col.id)}
-                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o, col.id); } }}>
-                  <div className="kanban__card__top" style={{ justifyContent: 'flex-end' }}>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      {col.id === 'request' && selectable && (
-                        <span className="tap-checkbox" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" aria-label={`오더 #${o.order_id} 선택`}
-                            checked={checked} disabled={selDisabled}
-                            title={selDisabled ? '같은 모델·용도만 함께 선택 가능' : ''}
-                            onChange={() => onToggleSelect(o)}
-                            style={{ width: 13, height: 13, accentColor: 'var(--primary)', cursor: selDisabled ? 'not-allowed' : 'pointer' }}/>
-                        </span>
-                      )}
-                      {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
-                    </div>
+            <div className="order-tree">
+              {tree.map(cust => {
+                const custKey = `${col.id}:c:${cust.key}`;
+                const custCollapsed = collapsed.has(custKey);
+                return (
+                  <div className="order-tree__customer" key={cust.key}>
+                    <button type="button" className="order-tree__head order-tree__head--customer"
+                            onClick={() => toggleCollapsed(custKey)} aria-expanded={!custCollapsed}>
+                      <Icon name={custCollapsed ? 'chevron-right' : 'chevron-down'} size={13}/>
+                      <Icon name="building" size={12}/>
+                      <span className="order-tree__label">{cust.key}</span>
+                      <span className="order-tree__count">{cust.orders.length}</span>
+                    </button>
+                    {!custCollapsed && cust.addresses.map(addr => {
+                      const addrKey = `${col.id}:a:${cust.key}|${addr.key}`;
+                      const addrCollapsed = collapsed.has(addrKey);
+                      return (
+                        <div className="order-tree__address" key={addr.key}>
+                          <button type="button" className="order-tree__head order-tree__head--address"
+                                  onClick={() => toggleCollapsed(addrKey)} aria-expanded={!addrCollapsed}>
+                            <Icon name={addrCollapsed ? 'chevron-right' : 'chevron-down'} size={12}/>
+                            <Icon name="map-pin" size={11}/>
+                            <span className="order-tree__label">{addr.key}</span>
+                            {addr.orders.length !== cust.orders.length &&
+                              <span className="order-tree__count">{addr.orders.length}</span>}
+                          </button>
+                          {!addrCollapsed && addr.models.map(model => {
+                            return (
+                              <div className="order-tree__model" key={model.key}>
+                                <div className="order-tree__head order-tree__head--model">
+                                  <Icon name="cpu" size={11}/>
+                                  <span className="order-tree__label">{model.key}</span>
+                                </div>
+                                <div className="order-tree__rows">
+                                  {model.orders.map(o => {
+                                    const d = deliveryHint(o.delivery_date);
+                                    const prog = progressByOrder.get(o.order_id);
+                                    return (
+                                      <div key={o.order_id}
+                                           className="order-tree__row"
+                                           role="button" tabIndex={0}
+                                           onClick={() => onPick(o, col.id)}
+                                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o, col.id); } }}>
+                                        <span className="order-tree__serial">{o.serial_no || `#${o.order_id}`}</span>
+                                        <span className="badge badge--neutral" style={{ fontSize: 10.5, flexShrink: 0 }}>{o.usage_type || '공용'}</span>
+                                        {o.delivery_date && (
+                                          <span className="dday-badge" style={{ '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
+                                        )}
+                                        {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
+                                        <div style={{ flex: 1 }}/>
+                                        {prog && (
+                                          <div className="order-tree__progress">
+                                            <div className="order-tree__progress-track">
+                                              <div className="order-tree__progress-fill" style={{ transform: `scaleX(${prog.done / prog.total})`, background: progressColor(prog) }}/>
+                                            </div>
+                                            <span className="order-tree__progress-text">{prog.done}/{prog.total}</span>
+                                          </div>
+                                        )}
+                                        {canEnterSales && (col.id === 'request' || col.id === 'progress') && (
+                                          <button type="button" className="btn btn--ghost btn--sm" style={{ padding: '3px 7px', fontSize: 11, flexShrink: 0 }}
+                                                  title="영업정보 입력" aria-label="영업정보 입력"
+                                                  onClick={e => { e.stopPropagation(); onOpenSales(o); }}>
+                                            <Icon name="building" size={11}/>
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="kanban__card__title">{o.model_name}</div>
-                  {serial && <div className="kanban__card__serial">{serial}</div>}
-                  <div className="kanban__card__sub">{o.customer_name || (o.requested_by ? `요청자: ${o.requested_by}` : '발주정보 미입력')}</div>
-                  <div className="kanban__card__meta">
-                    <span className="badge badge--neutral" style={{ fontSize: 10.5 }}>{o.usage_type || '공용'}</span>
-                    {col.id === 'ready' && (
-                      <span className="dday-badge" style={{ '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
-                    )}
-                  </div>
-                  {prog && (
-                    <div className="kanban__card__progress">
-                      <div className="kanban__card__progress-track">
-                        <div className="kanban__card__progress-fill" style={{ width: `${(prog.done / prog.total) * 100}%`, background: progressColor(prog) }}/>
-                      </div>
-                      <span className="kanban__card__progress-text">{prog.done}/{prog.total}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         );
       })}
@@ -781,6 +802,7 @@ function ProductionRevertReviewModal({ order, onClose }) {
     () => window.getFuncInspection?.(order.order_id) ?? null,
     [order.order_id]
   );
+  const [funcReportVisible, setFuncReportVisible] = useStatePW(false);
   const funcAllDone = funcInspectionData != null &&
     Object.keys(funcInspectionData.checks || {}).length > 0 &&
     Object.values(funcInspectionData.checks || {}).every(v => v === true || (typeof v === 'string' && v.trim() !== ''));
@@ -823,6 +845,9 @@ function ProductionRevertReviewModal({ order, onClose }) {
                   ? <span style={{ color: 'var(--warning-700)', fontWeight: 600 }}>기능검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                   : <span style={{ color: 'var(--ink-4)' }}>기능 검사 성적서 미작성</span>}
             </div>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={() => setFuncReportVisible(true)} disabled={!funcInspectionData}>
+              <Icon name="doc" size={12}/> 미리보기
+            </button>
           </div>
         </div>
         <div className="modal__foot">
@@ -830,6 +855,13 @@ function ProductionRevertReviewModal({ order, onClose }) {
           <button className="btn btn--danger" onClick={revert}><Icon name="refresh" size={13}/> 생산착수로 되돌리기</button>
         </div>
       </div>
+      {funcReportVisible && funcInspectionData && (
+        <FuncInspectionReport
+          order={order}
+          inspectionData={funcInspectionData}
+          onClose={() => setFuncReportVisible(false)}
+        />
+      )}
     </div>
   );
 }

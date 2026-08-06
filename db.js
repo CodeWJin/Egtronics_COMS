@@ -433,12 +433,13 @@
         return { batch_id: batchId, charge_ids: chargeIds };
       },
 
-      // 생산요청(PENDING) 수정과 생산완료(AWAIT_PICKUP) 영업정보 입력이 모두 이 함수를 쓰되
-      // 서로 다른 필드 부분집합만 보내므로, form에 실제로 담긴 키만 병합한다(전체 덮어쓰기 금지).
-      // order_id 인자는 충전기 유닛 ID(tb_charge_infor.id)를 가리킨다(결정 A).
+      // 생산요청(PENDING)·생산착수(IN_PROGRESS) 수정과 생산완료(AWAIT_PICKUP) 영업정보 입력이
+      // 모두 이 함수를 쓰되 서로 다른 필드 부분집합만 보내므로, form에 실제로 담긴 키만
+      // 병합한다(전체 덮어쓰기 금지). order_id 인자는 충전기 유닛 ID(tb_charge_infor.id)를
+      // 가리킨다(결정 A).
       updateOrder(order_id, form) {
         const o = cache.orders.find(x => x.id === order_id);
-        if (!o || (o.status !== 'PENDING' && o.status !== 'AWAIT_PICKUP')) {
+        if (!o || (o.status !== 'PENDING' && o.status !== 'IN_PROGRESS' && o.status !== 'AWAIT_PICKUP')) {
           dbLog('WARN', 'write:tb_charge_infor', `충전기 정보 수정 불가 — id=${order_id}, status=${o?.status ?? '없음'}`);
           return false;
         }
@@ -878,6 +879,11 @@
         return [...cache.history.filter(h => h.charge_id === order_id)]
           .sort((a, b) => (b.changed_at || '').localeCompare(a.changed_at || ''))
           .map(r => ({ ...r, changed_fields: JSON.parse(r.changed_fields || '[]') }));
+      },
+
+      // 대시보드 "출하완료" 주간/월간 집계용 — action:'ship' 이력만 전역 조회 (오더별이 아님)
+      getShipHistory() {
+        return cache.history.filter(h => h.action === 'ship');
       },
 
 
@@ -1331,6 +1337,39 @@
   }
 
   // ============================================================
+  // 실시간 동기화 — 다른 사용자의 변경을 postgres_changes로 수신해
+  // 전체 재조회 후 notify()로 화면을 갱신한다. 테이블별 patch 대신
+  // loadAll() 재사용 — loadOrders()의 배치/위성 테이블 조인 로직을
+  // 중복 구현하지 않기 위함(여러 이벤트가 몰리면 400ms 디바운스로 묶음).
+  // ============================================================
+  function startRealtimeSync(client, backend) {
+    const TABLES = [
+      'tb_charge_infor', 'tb_sales_order', 'tb_usagetype_public',
+      'tb_customer_manager', 'tb_customer_address', 'tb_users',
+      'tb_as_reception', 'tb_as_log', 'tb_as_photo',
+      'tb_inspection_func', 'tb_inspection_ship', 'tb_order_history',
+    ];
+    let timer = null;
+    const scheduleReload = () => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          await backend.loadAll();
+          window.notify?.();
+          dbLog('INFO', 'realtime', '다른 사용자 변경 감지 → 재조회 완료');
+        } catch (e) {
+          dbLog('ERROR', 'realtime', '재조회 실패 — ' + e.message);
+        }
+      }, 400);
+    };
+    const channel = client.channel('pmdb-sync');
+    TABLES.forEach(table => {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleReload);
+    });
+    channel.subscribe();
+  }
+
+  // ============================================================
   // PMDB 퍼사드
   // ============================================================
   const PMDB = {
@@ -1428,6 +1467,7 @@
 
       this.backend = backend;
       this.engine = 'supabase';
+      startRealtimeSync(client, backend);
       dbLog('SUCCESS', 'init', `PMDB 준비 완료 (총 ${Date.now() - t0}ms)`);
       window.updateBootStatus?.('준비 완료 중…');
       return this;
@@ -1467,6 +1507,7 @@
     query()                  { return []; },
     addHistory(id, by, at, f, a, sn) { return this.backend.addHistory(id, by, at, f, a, sn); },
     getHistory(id)           { return this.backend.getHistory(id); },
+    getShipHistory()         { return this.backend.getShipHistory(); },
     getAsHistory(orderId)        { return this.backend.getAsHistory(orderId); },
     addAsRecord(record)          { return this.backend.addAsRecord(record); },
     deleteAsRecord(id)           { return this.backend.deleteAsRecord(id); },
