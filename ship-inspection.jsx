@@ -88,7 +88,7 @@ function ChecklistItemRow({ item, value, onChange }) {
         borderRadius: 'var(--r-sm)', transition: 'background 120ms, border-color 120ms',
         cursor: 'text',
       }}>
-        <span style={{ fontSize: 13.5, color: 'var(--ink-3)', flexShrink: 0 }}>{item.label}</span>
+        <span style={{ fontSize: 14, color: 'var(--ink-3)', flexShrink: 0 }}>{item.label}</span>
         <input
           id={`cl-${item.key}`}
           type="text"
@@ -98,7 +98,7 @@ function ChecklistItemRow({ item, value, onChange }) {
           style={{
             flex: 1, border: 'none',
             borderBottom: `1px solid ${complete ? 'var(--success)' : 'var(--border-1)'}`,
-            background: 'transparent', fontSize: 13.5, outline: 'none', padding: '0 4px',
+            background: 'transparent', fontSize: 14, outline: 'none', padding: '0 4px',
             color: complete ? 'var(--success-700)' : 'var(--ink-1)',
             fontWeight: complete ? 600 : 400, textAlign: 'right', minWidth: 60,
           }}
@@ -117,7 +117,7 @@ function ChecklistItemRow({ item, value, onChange }) {
     }}>
       <input type="checkbox" checked={!!value} onChange={e => onChange(e.target.checked)}
         style={{ accentColor: 'var(--success-700)', width: 15, height: 15, flexShrink: 0 }}/>
-      <span style={{ fontSize: 13.5, color: value ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: value ? 600 : 400 }}>
+      <span style={{ fontSize: 14, color: value ? 'var(--success-700)' : 'var(--ink-2)', fontWeight: value ? 600 : 400 }}>
         {item.label}
       </span>
     </label>
@@ -416,7 +416,7 @@ function ShipInspectionDrawer({ order, existingData, modelInfo, onSave, onClose 
                   <Icon name="check" size={16} style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-2)' }}/>
                 </div>
                 <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>출하 검사 체크리스트</span>
-                <span style={{ fontSize: 12.5, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
+                <span style={{ fontSize: 13, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
                   {completedCount}/{checklist.length}
                 </span>
                 {checkboxItems.length > 0 && (
@@ -664,7 +664,7 @@ function FuncInspectionDrawer({ order, existingData, modelInfo: modelInfoProp, o
                 <Icon name="check" size={16} style={{ color: allChecked ? 'var(--success-700)' : 'var(--ink-2)' }}/>
               </div>
               <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink-1)' }}>기능 검사 항목</span>
-              <span style={{ fontSize: 12.5, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
+              <span style={{ fontSize: 13, color: allChecked ? 'var(--success-700)' : 'var(--ink-4)', fontWeight: 500 }}>
                 {completedCount}/{checklist.length}
               </span>
               {checkboxItems.length > 0 && (
@@ -811,7 +811,7 @@ function InspectionReport({ order, inspectionData, onClose }) {
                   <th>라우터 S/N</th>
                   <td className="report__mono">{order.router_no}</td>
                   <th>USIM (ICCID)</th>
-                  <td className="report__mono" style={{ fontSize: 11 }}>{order.usim_no}</td>
+                  <td className="report__mono" style={{ fontSize: 12 }}>{order.usim_no}</td>
                 </tr>
                 <tr>
                   <th>납품장소</th>
@@ -912,7 +912,7 @@ function ShipInspectionReport({ order, inspectionData: d, modelInfo, onClose }) 
                   checked={includePhotos} onChange={e => setIncludePhotos(e.target.checked)}
                   role="switch" aria-checked={includePhotos}/>
                 <span className="switch__track" aria-hidden="true"/>
-                <span className="switch__label" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>
+                <span className="switch__label" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>
                   첨부사진 출력 ({photos.length}장)
                 </span>
               </label>

@@ -108,7 +108,7 @@ function OrderLookupScreen() {
           <p className="screen__sub">등록된 충전기(tb_charge_infor)를 시리얼번호로 검색합니다. 행을 선택하면 우측에 상세가 열립니다.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-          <span className="badge badge--complete" style={{ fontSize: 11 }}><Icon name="check" size={10}/>등록된 충전기 전체 표시</span>
+          <span className="badge badge--complete" style={{ fontSize: 12 }}><Icon name="check" size={10}/>등록된 충전기 전체 표시</span>
           <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
             총 <strong style={{ color: 'var(--success-700)' }}>{chargepoints.length}</strong>대
           </span>
@@ -121,7 +121,7 @@ function OrderLookupScreen() {
           {/* 헤더 행 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <Icon name="search" size={14} style={{ color: 'var(--ink-3)' }}/>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>검색</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>검색</span>
             {activeFilters > 0 && (
               <span className="badge badge--info" style={{ marginLeft: 2 }}>{activeFilters}개 필터 적용</span>
             )}
@@ -192,7 +192,7 @@ function OrderLookupScreen() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38, cursor: 'pointer',
                                   padding: '0 12px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)',
                                   background: fAsOnly ? 'var(--warning-50)' : 'var(--surface)',
-                                  color: fAsOnly ? 'var(--warning-700)' : 'var(--ink-2)', fontSize: 13.5 }}>
+                                  color: fAsOnly ? 'var(--warning-700)' : 'var(--ink-2)', fontSize: 14 }}>
                     <input type="checkbox" checked={fAsOnly} onChange={e => setFAsOnly(e.target.checked)}
                            style={{ accentColor: 'var(--warning-700)', width: 15, height: 15 }}/>
                     A/S 이력 있는 충전기만
@@ -242,11 +242,11 @@ function OrderLookupScreen() {
       </div>
 
       <div className="toolbar" style={{ borderRadius: 'var(--r-xl) var(--r-xl) 0 0' }}>
-        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>
+        <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>
           검색 결과 <strong style={{ color: 'var(--ink-1)', fontWeight: 600 }}>{filtered.length}</strong>건
         </span>
         <div style={{ flex: 1 }}/>
-        <span className="ol-hint" style={{ fontSize: 11.5, color: 'var(--ink-4)' }}>행을 클릭하면 상세 정보가 열립니다</span>
+        <span className="ol-hint" style={{ fontSize: 12, color: 'var(--ink-4)' }}>행을 클릭하면 상세 정보가 열립니다</span>
       </div>
 
       {filtered.length === 0 ? (
@@ -303,7 +303,7 @@ function OrderLookupScreen() {
                       {mi?.model || cp.model_name || '—'}
                     </span>
                     {mi?.description && mi.description !== mi.model && (
-                      <div className="cell-muted" style={{ fontSize: 11, marginTop: 2 }}>{mi.description}</div>
+                      <div className="cell-muted" style={{ fontSize: 12, marginTop: 2 }}>{mi.description}</div>
                     )}
                   </td>
                   <td className="cell-muted ol-table__col--address" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -431,10 +431,10 @@ function OrderHistorySection({ orderId }) {
           <div style={{ flex: 1, paddingBottom: i < list.length - 1 ? 10 : 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="badge badge--info" style={{ fontSize: 11 }}>{r.action || 'update'}</span>
-                <span style={{ fontSize: 11, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.changed_at}</span>
+                <span className="badge badge--info" style={{ fontSize: 12 }}>{r.action || 'update'}</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>{r.changed_at}</span>
               </div>
-              <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{r.changed_by}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>{r.changed_by}</span>
             </div>
             {Array.isArray(r.changed_fields) && r.changed_fields.length > 0 && (
               <div style={{ background: 'var(--surface)', borderRadius: 'var(--r-sm)', padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4, border: '1px solid var(--border-1)' }}>
@@ -486,55 +486,55 @@ function AsReceptionCard({ reception: r }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
           {r.fault_type && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>고장유형</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>고장유형</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.fault_type}</div>
             </div>
           )}
           {r.received_at && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>접수일</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>접수일</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{r.received_at.slice(0, 10)}</div>
             </div>
           )}
           {r.reporter_name && (
             <div style={{ gridColumn: 'span 2' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>신고자</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>신고자</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.reporter_name}{r.reporter_phone ? ` · ${r.reporter_phone}` : ''}</div>
             </div>
           )}
           {r.assignee && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>담당자</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>담당자</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.assignee}</div>
             </div>
           )}
           {r.dispatch_date && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>출동일</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>출동일</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{r.dispatch_date}</div>
             </div>
           )}
           {r.action_type && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>처리유형</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>처리유형</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.action_type}</div>
             </div>
           )}
           {r.cost && (
             <div>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>비용</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>비용</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)', fontWeight: 500 }}>{r.cost}</div>
             </div>
           )}
           {r.action_detail && (
             <div style={{ gridColumn: 'span 2' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>처리내용</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>처리내용</div>
               <div style={{ fontSize: 13, color: 'var(--ink-1)' }}>{r.action_detail}</div>
             </div>
           )}
           {r.notes && (
             <div style={{ gridColumn: 'span 2' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-4)', marginBottom: 2 }}>비고</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-4)', marginBottom: 2 }}>비고</div>
               <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>{r.notes}</div>
             </div>
           )}
@@ -543,7 +543,7 @@ function AsReceptionCard({ reception: r }) {
           <div style={{ borderTop: '1px solid var(--border-1)', paddingTop: 8, marginTop: 12 }}>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, marginBottom: 6 }}>처리 이력</div>
             {logs.map(l => (
-              <div key={l.id} style={{ display: 'flex', gap: 8, fontSize: 11.5, padding: '3px 0', alignItems: 'flex-start' }}>
+              <div key={l.id} style={{ display: 'flex', gap: 8, fontSize: 12, padding: '3px 0', alignItems: 'flex-start' }}>
                 <span style={{ color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', flexShrink: 0, minWidth: 72 }}>{(l.changed_at || '').slice(0, 10)}</span>
                 <span style={{ color: 'var(--ink-3)', flexShrink: 0 }}>{l.from_status || '—'} → {l.to_status || '—'}</span>
                 {l.memo && <span style={{ color: 'var(--ink-2)' }}>{l.memo}</span>}
