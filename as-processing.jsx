@@ -284,7 +284,7 @@ function AsDetailPanel({ reception: r }) {
             <div className="field">
               <div className="field__label">
                 담당자 배정
-                <span style={{ fontWeight: 400, color: 'var(--ink-4)', fontSize: 11, marginLeft: 5 }}>(복수 선택 가능)</span>
+                <span style={{ fontWeight: 400, color: 'var(--ink-4)', fontSize: 12, marginLeft: 5 }}>(복수 선택 가능)</span>
               </div>
               {asUsers.length === 0 ? (
                 <div style={{ fontSize: 12, color: 'var(--ink-4)' }}>등록된 AS 담당자가 없습니다</div>
@@ -304,7 +304,7 @@ function AsDetailPanel({ reception: r }) {
                           : [...form.assignee, u.user_id]
                         )}>
                         {u.name}
-                        <span style={{ marginLeft: 4, color: 'var(--ink-4)', fontSize: 11 }}>
+                        <span style={{ marginLeft: 4, color: 'var(--ink-4)', fontSize: 12 }}>
                           {window.ROLE_LABEL[u.role]}
                         </span>
                       </button>
@@ -350,12 +350,12 @@ function AsDetailPanel({ reception: r }) {
             <div className="field">
               <div className="field__label">
                 조치 유형
-                <span style={{ fontWeight: 400, color: 'var(--ink-4)', fontSize: 11, marginLeft: 5 }}>(복수 선택 가능)</span>
+                <span style={{ fontWeight: 400, color: 'var(--ink-4)', fontSize: 12, marginLeft: 5 }}>(복수 선택 가능)</span>
               </div>
               <div role="group" aria-label="조치 유형 (복수 선택 가능)" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {window.AS_ACTION_TYPE_GROUPS.map((group, gi) => (
                   <div key={group.label} style={gi > 0 ? { borderTop: '1px solid var(--border-1)', paddingTop: 8 } : {}}>
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 5, letterSpacing: '-0.1px', fontWeight: 500 }}>
+                    <div style={{ fontSize: 12, color: 'var(--ink-3)', marginBottom: 5, letterSpacing: '-0.1px', fontWeight: 500 }}>
                       {group.label}
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>

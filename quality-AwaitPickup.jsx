@@ -322,7 +322,7 @@ function ProductionCompleteScreen() {
                       <div className="cell-muted">{modelInfo?.model || o.model_name}</div>
                     </td>
                     <td>
-                      <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 12.5 }}>{o.serial_no}</div>
+                      <div className="cell-mono" style={{ color: 'var(--ink-1)', fontSize: 13 }}>{o.serial_no}</div>
                     </td>
                     <td className="qap-table__col--proddate" style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{o.prod_date}</td>
                     <td>
@@ -361,7 +361,7 @@ function ProductionCompleteScreen() {
                           <Icon name="truck" size={12}/> 출하 완료
                         </button>
                         {!shipAllDone && (
-                          <span style={{ fontSize: 10.5, color: 'var(--ink-4)', lineHeight: 1.3 }}>
+                          <span style={{ fontSize: 12, color: 'var(--ink-4)', lineHeight: 1.3 }}>
                             {shipInsp ? '출하검사 미완료' : '출하검사 필요'}
                           </span>
                         )}

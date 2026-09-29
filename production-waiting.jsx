@@ -424,11 +424,11 @@ function ViewOrderTree({ orders, onPick, editedIds, role, onOpenSales }) {
                                            onClick={() => onPick(o, col.id)}
                                            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(o, col.id); } }}>
                                         <span className="order-tree__serial">{o.serial_no || `#${o.order_id}`}</span>
-                                        <span className="badge badge--neutral" style={{ fontSize: 10.5, flexShrink: 0 }}>{o.usage_type || '공용'}</span>
+                                        <span className="badge badge--neutral" style={{ fontSize: 12, flexShrink: 0 }}>{o.usage_type || '공용'}</span>
                                         {o.delivery_date && (
                                           <span className="dday-badge" style={{ '--dday-color': d.color, '--dday-bg': d.bg }}>{d.text}</span>
                                         )}
-                                        {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 10.5 }}>수정됨</span>}
+                                        {editedIds.has(o.order_id) && <span className="badge badge--info" style={{ fontSize: 12 }}>수정됨</span>}
                                         <div style={{ flex: 1 }}/>
                                         {prog && (
                                           <div className="order-tree__progress">
@@ -439,7 +439,7 @@ function ViewOrderTree({ orders, onPick, editedIds, role, onOpenSales }) {
                                           </div>
                                         )}
                                         {canEnterSales && (col.id === 'request' || col.id === 'progress') && (
-                                          <button type="button" className="btn btn--ghost btn--sm" style={{ padding: '3px 7px', fontSize: 11, flexShrink: 0 }}
+                                          <button type="button" className="btn btn--ghost btn--sm" style={{ padding: '3px 7px', fontSize: 12, flexShrink: 0 }}
                                                   title="영업정보 입력" aria-label="영업정보 입력"
                                                   onClick={e => { e.stopPropagation(); onOpenSales(o); }}>
                                             <Icon name="building" size={11}/>
@@ -674,7 +674,7 @@ function ProductionEntryModal({ order, onClose }) {
                             className={`tagpicker__item ${form.sw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.sw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
                             aria-pressed={form.sw_version === v.tag}
                             onClick={() => { update('sw_version', v.tag); setTouched(t => ({ ...t, sw_version: 1 })); }}>
-                      <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+                      <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 12, opacity: 0.8 }}>BETA</span>}
                     </button>
                   ))}
                   <button type="button" className={`tagpicker__item tagpicker__item--add ${addingSwVer ? 'tagpicker__item--active' : ''}`}
@@ -684,7 +684,7 @@ function ProductionEntryModal({ order, onClose }) {
                 </div>
                 {addingSwVer && (
                   <div className="ver-add-row">
-                    <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
+                    <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
                       aria-label="새 S/W 버전 태그" placeholder="예: v1.8.0-core" value={newSwVerTag}
                       onChange={e => setNewSwVerTag(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addVersionSW(); if (e.key === 'Escape') setAddingSwVer(false); }} autoFocus/>
@@ -706,7 +706,7 @@ function ProductionEntryModal({ order, onClose }) {
                             className={`tagpicker__item ${form.fw_version === v.tag ? 'tagpicker__item--active' : ''} ${!v.stable && form.fw_version !== v.tag ? 'tagpicker__item--beta' : ''}`}
                             aria-pressed={form.fw_version === v.tag}
                             onClick={() => { update('fw_version', v.tag); setTouched(t => ({ ...t, fw_version: 1 })); }}>
-                      <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 11, opacity: 0.8 }}>BETA</span>}
+                      <Icon name="tag" size={10}/>{v.tag}{!v.stable && <span style={{ fontSize: 12, opacity: 0.8 }}>BETA</span>}
                     </button>
                   ))}
                   <button type="button" className={`tagpicker__item tagpicker__item--add ${addingFwVer ? 'tagpicker__item--active' : ''}`}
@@ -716,7 +716,7 @@ function ProductionEntryModal({ order, onClose }) {
                 </div>
                 {addingFwVer && (
                   <div className="ver-add-row">
-                    <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 13.5 }}
+                    <input className="input" style={{ fontFamily: 'var(--font-mono)', fontSize: 14 }}
                       aria-label="새 F/W 버전 태그" placeholder="예: v1.8.0-core" value={newFwVerTag}
                       onChange={e => setNewFwVerTag(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') addVersionFW(); if (e.key === 'Escape') setAddingFwVer(false); }} autoFocus/>
@@ -744,9 +744,9 @@ function ProductionEntryModal({ order, onClose }) {
                 style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
               <div style={{ flex: 1 }}>
                 {funcAllDone
-                  ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                  ? <span style={{ fontSize: 14, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                   : funcInspectionData
-                    ? <span style={{ fontSize: 13.5, color: 'var(--warning-700)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
+                    ? <span style={{ fontSize: 14, color: 'var(--warning-700)', fontWeight: 600 }}>검사 미완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                     : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>기능 검사 성적서를 작성해야 출하대기 등록이 가능합니다</span>}
               </div>
               <button type="button" className={`btn btn--sm ${funcInspectionData ? 'btn--secondary' : 'btn--primary'}`} onClick={() => setOpenFuncInspect(true)}>
@@ -838,7 +838,7 @@ function ProductionRevertReviewModal({ order, onClose }) {
           }}>
             <Icon name={funcAllDone ? 'check' : funcInspectionData ? 'clock' : 'doc'} size={16}
               style={{ color: funcAllDone ? 'var(--success-700)' : funcInspectionData ? 'var(--warning-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
-            <div style={{ flex: 1, fontSize: 13.5 }}>
+            <div style={{ flex: 1, fontSize: 14 }}>
               {funcAllDone
                 ? <span style={{ color: 'var(--success-700)', fontWeight: 600 }}>기능검사 완료 · 검사자: {funcInspectionData.inspector} · {funcInspectionData.insp_date}</span>
                 : funcInspectionData
@@ -1098,7 +1098,7 @@ function SalesCompletionModal({ order, onClose }) {
           {isPublic && (
             <section aria-labelledby="scm-comm-title" style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px' }}>
               <PWSectionHead id="scm-comm-title" icon="wifi" title="통신 정보"
-                extra={<span style={{ fontSize: 11, color: 'var(--ink-4)', fontWeight: 500 }}>(공용 전용)</span>}/>
+                extra={<span style={{ fontSize: 12, color: 'var(--ink-4)', fontWeight: 500 }}>(공용 전용)</span>}/>
               <div className="form-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
                 <div className="field">
                   <label className="field__label" htmlFor="scm-station">충전소 ID <span className="field__req">*</span></label>
@@ -1232,9 +1232,9 @@ function ShipReadyModal({ order, onClose }) {
                 style={{ color: shipAllDone ? 'var(--success-700)' : shipData ? 'var(--warning-700)' : 'var(--ink-4)', flexShrink: 0 }}/>
               <div style={{ flex: 1 }}>
                 {shipAllDone
-                  ? <span style={{ fontSize: 13.5, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {shipData.inspector} · {shipData.insp_date}</span>
+                  ? <span style={{ fontSize: 14, color: 'var(--success-700)', fontWeight: 600 }}>검사 완료 · 검사자: {shipData.inspector} · {shipData.insp_date}</span>
                   : shipData
-                    ? <span style={{ fontSize: 13.5, color: 'var(--warning-700)', fontWeight: 600 }}>검사 미완료 · 검사자: {shipData.inspector} · {shipData.insp_date}</span>
+                    ? <span style={{ fontSize: 14, color: 'var(--warning-700)', fontWeight: 600 }}>검사 미완료 · 검사자: {shipData.inspector} · {shipData.insp_date}</span>
                     : <span style={{ fontSize: 13, color: 'var(--ink-4)' }}>출하 완료 처리 전 출하 전 검사 성적서를 작성해야 합니다</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

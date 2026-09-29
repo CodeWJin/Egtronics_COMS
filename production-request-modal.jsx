@@ -326,7 +326,7 @@ function ProductionRequestModal({ order, onClose }) {
                              setAddRowCount(digits === '' ? '' : Math.min(50, parseInt(digits, 10)));
                            }}
                            onBlur={() => setAddRowCount(v => Math.max(1, Math.min(50, parseInt(v, 10) || 1)))}
-                           style={{ width: 44, fontFamily: 'var(--font-mono)', fontSize: 12.5, textAlign: 'center', padding: '5px 4px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', background: 'var(--surface-1)' }}/>
+                           style={{ width: 44, fontFamily: 'var(--font-mono)', fontSize: 13, textAlign: 'center', padding: '5px 4px', border: '1px solid var(--border-1)', borderRadius: 'var(--r-md)', background: 'var(--surface-1)' }}/>
                     <button type="button" className="btn btn--secondary btn--sm"
                             onClick={() => addRow(Math.max(1, Math.min(50, parseInt(addRowCount, 10) || 1)))}>
                       <Icon name="plus" size={12}/> 행 추가
@@ -826,11 +826,11 @@ function OrderHistoryModal({ orderId, onClose }) {
                   </span>
                   <span style={{ fontWeight: 600, color: 'var(--ink-1)', fontSize: 13 }}>{h.changed_by}</span>
                 </div>
-                <span style={{ fontSize: 11.5, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}>{h.changed_at}</span>
+                <span style={{ fontSize: 12, color: 'var(--ink-4)', fontFamily: 'var(--font-mono)', letterSpacing: '0.02em' }}>{h.changed_at}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 4 }}>
                 {(h.changed_fields || []).map((f) => (
-                  <div key={f.field} style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, alignItems: 'start', fontSize: 12.5 }}>
+                  <div key={f.field} style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, alignItems: 'start', fontSize: 13 }}>
                     <span style={{ color: 'var(--ink-3)', paddingTop: 1 }}>{f.label}</span>
                     {h.action === 'create' ? (
                       <span style={{ color: 'var(--ink-1)', wordBreak: 'break-all' }}>{f.after || '—'}</span>

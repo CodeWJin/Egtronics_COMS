@@ -22,8 +22,8 @@
   /* Apple Text */
   --ink-1: #1d1d1f;
   --ink-2: #333333;
-  --ink-3: #6b6b6b;   /* 5.3:1 on white — WCAG AA */
-  --ink-4: #636363;   /* 5.9:1 on #fff · 5.3:1 on --surface-2 — WCAG AA+ */
+  --ink-3: #575757;   /* 7.4:1 on white — 보조 텍스트 */
+  --ink-4: #6b6b6b;   /* 5.3:1 on white · 4.8:1 on --surface-2 — WCAG AA, ink-3보다 한 단계 약함 */
   --ink-5: #cccccc;
   --ink-inv: #ffffff;     /* 항상 밝은 배경 위 역색 — 다크 오버레이 버튼 전용 */
   --placeholder: #737373; /* 4.75:1 on white — WCAG AA for placeholder */
@@ -92,6 +92,13 @@
   --font: 'Pretendard Variable', 'Pretendard', system-ui, -apple-system,
           BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Consolas', ui-monospace, monospace;
+
+  /* Type scale — 최소 12px (현장 태블릿 가독성). 새 font-size는 이 토큰만 사용 */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-base: 17px;
 }
 
 @font-face {
@@ -106,15 +113,15 @@
 html, body { margin: 0; padding: 0; }
 body {
   font-family: var(--font);
-  font-size: 17px;
+  font-size: var(--fs-base);
   line-height: 1.47;
-  letter-spacing: -0.374px;
+  letter-spacing: -0.01em;
   color: var(--ink-1);
   background: var(--bg-canvas);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'tnum';
 }
+.table td, .stat__value, .statrow, .badge, .chip, input[type="number"], input[type="date"] { font-variant-numeric: tabular-nums; }
 
 button { font-family: inherit; }
 input, select, textarea { font-family: inherit; }
@@ -149,8 +156,8 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 9px;
   font-weight: 600;
-  font-size: 12px;
-  letter-spacing: -0.12px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0;
   color: rgba(255, 255, 255, 0.92);
   height: 64px;
 }
@@ -161,7 +168,7 @@ input, select, textarea { font-family: inherit; }
 }
 .topnav__version {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
@@ -185,9 +192,9 @@ input, select, textarea { font-family: inherit; }
   height: 44px;
   display: inline-flex;
   align-items: center;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 400;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
   color: rgba(255, 255, 255, 0.58);
   background: transparent;
   border: none;
@@ -228,7 +235,7 @@ input, select, textarea { font-family: inherit; }
   margin-left: 6px;
   padding: 1px 5px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   border-radius: 4px;
@@ -247,7 +254,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 12px;
   color: rgba(255, 255, 255, 0.62);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   margin-left: auto;
   flex-shrink: 0;
   white-space: nowrap;
@@ -279,17 +286,17 @@ input, select, textarea { font-family: inherit; }
   text-wrap: balance;
 }
 .screen__sub {
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--ink-3);
   margin: 0;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
   text-wrap: pretty;
 }
 .screen__crumbs {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   margin-bottom: 6px;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 .screen__head > *:first-child { flex: 1; min-width: 0; }
 .screen__head > *:last-child  { flex-shrink: 0; }
@@ -310,9 +317,9 @@ input, select, textarea { font-family: inherit; }
   gap: 16px;
 }
 .card__title {
-  font-size: 17px;
+  font-size: var(--fs-base);
   font-weight: 600;
-  letter-spacing: -0.374px;
+  letter-spacing: -0.01em;
   margin: 0;
   color: var(--ink-1);
   display: flex; align-items: center; gap: 8px;
@@ -320,10 +327,10 @@ input, select, textarea { font-family: inherit; }
   word-break: keep-all; /* 한글은 어절(공백) 단위로만 줄바꿈 — 음절 중간 절단 방지 */
 }
 .card__sub {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   margin: 3px 0 0;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 .card__body { padding: 22px 24px; }
 
@@ -342,10 +349,10 @@ input, select, textarea { font-family: inherit; }
   gap: 6px;
 }
 .field__label {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--ink-2);
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -355,7 +362,7 @@ input, select, textarea { font-family: inherit; }
   font-weight: 600;
 }
 .field__hint {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-4);
   margin: 4px 0 0;
   display: flex;
@@ -363,7 +370,7 @@ input, select, textarea { font-family: inherit; }
   gap: 4px;
 }
 .field__err {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--danger);
   margin: 4px 0 0;
   display: flex;
@@ -380,11 +387,11 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface);
   border: 1px solid var(--border-1);
   border-radius: var(--r-sm);
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--ink-1);
   outline: none;
   transition: border-color 140ms, box-shadow 140ms;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
 }
 .input::placeholder { color: var(--placeholder); }
 .input:hover, .select:hover { border-color: var(--border-2); }
@@ -434,7 +441,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--border-1);
   border-left: 0;
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--ink-2);
   cursor: pointer;
@@ -462,25 +469,25 @@ input, select, textarea { font-family: inherit; }
 .combo__item {
   padding: 8px 12px;
   border-radius: var(--r-sm);
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--ink-2);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
 }
 .combo__item:hover, .combo__item--active {
   background: var(--primary-50);
   color: var(--primary);
 }
-.combo__item__meta { font-size: 12px; color: var(--ink-4); }
+.combo__item__meta { font-size: var(--fs-xs); color: var(--ink-4); }
 
 /* Chips — Apple configurator-option-chip style */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
   padding: 8px 14px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 400;
   border: 1px solid var(--border-1);
   border-radius: var(--r-pill);
@@ -488,7 +495,7 @@ input, select, textarea { font-family: inherit; }
   color: var(--ink-2);
   cursor: pointer;
   transition: border-color 140ms, background 140ms, color 140ms;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
 }
 .chip:hover { border-color: var(--border-2); color: var(--ink-1); }
 .chip--active {
@@ -501,7 +508,7 @@ input, select, textarea { font-family: inherit; }
 .tagpicker__item {
   padding: 5px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   border: 1px solid var(--border-1);
   background: var(--surface);
   border-radius: var(--r-sm);
@@ -552,7 +559,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--ink-2);
   cursor: pointer;
   white-space: nowrap;
@@ -566,9 +573,9 @@ input, select, textarea { font-family: inherit; }
   gap: 6px;
   padding: 0 18px;
   height: 36px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 500;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
   border-radius: var(--r-pill);
   cursor: pointer;
   border: 1px solid transparent;
@@ -623,24 +630,24 @@ input, select, textarea { font-family: inherit; }
 .btn--lg {
   height: 44px;
   padding: 0 22px;
-  font-size: 17px;
+  font-size: var(--fs-base);
   font-weight: 400;
-  letter-spacing: -0.374px;
+  letter-spacing: -0.01em;
 }
 .btn--sm {
   height: 30px;
   padding: 0 11px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   border-radius: var(--r-pill);
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 /* 필터·토글 태그 버튼 — btn--sm보다 수평 여백 작음 */
 .btn--tag {
   height: 28px;
   padding: 0 9px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   border-radius: var(--r-pill);
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 .btn--icon {
   padding: 0;
@@ -656,10 +663,10 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 5px;
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   border-radius: 999px;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
   border: 1px solid transparent;
   white-space: nowrap;
 }
@@ -674,7 +681,7 @@ input, select, textarea { font-family: inherit; }
    --dday-color/--dday-bg는 인라인 스타일로 긴급도별 색을 주입받음 */
 .dday-badge {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 999px;
@@ -711,9 +718,9 @@ input, select, textarea { font-family: inherit; }
   box-shadow: 0 0 0 2px var(--primary-50);
 }
 .as-card__header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.as-card__no { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
-.as-card__title { font-size: 13px; font-weight: 600; color: var(--ink-1); }
-.as-card__meta { font-size: 12px; color: var(--ink-4); }
+.as-card__no { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-3); }
+.as-card__title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-1); }
+.as-card__meta { font-size: var(--fs-xs); color: var(--ink-4); }
 /* 체크리스트 행 — label 래퍼에 키보드 포커스 인디케이터 */
 .checklist-row:focus-within {
   outline: 2px solid var(--primary);
@@ -733,8 +740,8 @@ input, select, textarea { font-family: inherit; }
   background: var(--primary); margin-top: 5px; flex-shrink: 0;
 }
 .as-log-item__body { flex: 1; min-width: 0; }
-.as-log-item__title { font-size: 13px; font-weight: 600; color: var(--ink-1); }
-.as-log-item__sub { font-size: 12px; color: var(--ink-4); margin-top: 2px; }
+.as-log-item__title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-1); }
+.as-log-item__sub { font-size: var(--fs-xs); color: var(--ink-4); margin-top: 2px; }
 .as-empty-panel {
   height: 100%; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -758,7 +765,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface-2);
 }
 .ar-match__icon { flex-shrink: 0; }
-.ar-match__text { font-size: 13px; color: var(--ink-3); flex: 1; min-width: 0; }
+.ar-match__text { font-size: var(--fs-sm); color: var(--ink-3); flex: 1; min-width: 0; }
 .ar-match__text strong { color: var(--ink-1); font-weight: 600; }
 .ar-match--success { background: var(--success-50); border-color: var(--success); }
 .ar-match--success .ar-match__icon { color: var(--success-700); }
@@ -807,7 +814,7 @@ input, select, textarea { font-family: inherit; }
 .switch__input:checked ~ .switch__track { background: var(--primary); }
 .switch__input:checked ~ .switch__track::after { transform: translateX(18px); }
 .switch__input:focus-visible ~ .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
-.switch__label { font-size: 14px; color: var(--ink-2); }
+.switch__label { font-size: var(--fs-md); color: var(--ink-2); }
 
 /* ── AS 사진 첨부 탭 ──────────────────────────────────────────── */
 .photo-thumb {
@@ -837,7 +844,7 @@ input, select, textarea { font-family: inherit; }
   bottom: 0; left: 0; right: 0;
   background: linear-gradient(transparent, rgba(0,0,0,0.55));
   padding: 18px 6px 5px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -854,7 +861,7 @@ input, select, textarea { font-family: inherit; }
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   color: #fff;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   line-height: 1;
   transition: background 120ms;
 }
@@ -869,7 +876,7 @@ input, select, textarea { font-family: inherit; }
   justify-content: center;
   padding: 8px;
   color: #fff;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   text-align: center;
   border-radius: var(--r-md);
   gap: 6px;
@@ -877,7 +884,7 @@ input, select, textarea { font-family: inherit; }
 .photo-thumb__confirm-btns { display: flex; gap: 5px; width: 100%; }
 .photo-thumb__confirm-btns button {
   flex: 1; height: 26px; border-radius: var(--r-sm);
-  border: 1px solid rgba(255,255,255,0.3); font-size: 12px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.3); font-size: var(--fs-xs); cursor: pointer;
 }
 .photo-thumb__confirm-btns .btn-ok { background: var(--danger); color: #fff; border-color: var(--danger); }
 .photo-thumb__confirm-btns .btn-cancel { background: transparent; color: #fff; }
@@ -902,7 +909,7 @@ input, select, textarea { font-family: inherit; }
 .photo-lightbox__name {
   margin-top: 12px;
   color: rgba(255,255,255,0.75);
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 .photo-lightbox__close {
   position: absolute;
@@ -975,9 +982,9 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--r-pill);
   background: var(--surface);
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   cursor: pointer;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
   transition: background 140ms, color 140ms, border-color 140ms;
 }
 .toolbar__filter:hover { background: var(--surface-3); }
@@ -998,7 +1005,7 @@ input, select, textarea { font-family: inherit; }
 .toolbar__view__btn {
   height: 28px;
   padding: 0 11px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--ink-3);
   background: transparent;
@@ -1053,14 +1060,14 @@ input, select, textarea { font-family: inherit; }
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 .table th {
   text-align: left;
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
   background: var(--surface-2);
   padding: 11px 16px;
   border-bottom: 1px solid var(--border-1);
@@ -1078,7 +1085,7 @@ input, select, textarea { font-family: inherit; }
   border-bottom: 1px solid var(--border-1);
   color: var(--ink-1);
   vertical-align: middle;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
   text-align: left;
 }
 .table tr:last-child td { border-bottom: 0; }
@@ -1087,9 +1094,9 @@ input, select, textarea { font-family: inherit; }
 .table tr.row--selected { background: var(--primary-50); }
 .table tr.row--selected:hover { background: var(--primary-50); }
 
-.cell-strong { font-weight: 600; letter-spacing: -0.374px; }
-.cell-muted { color: var(--ink-3); font-size: 13px; }
-.cell-mono { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.cell-strong { font-weight: 600; letter-spacing: -0.01em; }
+.cell-muted { color: var(--ink-3); font-size: var(--fs-sm); }
+.cell-mono { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-2); }
 
 /* 조회 화면 테이블 — 태블릿에서는 부가 정보 컬럼(등록일·연결 오더)을 숨겨 스크롤 폭을 줄임 */
 .ol-table { min-width: 816px; }
@@ -1134,7 +1141,7 @@ input, select, textarea { font-family: inherit; }
   padding: 1px 7px;
   border-radius: var(--r-pill);
   background: var(--surface-2);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;
 }
 .btn--primary .as-receipt-count { background: rgba(255, 255, 255, 0.22); }
@@ -1153,11 +1160,11 @@ input, select, textarea { font-family: inherit; }
   flex-wrap: wrap;
 }
 .model-group-head__desc {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
 }
 .model-group-head__cust {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--ink-1);
 }
@@ -1189,20 +1196,20 @@ input, select, textarea { font-family: inherit; }
   padding: 0 4px 4px;
 }
 .kanban__colhead__title {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--ink-1);
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
 }
 .kanban__dot {
   width: 8px; height: 8px;
   border-radius: 50%;
 }
 .kanban__count {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   background: var(--surface);
   border: 1px solid var(--border-1);
@@ -1225,7 +1232,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 6px;
   width: 100%;
-  min-height: 32px;
+  min-height: 44px;
   padding: 4px 4px;
   background: transparent;
   border: none;
@@ -1234,9 +1241,9 @@ input, select, textarea { font-family: inherit; }
   color: var(--ink-1);
   text-align: left;
 }
-.order-tree__head--customer { font-size: 13px; font-weight: 700; }
-.order-tree__head--address { font-size: 12px; font-weight: 600; color: var(--ink-2); }
-.order-tree__head--model { font-size: 11.5px; font-weight: 600; color: var(--ink-3); cursor: default; padding: 4px 4px 3px; }
+.order-tree__head--customer { font-size: var(--fs-sm); font-weight: 700; }
+.order-tree__head--address { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }
+.order-tree__head--model { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-3); cursor: default; padding: 4px 4px 3px; }
 .order-tree__head--customer:hover,
 .order-tree__head--address:hover { background: var(--surface); }
 .order-tree__head:focus-visible {
@@ -1245,7 +1252,7 @@ input, select, textarea { font-family: inherit; }
 }
 .order-tree__label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .order-tree__count {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   background: var(--surface);
   border: 1px solid var(--border-1);
@@ -1274,7 +1281,7 @@ input, select, textarea { font-family: inherit; }
   outline-offset: 2px;
   border-color: var(--primary);
 }
-.order-tree__serial { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.order-tree__serial { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-2); }
 
 .order-tree__progress { display: flex; align-items: center; gap: 6px; width: 100%; flex-shrink: 0; order: 10; }
 .order-tree__progress-track {
@@ -1295,7 +1302,7 @@ input, select, textarea { font-family: inherit; }
   .order-tree__progress-fill { transition: none; }
 }
 .order-tree__progress-text {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 600;
   white-space: nowrap;
@@ -1337,21 +1344,21 @@ input, select, textarea { font-family: inherit; }
   justify-content: space-between;
   align-items: center;
 }
-.ordercard__id { font-family: var(--font-mono); font-size: 11px; color: var(--ink-4); }
+.ordercard__id { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-4); }
 .ordercard__model {
   font-weight: 600;
-  font-size: 17px;
-  letter-spacing: -0.374px;
+  font-size: var(--fs-base);
+  letter-spacing: -0.01em;
   color: var(--ink-1);
 }
-.ordercard__cust { font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+.ordercard__cust { font-size: var(--fs-md); color: var(--ink-2); margin-top: 2px; }
 .ordercard__rows {
   display: grid;
   grid-template-columns: auto 1fr;
   column-gap: 12px;
   row-gap: 7px;
-  font-size: 13px;
-  letter-spacing: -0.12px;
+  font-size: var(--fs-sm);
+  letter-spacing: 0;
 }
 .ordercard__rows dt { color: var(--ink-4); }
 .ordercard__rows dd { margin: 0; color: var(--ink-2); }
@@ -1380,7 +1387,7 @@ input, select, textarea { font-family: inherit; }
 }
 .timeline__day:first-child { border-top: 0; }
 .timeline__date {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   display: flex;
   flex-direction: column;
@@ -1394,7 +1401,7 @@ input, select, textarea { font-family: inherit; }
   line-height: 1;
 }
 .timeline__date span {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-4);
 }
 .timeline__items {
@@ -1416,8 +1423,8 @@ input, select, textarea { font-family: inherit; }
 }
 .timeline__item:hover { background: var(--surface); border-color: var(--border-1); }
 .timeline__item__main { display: flex; flex-direction: column; gap: 2px; }
-.timeline__item__title { font-weight: 600; font-size: 14px; color: var(--ink-1); letter-spacing: -0.224px; }
-.timeline__item__sub { font-size: 12px; color: var(--ink-3); }
+.timeline__item__title { font-weight: 600; font-size: var(--fs-md); color: var(--ink-1); letter-spacing: -0.005em; }
+.timeline__item__sub { font-size: var(--fs-xs); color: var(--ink-3); }
 
 /* ============================================================
    Misc
@@ -1432,8 +1439,8 @@ input, select, textarea { font-family: inherit; }
   display: grid;
   grid-template-columns: 110px 1fr;
   gap: 8px 16px;
-  font-size: 14px;
-  letter-spacing: -0.224px;
+  font-size: var(--fs-md);
+  letter-spacing: -0.005em;
 }
 .kv dt { color: var(--ink-4); font-weight: 500; }
 .kv dd { margin: 0; color: var(--ink-1); }
@@ -1454,8 +1461,8 @@ input, select, textarea { font-family: inherit; }
 }
 .readonly-strip__lbl {
   display: flex; align-items: center; gap: 8px;
-  font-size: 12px;
-  letter-spacing: -0.12px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0;
   color: var(--ink-3);
   font-weight: 500;
 }
@@ -1465,9 +1472,9 @@ input, select, textarea { font-family: inherit; }
   gap: 14px 20px;
 }
 .readonly-strip__cell { display: flex; flex-direction: column; gap: 3px; }
-.readonly-strip__cell__k { font-size: 12px; color: var(--ink-4); }
-.readonly-strip__cell__v { font-size: 14px; color: var(--ink-1); font-weight: 500; letter-spacing: -0.224px; }
-.readonly-strip__cell__v--mono { font-family: var(--font-mono); font-size: 12px; font-weight: 400; }
+.readonly-strip__cell__k { font-size: var(--fs-xs); color: var(--ink-4); }
+.readonly-strip__cell__v { font-size: var(--fs-md); color: var(--ink-1); font-weight: 500; letter-spacing: -0.005em; }
+.readonly-strip__cell__v--mono { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 400; }
 
 .emptystate {
   display: flex;
@@ -1478,8 +1485,8 @@ input, select, textarea { font-family: inherit; }
   color: var(--ink-3);
   text-align: center;
 }
-.emptystate__title { font-size: 17px; color: var(--ink-2); font-weight: 600; letter-spacing: -0.374px; }
-.emptystate__sub { font-size: 14px; color: var(--ink-4); letter-spacing: -0.224px; }
+.emptystate__title { font-size: var(--fs-base); color: var(--ink-2); font-weight: 600; letter-spacing: -0.01em; }
+.emptystate__sub { font-size: var(--fs-md); color: var(--ink-4); letter-spacing: -0.005em; }
 
 /* 화면 전환 애니메이션 */
 @keyframes screenin {
@@ -1496,8 +1503,8 @@ input, select, textarea { font-family: inherit; }
   color: white;
   padding: 11px 18px;
   border-radius: var(--r-pill);
-  font-size: 14px;
-  letter-spacing: -0.224px;
+  font-size: var(--fs-md);
+  letter-spacing: -0.005em;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1557,7 +1564,7 @@ input, select, textarea { font-family: inherit; }
   line-height: 1.19;
   color: var(--ink-1);
 }
-.modal__sub { font-size: 14px; color: var(--ink-3); margin: 4px 0 0; letter-spacing: -0.224px; }
+.modal__sub { font-size: var(--fs-md); color: var(--ink-3); margin: 4px 0 0; letter-spacing: -0.005em; }
 .modal__body { padding: 16px 24px 20px; }
 .modal__foot {
   padding: 14px 24px;
@@ -1591,10 +1598,10 @@ input, select, textarea { font-family: inherit; }
     min-width: 0;
   }
   .topnav__tabs::-webkit-scrollbar { display: none; }
-  .topnav__tab { padding: 0 10px; font-size: 14px; white-space: nowrap; flex-shrink: 0; }
-  .topnav__right { gap: 8px; font-size: 11px; }
+  .topnav__tab { padding: 0 10px; font-size: var(--fs-md); white-space: nowrap; flex-shrink: 0; }
+  .topnav__right { gap: 8px; font-size: var(--fs-xs); }
   .usermenu__role { padding: 2px 6px !important; }
-  .usermenu__name { font-size: 11px; }
+  .usermenu__name { font-size: var(--fs-xs); }
 
   .screen { padding: 20px 18px 48px; }
   .screen__head { flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
@@ -1632,18 +1639,18 @@ input, select, textarea { font-family: inherit; }
   .topnav { padding: 0 12px; gap: 4px; height: 54px; justify-content: space-between; }
   /* 모바일에서는 하단 탭바(.mobilenav)가 화면 이동을 담당 — 상단 탭 제거로 헤더를 브랜드+계정만 남김 */
   .topnav__tabs { display: none; }
-  .topnav__tab { padding: 0 8px; font-size: 12px; }
+  .topnav__tab { padding: 0 8px; font-size: var(--fs-xs); }
   .topnav__count { display: none; }
 
   .topnav__right { gap: 4px; }
   .usermenu__name { display: none; }
-  .usermenu__role { font-size: 11px !important; padding: 2px 5px !important; }
+  .usermenu__role { font-size: var(--fs-xs) !important; padding: 2px 5px !important; }
 
   /* 하단 탭바 높이 + 홈 인디케이터만큼 여백 확보 */
   .screen { padding: 14px 14px calc(84px + env(safe-area-inset-bottom, 0px)); }
   .screen__head { margin-bottom: 14px; }
   .screen__title { font-size: 21px; }
-  .screen__sub { font-size: 13px; }
+  .screen__sub { font-size: var(--fs-sm); }
 
   .statrow { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .stat { padding: 14px 16px; }
@@ -1702,9 +1709,9 @@ input, select, textarea { font-family: inherit; }
   /* 토스트는 하단 탭바 위에 표시 */
   .toast {
     bottom: calc(76px + env(safe-area-inset-bottom, 0px));
-    max-width: 90vw; font-size: 13px; padding: 10px 16px;
+    max-width: 90vw; font-size: var(--fs-sm); padding: 10px 16px;
   }
-  .btn--lg { height: 44px; padding: 0 18px; font-size: 15px; }
+  .btn--lg { height: 44px; padding: 0 18px; font-size: var(--fs-lg); }
 
   /* ── 충전기 통합 조회 — 모바일 카드 리스트 ──
      테이블 레이아웃을 해제하고 각 행을 2컬럼 그리드 카드로 재구성.
@@ -1729,7 +1736,7 @@ input, select, textarea { font-family: inherit; }
   .ol-table .ol-table__col--serial {
     grid-column: 1; grid-row: 1;
     font-family: var(--font-mono);
-    font-size: 13.5px;
+    font-size: var(--fs-md);
     font-weight: 700;
     color: var(--ink-1);
     letter-spacing: -0.1px;
@@ -1749,7 +1756,7 @@ input, select, textarea { font-family: inherit; }
   /* 설치 주소 — 좌 중단, 말줄임 */
   .ol-table .ol-table__col--address {
     grid-column: 1; grid-row: 2;
-    font-size: 13px;
+    font-size: var(--fs-sm);
     color: var(--ink-3);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1771,8 +1778,8 @@ input, select, textarea { font-family: inherit; }
     grid-column: 2; grid-row: 2 / 4;
     align-self: start;
   }
-  .ol-table .ol-table__col--linked .cell-strong { font-size: 12px; }
-  .ol-table .ol-table__col--linked .cell-muted { font-size: 11px; }
+  .ol-table .ol-table__col--linked .cell-strong { font-size: var(--fs-xs); }
+  .ol-table .ol-table__col--linked .cell-muted { font-size: var(--fs-xs); }
   /* 화살표 아이콘 — 카드 레이아웃에서 불필요 */
   .ol-table .ol-table__col--arrow { display: none !important; }
 }
@@ -1789,7 +1796,7 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   color: var(--ink-3);
 }
 .sales-buttons {
@@ -1843,7 +1850,7 @@ input, select, textarea { font-family: inherit; }
 }
 .sales-summary-strip summary {
   padding: 12px 16px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--ink-2);
   cursor: pointer;
@@ -1861,10 +1868,10 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--ink-2);
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
   margin: 0 0 4px;
 }
 .section-title__num {
@@ -1872,7 +1879,7 @@ input, select, textarea { font-family: inherit; }
   border-radius: 999px;
   background: var(--primary);
   color: white;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   display: grid; place-items: center;
 }
@@ -1897,7 +1904,7 @@ input, select, textarea { font-family: inherit; }
   border-radius: 50%;
   background: var(--surface-3);
   color: var(--ink-3);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   display: inline-grid;
   place-items: center;
@@ -1923,10 +1930,10 @@ input, select, textarea { font-family: inherit; }
   max-width: 240px;
   background: var(--ink-1);
   color: #fff;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 400;
   line-height: 1.5;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
   padding: 8px 10px;
   border-radius: var(--r-sm);
   box-shadow: var(--shadow-3);
@@ -1967,10 +1974,10 @@ input, select, textarea { font-family: inherit; }
   justify-content: space-between;
 }
 .stat__label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-3);
   font-weight: 500;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 .stat__icon {
   width: 30px; height: 30px;
@@ -1990,8 +1997,8 @@ input, select, textarea { font-family: inherit; }
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.stat__value small { font-size: 14px; font-weight: 400; color: var(--ink-4); margin-left: 3px; }
-.stat__foot { font-size: 12px; color: var(--ink-4); letter-spacing: -0.12px; }
+.stat__value small { font-size: var(--fs-md); font-weight: 400; color: var(--ink-4); margin-left: 3px; }
+.stat__foot { font-size: var(--fs-xs); color: var(--ink-4); letter-spacing: 0; }
 .stat--btn {
   cursor: pointer;
   text-align: left;
@@ -2057,7 +2064,7 @@ input, select, textarea { font-family: inherit; }
   flex-shrink: 0;
 }
 .drawer__eyebrow {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
   color: var(--ink-4);
   margin-bottom: 6px;
@@ -2106,9 +2113,9 @@ input, select, textarea { font-family: inherit; }
   flex-shrink: 0;
 }
 .dsec__title {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
   color: var(--ink-3);
   display: flex;
   align-items: center;
@@ -2122,9 +2129,9 @@ input, select, textarea { font-family: inherit; }
 }
 .dgrid__cell { display: flex; flex-direction: column; gap: 3px; }
 .dgrid__cell--full { grid-column: 1 / -1; }
-.dgrid__k { font-size: 12px; color: var(--ink-4); letter-spacing: -0.12px; }
-.dgrid__v { font-size: 14px; color: var(--ink-1); font-weight: 500; letter-spacing: -0.224px; }
-.dgrid__v--mono { font-family: var(--font-mono); font-size: 12px; font-weight: 400; }
+.dgrid__k { font-size: var(--fs-xs); color: var(--ink-4); letter-spacing: 0; }
+.dgrid__v { font-size: var(--fs-md); color: var(--ink-1); font-weight: 500; letter-spacing: -0.005em; }
+.dgrid__v--mono { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 400; }
 
 /* ============================================================
    성적서 (inspection report) document
@@ -2151,7 +2158,7 @@ input, select, textarea { font-family: inherit; }
   background: var(--surface-2);
   flex-shrink: 0;
 }
-.report__bar__label { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 7px; letter-spacing: -0.12px; }
+.report__bar__label { font-size: var(--fs-sm); color: var(--ink-3); display: flex; align-items: center; gap: 7px; letter-spacing: 0; }
 .report__scroll { overflow: auto; padding: 36px 44px; }
 .report__doc { color: var(--ink-1); }
 .report__hd {
@@ -2163,10 +2170,10 @@ input, select, textarea { font-family: inherit; }
   margin-bottom: 22px;
 }
 .report__hd__title { font-size: 24px; font-weight: 700; letter-spacing: 0.06em; margin: 0; }
-.report__hd__sub { font-size: 12px; color: var(--ink-3); margin-top: 6px; letter-spacing: 0.02em; }
-.report__hd__no { text-align: right; font-size: 12px; color: var(--ink-3); }
-.report__hd__no strong { display: block; font-family: var(--font-mono); font-size: 14px; color: var(--ink-1); margin-top: 3px; }
-.report__table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 20px; }
+.report__hd__sub { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 6px; letter-spacing: 0.02em; }
+.report__hd__no { text-align: right; font-size: var(--fs-xs); color: var(--ink-3); }
+.report__hd__no strong { display: block; font-family: var(--font-mono); font-size: var(--fs-md); color: var(--ink-1); margin-top: 3px; }
+.report__table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); margin-bottom: 20px; }
 .report__table th {
   text-align: left;
   width: 130px;
@@ -2175,21 +2182,21 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--border-2);
   font-weight: 600;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   vertical-align: middle;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 .report__table td {
   padding: 11px 14px;
   border: 1px solid var(--border-2);
   color: var(--ink-1);
   vertical-align: middle;
-  letter-spacing: -0.224px;
+  letter-spacing: -0.005em;
 }
-.report__mono { font-family: var(--font-mono); font-size: 12px; }
+.report__mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
 .report__pass {
   display: inline-flex; align-items: center; gap: 6px;
-  color: var(--success-700); font-weight: 700; font-size: 14px;
+  color: var(--success-700); font-weight: 700; font-size: var(--fs-md);
   border: 1.5px solid var(--success); border-radius: 999px;
   padding: 4px 14px;
 }
@@ -2201,7 +2208,7 @@ input, select, textarea { font-family: inherit; }
   padding-top: 20px;
   border-top: 1px dashed var(--border-2);
 }
-.report__seal__txt { font-size: 14px; color: var(--ink-3); line-height: 1.7; }
+.report__seal__txt { font-size: var(--fs-md); color: var(--ink-3); line-height: 1.7; }
 .report__stamp {
   width: 84px; height: 84px;
   border: 2.5px solid var(--danger);
@@ -2209,7 +2216,7 @@ input, select, textarea { font-family: inherit; }
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   letter-spacing: 0.06em;
   transform: rotate(-9deg);
@@ -2228,11 +2235,11 @@ input, select, textarea { font-family: inherit; }
   .report__hd { flex-direction: column; gap: 8px; }
   .report__hd__no { text-align: left; }
   .report__hd__title { font-size: 18px; }
-  .report__table th { width: 74px; padding: 8px 10px; font-size: 12px; }
-  .report__table td { padding: 8px 10px; font-size: 12.5px; }
-  .report__table .report__mono { font-size: 10.5px; word-break: break-all; }
+  .report__table th { width: 74px; padding: 8px 10px; font-size: var(--fs-xs); }
+  .report__table td { padding: 8px 10px; font-size: var(--fs-sm); }
+  .report__table .report__mono { font-size: var(--fs-xs); word-break: break-all; }
   .report__seal { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .report__seal__txt { font-size: 13px; }
+  .report__seal__txt { font-size: var(--fs-sm); }
 }
 
 @media print {
@@ -2290,7 +2297,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .login__side__brand-name {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.85);
@@ -2321,7 +2328,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   gap: 12px;
   color: rgba(255, 255, 255, 0.58);
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   letter-spacing: -0.18px;
 }
 
@@ -2339,7 +2346,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .login__side__foot {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 0.02em;
 }
@@ -2388,19 +2395,19 @@ input, select, textarea { font-family: inherit; }
 .login__form .input-group__btn { height: 46px; }
 .login__err {
   display: flex; align-items: center; gap: 6px;
-  font-size: 13px; color: var(--danger-700);
+  font-size: var(--fs-sm); color: var(--danger-700);
   background: var(--danger-50);
   border: 1px solid var(--danger);
   border-radius: var(--r-md);
   padding: 9px 14px;
-  letter-spacing: -0.12px;
+  letter-spacing: 0;
 }
 .login__submit {
   width: 100%;
   margin-top: 4px;
   border-radius: var(--r-pill) !important;
   height: 46px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 600;
 }
 
@@ -2425,8 +2432,8 @@ input, select, textarea { font-family: inherit; }
 .login__demo__toggle {
   display: flex; align-items: center; gap: 5px;
   background: transparent; border: 0; cursor: pointer;
-  font-size: 13px; color: var(--ink-3); font-weight: 500;
-  padding: 0; letter-spacing: -0.12px;
+  font-size: var(--fs-sm); color: var(--ink-3); font-weight: 500;
+  padding: 0; letter-spacing: 0;
 }
 .login__demo__toggle:hover { color: var(--ink-1); }
 .login__demo__list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
@@ -2441,11 +2448,11 @@ input, select, textarea { font-family: inherit; }
   transition: border-color 120ms;
 }
 .login__demo__item:hover { border-color: var(--primary); background: var(--surface); }
-.login__demo__id { font-family: var(--font-mono); font-size: 13px; color: var(--ink-1); font-weight: 500; }
-.login__demo__pw { font-size: 12px; color: var(--ink-4); margin-left: auto; }
+.login__demo__id { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--ink-1); font-weight: 500; }
+.login__demo__pw { font-size: var(--fs-xs); color: var(--ink-4); margin-left: auto; }
 .login__demo__role,
 .usermenu__role {
-  font-size: 12px; font-weight: 500;
+  font-size: var(--fs-xs); font-weight: 500;
   padding: 2px 8px; border-radius: 999px;
   background: var(--surface-3); color: var(--ink-2);
 }
@@ -2469,7 +2476,7 @@ input, select, textarea { font-family: inherit; }
   display: flex; align-items: center; gap: 6px;
   margin-top: 24px; padding-top: 18px;
   border-top: 1px solid var(--border-1);
-  font-size: 12px; color: var(--ink-4);
+  font-size: var(--fs-xs); color: var(--ink-4);
 }
 
 /* ============================================================
@@ -2484,7 +2491,7 @@ input, select, textarea { font-family: inherit; }
   cursor: pointer;
 }
 .usermenu__trigger:hover { background: rgba(255,255,255,0.10); }
-.usermenu__name { font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.88); letter-spacing: -0.12px; }
+.usermenu__name { font-size: var(--fs-xs); font-weight: 500; color: rgba(255,255,255,0.88); letter-spacing: 0; }
 .usermenu__pop {
   position: absolute;
   top: calc(100% + 8px);
@@ -2499,8 +2506,8 @@ input, select, textarea { font-family: inherit; }
   animation: modalin 160ms ease;
 }
 .usermenu__head { padding: 10px 12px 8px; }
-.usermenu__head__name { font-size: 14px; font-weight: 600; color: var(--ink-1); letter-spacing: -0.224px; }
-.usermenu__head__sub { font-size: 14px; color: var(--ink-4); margin-top: 3px; }
+.usermenu__head__name { font-size: var(--fs-md); font-weight: 600; color: var(--ink-1); letter-spacing: -0.005em; }
+.usermenu__head__sub { font-size: var(--fs-md); color: var(--ink-4); margin-top: 3px; }
 .usermenu__divider { height: 1px; background: var(--border-1); margin: 4px 0; }
 .usermenu__item {
   display: flex; align-items: center; gap: 9px;
@@ -2508,8 +2515,8 @@ input, select, textarea { font-family: inherit; }
   padding: 9px 12px;
   background: transparent; border: 0;
   border-radius: var(--r-sm);
-  font-size: 14px; color: var(--ink-2);
-  cursor: pointer; letter-spacing: -0.224px;
+  font-size: var(--fs-md); color: var(--ink-2);
+  cursor: pointer; letter-spacing: -0.005em;
 }
 .usermenu__item:hover { background: var(--danger-50); color: var(--danger-700); }
 
@@ -2538,8 +2545,8 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--r-md);
 }
 .mgr-row__main { flex: 1; min-width: 0; }
-.mgr-row__name { font-size: 14px; font-weight: 600; color: var(--ink-1); display: flex; align-items: center; letter-spacing: -0.224px; }
-.mgr-row__meta { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.mgr-row__name { font-size: var(--fs-md); font-weight: 600; color: var(--ink-1); display: flex; align-items: center; letter-spacing: -0.005em; }
+.mgr-row__meta { font-size: var(--fs-xs); color: var(--ink-3); margin-top: 2px; }
 .mgr-row__actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 
 .mgr-edit {
@@ -2547,10 +2554,10 @@ input, select, textarea { font-family: inherit; }
   padding: 14px; background: var(--surface-2);
   display: flex; flex-direction: column; gap: 10px;
 }
-.mgr-edit__title { font-size: 13px; font-weight: 600; color: var(--ink-2); letter-spacing: -0.12px; }
+.mgr-edit__title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); letter-spacing: 0; }
 .mgr-edit__primary {
   display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--ink-2); cursor: pointer;
+  font-size: var(--fs-sm); color: var(--ink-2); cursor: pointer;
 }
 .mgr-edit__primary input { width: 15px; height: 15px; accent-color: var(--primary); }
 
@@ -2562,7 +2569,7 @@ input, select, textarea { font-family: inherit; }
 .stepper__item {
   display: flex; align-items: center; gap: 7px;
   flex: 1;
-  font-size: 12px; color: var(--ink-4);
+  font-size: var(--fs-xs); color: var(--ink-4);
 }
 .stepper__item:not(:last-child)::after {
   content: ''; flex: 1; height: 1px; background: var(--border-1); margin-left: 2px;
@@ -2571,7 +2578,7 @@ input, select, textarea { font-family: inherit; }
   width: 22px; height: 22px; flex-shrink: 0;
   border-radius: 999px;
   display: grid; place-items: center;
-  font-size: 11px; font-weight: 700;
+  font-size: var(--fs-xs); font-weight: 700;
   background: var(--surface-3); color: var(--ink-4);
   border: 1px solid var(--border-1);
 }
@@ -2591,8 +2598,8 @@ input, select, textarea { font-family: inherit; }
   background: var(--success-50); color: var(--success-700);
   margin-bottom: 2px;
 }
-.reset-done__title { font-size: 17px; font-weight: 600; color: var(--ink-1); letter-spacing: -0.374px; }
-.reset-done__sub { font-size: 14px; color: var(--ink-3); line-height: 1.5; letter-spacing: -0.224px; }
+.reset-done__title { font-size: var(--fs-base); font-weight: 600; color: var(--ink-1); letter-spacing: -0.01em; }
+.reset-done__sub { font-size: var(--fs-md); color: var(--ink-3); line-height: 1.5; letter-spacing: -0.005em; }
 
 /* ============================================================
    Focus indicators — keyboard navigation (WCAG 2.4.7)
@@ -2987,9 +2994,9 @@ input, select, textarea { font-family: inherit; }
   }
   .mobilenav__icon { position: relative; display: inline-flex; }
   .mobilenav__label {
-    font-size: 10.5px;
+    font-size: var(--fs-xs);
     font-weight: 600;
-    letter-spacing: -0.12px;
+    letter-spacing: 0;
     white-space: nowrap;
   }
   .mobilenav__badge {
@@ -3000,7 +3007,7 @@ input, select, textarea { font-family: inherit; }
     border-radius: 999px;
     background: var(--danger);
     color: #fff;
-    font-size: 9.5px;
+    font-size: var(--fs-xs);
     font-weight: 700;
     line-height: 15px;
     text-align: center;
@@ -3026,7 +3033,7 @@ input, select, textarea { font-family: inherit; }
   display: inline-block;
   margin-left: 4px;
   padding: 0 5px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   border-radius: 8px;

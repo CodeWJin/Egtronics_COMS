@@ -74,7 +74,7 @@ function UserFormModal({ mode, initial, onSave, onClose }) {
           )}
           {isEdit && (
             <div className="field">
-              <label className="field__label" htmlFor="uf-password-reset">비밀번호 재설정 <span style={{ color: 'var(--ink-4)', fontSize: 11 }}>(비워두면 변경 안함)</span></label>
+              <label className="field__label" htmlFor="uf-password-reset">비밀번호 재설정 <span style={{ color: 'var(--ink-4)', fontSize: 12 }}>(비워두면 변경 안함)</span></label>
               <div className="input-group">
                 <input id="uf-password-reset" className="input" type={showPw ? 'text' : 'password'}
                   autoComplete="new-password" value={form.password || ''}
@@ -146,7 +146,7 @@ function DeleteConfirmModal({ user, onConfirm, onClose }) {
         <div className="modal__body">
           <p style={{ margin: 0, color: 'var(--ink-2)', lineHeight: 1.6 }}>
             <strong style={{ color: 'var(--ink-1)' }}>{user.name}</strong> (@{user.user_id}) 계정을 삭제하시겠습니까?<br/>
-            <span style={{ fontSize: 12.5, color: 'var(--danger)' }}>이 작업은 되돌릴 수 없습니다.</span>
+            <span style={{ fontSize: 13, color: 'var(--danger)' }}>이 작업은 되돌릴 수 없습니다.</span>
           </p>
         </div>
         <div className="modal__foot">
@@ -229,7 +229,7 @@ function AdminUsersScreen() {
               {r.value === 'production' && '생산 대기 · 조회'}
               {r.value === 'quality' && '출하 대기 · 조회 · A/S 접수 · A/S 처리 (유지보수/기술지원)'}
             </div>
-            <div style={{ marginTop: 8, fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 500 }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-3)', fontWeight: 500 }}>
               {users.filter(u => u.role === r.value).length}명
             </div>
           </div>
@@ -244,7 +244,7 @@ function AdminUsersScreen() {
               placeholder="이름·아이디·부서 검색"
               value={search} onChange={e => setSearch(e.target.value)}/>
           </div>
-          <span style={{ fontSize: 12.5, color: 'var(--ink-4)', marginLeft: 'auto' }}>총 {users.length}명</span>
+          <span style={{ fontSize: 13, color: 'var(--ink-4)', marginLeft: 'auto' }}>총 {users.length}명</span>
         </div>
 
         <div className="table-wrap">
@@ -275,7 +275,7 @@ function AdminUsersScreen() {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span className="cell-strong">{u.name}</span>
-                      {u.user_id === currentUserId && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 999, background: 'var(--primary-50)', color: 'var(--primary-600)', fontWeight: 600 }}>본인</span>}
+                      {u.user_id === currentUserId && <span style={{ fontSize: 12, padding: '1px 6px', borderRadius: 999, background: 'var(--primary-50)', color: 'var(--primary-600)', fontWeight: 600 }}>본인</span>}
                     </div>
                   </td>
                   <td><span>{u.user_id}</span></td>
